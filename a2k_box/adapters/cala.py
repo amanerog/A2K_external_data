@@ -178,7 +178,7 @@ class CalaAdapter(ProviderAdapter):
         if entry is None:
             return None
         cached_at, properties = entry
-        if time.monotonic() - cached_at > config.cala_introspection_cache_ttl_seconds:
+        if time.monotonic() - cached_at >= config.cala_introspection_cache_ttl_seconds:
             del self._introspection_cache[entity_id]
             return None
         return properties

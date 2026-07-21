@@ -81,6 +81,20 @@ async def source_card(source: str) -> dict:
     return load_card(source).model_dump(mode="json")
 
 
+async def _parse_body(request: Request) -> dict | JSONResponse:
+    """Parse the request body as JSON, or a ready-to-return 400 on failure.
+
+    ``Request.json()`` raises ``json.JSONDecodeError`` on an empty or
+    malformed body, which FastAPI does not translate into the A2K error
+    envelope -- left uncaught it surfaces as an unhandled 500.
+    """
+    try:
+        return await request.json()
+    except json.JSONDecodeError as exc:
+        err = A2KError(ErrorCode.SCHEMA_VALIDATION_FAILED, f"Invalid JSON body: {exc}")
+        return JSONResponse(status_code=400, content={"ok": False, "error": err.to_dict()})
+
+
 async def _dispatch(operation: str, body: dict, sources: list[str] | None) -> JSONResponse:
     if operation not in OPERATIONS:
         err = A2KError(ErrorCode.UNSUPPORTED_OPERATION, f"Unsupported operation: {operation!r}.")
@@ -126,7 +140,9 @@ async def stream_ask(request: Request) -> StreamingResponse:
     `ask` would return, so a client validating the footer gets a genuine
     verification, just not genuine incremental generation.
     """
-    body = await request.json()
+    body = await _parse_body(request)
+    if isinstance(body, JSONResponse):
+        return body
     try:
         req = A2KRequest.model_validate({**body, "operation": "ask"})
     except ValidationError as exc:
@@ -161,7 +177,9 @@ async def stream_ask(request: Request) -> StreamingResponse:
 
 @app.post("/a2k/{operation}")
 async def gateway_operation(operation: str, request: Request) -> JSONResponse:
-    body = await request.json()
+    body = await _parse_body(request)
+    if isinstance(body, JSONResponse):
+        return body
     return await _dispatch(operation, body, sources=None)
 
 
@@ -169,7 +187,9 @@ async def gateway_operation(operation: str, request: Request) -> JSONResponse:
 async def source_operation(source: str, operation: str, request: Request) -> JSONResponse:
     if source not in SOURCES:
         raise HTTPException(status_code=404, detail=f"Unknown source: {source!r}. Known: {sorted(SOURCES)}")
-    body = await request.json()
+    body = await _parse_body(request)
+    if isinstance(body, JSONResponse):
+        return body
     return await _dispatch(operation, body, sources=[source])
 
 
