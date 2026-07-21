@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: a2k-box-config
+  namespace: a2k-box
+data:
+  # Flip to "live" once CALA_API_KEY / SAYARI_CLIENT_ID / SAYARI_CLIENT_SECRET
+  # are populated in secret-provider-creds.yaml (see README "Deploy to EKS").
+  A2K_BOX_MODE: "mock"
+  A2K_BOX_HOST: "0.0.0.0"
+  A2K_BOX_PORT: "8000"
+  A2K_BOX_PUBLIC_URL: "http://a2k-box.a2k-box.svc.cluster.local:8000"
+  A2K_IMMUTABLE_AUDIT: "true"
+  A2K_AUDIT_STDOUT: "true"
+  A2K_SIGNING_KEY_PATH: "/app/keys/gateway_ed25519.pem"
+  A2K_AUDIT_LOG_PATH: "/app/audit/audit.jsonl"

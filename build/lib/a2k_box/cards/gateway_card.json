@@ -1,0 +1,181 @@
+{
+  "a2kVersion": "0.6-baseline",
+  "profile": "enterprise",
+  "id": "urn:a2k:gateway:k2-external-intel",
+  "name": "K2 External Intelligence Gateway",
+  "description": "A2K-KCP Gateway (per A2K-Overview's Gateway topology) fanning out to two vendor knowledge sources -- Cala (financial/legal/regulatory filings) and Sayari (ownership/risk graph) -- so the K2 agent can ask one question and receive a single cited-response envelope. When both sources disagree, the gateway surfaces the disagreement via `conflicts`/`conflictReport` rather than silently picking one (A2K-KCP section 12.4). Exposed over both REST (this card) and MCP (resource a2k://card).",
+  "url": "http://localhost:8000",
+  "transport": "https-json",
+  "enterprise": {
+    "ownership": {
+      "ownerTeam": "K2 External Intelligence Gateway",
+      "businessOwner": {
+        "type": "group",
+        "id": "grp:k2-platform-owners",
+        "identityProvider": "internal",
+        "name": "K2 Platform Owners",
+        "contact": "k2-platform@example.com"
+      },
+      "technicalOwner": {
+        "type": "group",
+        "id": "grp:k2-platform-ops",
+        "identityProvider": "internal",
+        "name": "K2 Platform Operations",
+        "contact": "k2-platform@example.com"
+      },
+      "maintainers": ["k2-platform@example.com"],
+      "supportChannel": "#k2-external-intel",
+      "escalationPolicy": "Contact the K2 Platform Owners for gateway behavior; contact the individual vendor (Cala or Sayari) for upstream data corrections."
+    },
+    "authority": {
+      "systemOfRecord": "vendor",
+      "sorScope": ["corporate-intelligence-fanout"],
+      "authorityScope": "This gateway is not itself a system of record; it federates two vendor sources and is authoritative only to the extent each cited source is.",
+      "relationship": "aggregation-gateway",
+      "publisher": "K2 Platform",
+      "proof": {
+        "method": "governance-approval",
+        "approvedBy": "K2 Platform Owners",
+        "approvalReference": "N/A -- internal tool, no external governance workflow yet",
+        "approvedAt": null
+      }
+    },
+    "lifecycle": {
+      "status": "active",
+      "createdAt": "2026-07-14T00:00:00Z",
+      "lastUpdated": "2026-07-14T00:00:00Z",
+      "reviewedAt": "2026-07-14T00:00:00Z",
+      "reviewBy": "2027-01-14",
+      "attestation": {
+        "lastAttested": "2026-07-14T00:00:00Z",
+        "nextAttestationDue": "2027-01-14T00:00:00Z",
+        "attestedBy": "k2-platform@example.com",
+        "actionOnExpiry": "downgrade-to-unverified"
+      },
+      "deprecationDate": null,
+      "supersededBy": null,
+      "replacementKbId": null,
+      "changeLogUrl": null
+    },
+    "access": {
+      "visibility": "internal",
+      "dataClassification": "public",
+      "audiences": ["k2-agent", "employees"],
+      "requiredScopes": [],
+      "allowedDepartments": [],
+      "restrictedDepartments": [],
+      "crossDepartmentUse": true,
+      "externalUseAllowed": false,
+      "requiresUserContext": false,
+      "rowLevelSecurity": false,
+      "ethicalWallSensitive": false
+    }
+  },
+  "knowledgeProfile": {
+    "domains": ["finance", "legal", "compliance", "risk"],
+    "topics": [
+      "sec-filings",
+      "ofac-sanctions",
+      "business-registries",
+      "beneficial-ownership",
+      "corporate-relationships",
+      "adverse-media",
+      "risk-screening"
+    ],
+    "coverage": {
+      "scope": "Union of Cala's and Sayari's public/commercial company-intelligence coverage.",
+      "departments": [],
+      "geography": ["global"],
+      "businessUnits": [],
+      "products": [],
+      "temporalRange": {
+        "from": "2000-01-01",
+        "to": "present"
+      },
+      "completeness": "partial"
+    },
+    "generation": "vendor-provided",
+    "freshness": {
+      "updateCadence": "continuous (vendor-controlled)",
+      "lastUpdated": "2026-07-14T00:00:00Z",
+      "reviewedAt": "2026-07-14T00:00:00Z",
+      "nextReviewDue": "2026-10-14T00:00:00Z",
+      "stalenessPolicy": "flag stale per request-level maxStalenessHours; the gateway does not impose its own default."
+    },
+    "languages": ["en"],
+    "sourceSystems": ["Cala API", "Sayari API"]
+  },
+  "operations": [
+    { "name": "search", "requiredLevel": 1, "inputModes": ["text"], "outputModes": ["cited-response-envelope"] },
+    { "name": "ask", "requiredLevel": 2, "inputModes": ["text"], "outputModes": ["cited-response-envelope"] },
+    { "name": "explain", "requiredLevel": 2, "inputModes": ["answerRef", "claimIds"], "outputModes": ["cited-response-envelope"] },
+    { "name": "getDocument", "requiredLevel": 1, "inputModes": ["documentId"], "outputModes": ["document"] }
+  ],
+  "auth": {
+    "schemes": ["bearer", "oboAssertion"],
+    "oauth2": null,
+    "delegatedUserRequired": false,
+    "serviceAccountAllowed": true,
+    "oboAssertionRequired": false,
+    "signedRequestRequired": false
+  },
+  "policies": {
+    "allowedUse": ["answering", "summarization", "citation", "internal-search", "risk-screening"],
+    "disallowedUse": ["model-training", "bulk-export", "redistribution-outside-org"],
+    "citationPolicy": "required",
+    "redistribution": "internal-citations-only",
+    "queryRetention": "limited",
+    "piiHandling": "minimal-entity-only",
+    "humanReviewRequiredFor": ["adverse-media-decision", "sanctions-match-decision"],
+    "sensitiveDecisionUse": "human-review-required"
+  },
+  "audit": {
+    "loggingRequired": true,
+    "immutableLogRequired": true,
+    "logTarget": "local-jsonl-worm-sim",
+    "logRetention": "7y",
+    "includeUserId": true,
+    "includeAgentId": true,
+    "includeCitationIds": true,
+    "includeProofFooter": true
+  },
+  "regulatedExtension": {
+    "supported": true,
+    "features": [
+      "strict-grounding",
+      "text-quote-selectors",
+      "data-lineage",
+      "immutable-audit",
+      "signed-response",
+      "conflict-escalation",
+      "streaming-proof-footer"
+    ],
+    "regulatedDomains": ["finance", "compliance", "risk"],
+    "minimumAuditRetention": "7y",
+    "immutableAuditRequired": true
+  },
+  "conformance": {
+    "level": 4,
+    "profile": "a2k-enterprise-v0.6-baseline",
+    "features": [
+      "kb-card",
+      "ownership",
+      "authority",
+      "lifecycle",
+      "access-policy",
+      "search",
+      "ask",
+      "explain",
+      "getDocument",
+      "citations",
+      "freshness",
+      "audit",
+      "grounding",
+      "strict-grounding",
+      "data-lineage",
+      "signed-response",
+      "conflict-report"
+    ]
+  },
+  "signature": null
+}

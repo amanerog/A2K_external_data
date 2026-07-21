@@ -1,0 +1,83 @@
+# Prereqs before applying this file (see README "Deploy to EKS"):
+#   kubectl apply -f namespace.yaml
+#   kubectl apply -f configmap.yaml
+#   kubectl create secret generic a2k-box-signing-key -n a2k-box \
+#     --from-file=gateway_ed25519.pem=../keys/gateway_ed25519.pem
+#   (optional, once real creds exist) kubectl apply -f secret-provider-creds.yaml
+#   replace `image:` below with your pushed ECR image
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: a2k-box
+  namespace: a2k-box
+  labels:
+    app: a2k-box
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: a2k-box
+  template:
+    metadata:
+      labels:
+        app: a2k-box
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+      containers:
+        - name: a2k-box
+          image: <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/a2k-box:latest
+          ports:
+            - name: http
+              containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: a2k-box-config
+            - secretRef:
+                name: a2k-box-provider-creds
+                optional: true # absent while running in mock mode
+          volumeMounts:
+            - name: signing-key
+              mountPath: /app/keys
+              readOnly: true
+            - name: audit-scratch
+              mountPath: /app/audit
+            - name: tmp
+              mountPath: /tmp
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        # Shared across all replicas -- see README for why a per-pod
+        # auto-generated key would break signature verification.
+        - name: signing-key
+          secret:
+            secretName: a2k-box-signing-key
+            defaultMode: 0440
+        - name: audit-scratch
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}

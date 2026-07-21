@@ -1,0 +1,84 @@
+{
+  "entities": [
+    {
+      "entity_key": "acme-robotics",
+      "name": "Acme Robotics Inc.",
+      "aliases": ["Acme Robotics"],
+      "jurisdiction": "US-DE",
+      "facts": [
+        {
+          "field": "ultimate_beneficial_owner",
+          "value": "Janet Osei (71%)",
+          "text": "Sayari's ownership graph identifies Janet Osei as ultimate beneficial owner of Acme Robotics Inc. with a 71% stake, consistent with registry filings.",
+          "source_title": "Sayari Ownership Graph",
+          "source_url": "https://sayari.com/mock-source/graph/acme-robotics",
+          "source_last_updated": "2026-06-10T00:00:00Z"
+        },
+        {
+          "field": "entity_risk_rating",
+          "value": "Low",
+          "text": "Sayari's risk screening rates Acme Robotics Inc. as Low risk, with no adverse media or watchlist hits.",
+          "source_title": "Sayari Risk Screening",
+          "source_url": "https://sayari.com/mock-source/risk/acme-robotics",
+          "source_last_updated": "2026-07-05T00:00:00Z"
+        },
+        {
+          "field": "corporate_relationships",
+          "value": "No parent; 1 subsidiary (Acme Robotics EU B.V.)",
+          "text": "Sayari's entity graph shows Acme Robotics Inc. has no parent company and one subsidiary, Acme Robotics EU B.V., registered in the Netherlands.",
+          "source_title": "Sayari Entity Relationships",
+          "source_url": "https://sayari.com/mock-source/graph/acme-robotics-relationships",
+          "source_last_updated": "2026-05-22T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "entity_key": "meridian-textiles",
+      "name": "Meridian Textiles Ltd",
+      "aliases": ["Meridian Textiles"],
+      "jurisdiction": "MT",
+      "facts": [
+        {
+          "field": "ultimate_beneficial_owner",
+          "value": "Devrim Holdings A.S. (48%); remainder held by an undisclosed nominee",
+          "text": "Sayari's ownership graph traces only 48% of Meridian Textiles Ltd to Devrim Holdings A.S., with the remaining stake held through a nominee arrangement Sayari could not fully resolve.",
+          "source_title": "Sayari Ownership Graph",
+          "source_url": "https://sayari.com/mock-source/graph/meridian-textiles",
+          "source_last_updated": "2026-06-30T00:00:00Z"
+        },
+        {
+          "field": "entity_risk_rating",
+          "value": "Elevated",
+          "text": "Sayari's risk screening rates Meridian Textiles Ltd as Elevated risk due to adverse media referencing a 2025 customs fraud investigation.",
+          "source_title": "Sayari Risk Screening",
+          "source_url": "https://sayari.com/mock-source/risk/meridian-textiles",
+          "source_last_updated": "2026-07-08T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "entity_key": "nordic-cold-chain",
+      "name": "Nordic Cold Chain AS",
+      "aliases": ["Nordic Cold Chain"],
+      "jurisdiction": "NO",
+      "facts": [
+        {
+          "field": "entity_risk_rating",
+          "value": "Low",
+          "text": "Sayari's risk screening rates Nordic Cold Chain AS as Low risk.",
+          "source_title": "Sayari Risk Screening",
+          "source_url": "https://sayari.com/mock-source/risk/nordic-cold-chain",
+          "source_last_updated": "2026-04-18T00:00:00Z"
+        },
+        {
+          "field": "corporate_relationships",
+          "value": "Parent: Arctic Logistics Holding AS (100%)",
+          "text": "Sayari's entity graph shows Nordic Cold Chain AS is a wholly owned subsidiary of Arctic Logistics Holding AS.",
+          "source_title": "Sayari Entity Relationships",
+          "source_url": "https://sayari.com/mock-source/graph/nordic-cold-chain-relationships",
+          "source_last_updated": "2026-03-11T00:00:00Z"
+        }
+      ]
+    }
+  ]
+}

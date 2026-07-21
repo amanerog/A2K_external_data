@@ -1,0 +1,363 @@
+{
+    "a2kVersion": "0.6-baseline",
+    "ok": true,
+    "operation": "ask",
+    "sourceKbId": "urn:a2k:gateway:k2-external-intel",
+    "answer": "Meridian Textiles Ltd was incorporated in Malta on 2009-11-02.\n\nOn ultimate beneficial owner for Meridian Textiles Ltd, sources disagree: Meridian Textiles Ltd's ultimate beneficial owner on file is Devrim Holdings A.S., holding a 62% equity stake. Sayari's ownership graph traces only 48% of Meridian Textiles Ltd to Devrim Holdings A.S., with the remaining stake held through a nominee arrangement Sayari could not fully resolve.\n\nMeridian Textiles Ltd returned no match against the OFAC Specially Designated Nationals (SDN) list.\n\nSayari's risk screening rates Meridian Textiles Ltd as Elevated risk due to adverse media referencing a 2025 customs fraud investigation.",
+    "passages": [],
+    "claims": [
+        {
+            "id": "claim-1",
+            "text": "Meridian Textiles Ltd was incorporated in Malta on 2009-11-02.",
+            "type": "factual",
+            "status": "SUPPORTED",
+            "citationIds": [
+                "citation-1"
+            ],
+            "conflictsWith": []
+        },
+        {
+            "id": "claim-2",
+            "text": "Meridian Textiles Ltd's ultimate beneficial owner on file is Devrim Holdings A.S., holding a 62% equity stake.",
+            "type": "factual",
+            "status": "DISPUTED",
+            "citationIds": [
+                "citation-2"
+            ],
+            "conflictsWith": [
+                "claim-3"
+            ]
+        },
+        {
+            "id": "claim-3",
+            "text": "Sayari's ownership graph traces only 48% of Meridian Textiles Ltd to Devrim Holdings A.S., with the remaining stake held through a nominee arrangement Sayari could not fully resolve.",
+            "type": "factual",
+            "status": "DISPUTED",
+            "citationIds": [
+                "citation-3"
+            ],
+            "conflictsWith": [
+                "claim-2"
+            ]
+        },
+        {
+            "id": "claim-4",
+            "text": "Meridian Textiles Ltd returned no match against the OFAC Specially Designated Nationals (SDN) list.",
+            "type": "factual",
+            "status": "SUPPORTED",
+            "citationIds": [
+                "citation-4"
+            ],
+            "conflictsWith": []
+        },
+        {
+            "id": "claim-5",
+            "text": "Sayari's risk screening rates Meridian Textiles Ltd as Elevated risk due to adverse media referencing a 2025 customs fraud investigation.",
+            "type": "interpretive",
+            "status": "SUPPORTED",
+            "citationIds": [
+                "citation-5"
+            ],
+            "conflictsWith": []
+        }
+    ],
+    "citations": [
+        {
+            "id": "citation-1",
+            "claimIds": [
+                "claim-1"
+            ],
+            "documentId": "urn:a2k:vendor:cala:doc:meridian-textiles:profile",
+            "title": "Malta Business Registry",
+            "selector": {
+                "type": "TextQuoteSelector",
+                "exact": "Meridian Textiles Ltd was incorporated in Malta on 2009-11-02.",
+                "prefix": null,
+                "suffix": null
+            },
+            "sourceHash": "sha256:7353eef58fb2d806b7e1f794adf2b282b4f44fb846f1b1a65d900469c261672d",
+            "sourceUrl": "https://cala.ai/mock-source/mbr/meridian-textiles",
+            "retrievedAt": "2026-07-15T10:12:54Z",
+            "sourceLastUpdated": "2026-01-10T00:00:00Z",
+            "classification": "public",
+            "dataLineage": [
+                {
+                    "step": "provider-fetch",
+                    "processedAt": null,
+                    "ingestedAt": "2026-07-15T10:12:54Z",
+                    "sourcePipeline": "cala-adapter-v1",
+                    "chunkerVersion": null,
+                    "embeddingModel": null,
+                    "embeddingModelVersion": null
+                }
+            ]
+        },
+        {
+            "id": "citation-2",
+            "claimIds": [
+                "claim-2"
+            ],
+            "documentId": "urn:a2k:vendor:cala:doc:meridian-textiles:profile",
+            "title": "Beneficial Ownership Registry Extract",
+            "selector": {
+                "type": "TextQuoteSelector",
+                "exact": "Meridian Textiles Ltd's ultimate beneficial owner on file is Devrim Holdings A.S., holding a 62% equity stake.",
+                "prefix": null,
+                "suffix": null
+            },
+            "sourceHash": "sha256:a608c832f88fa5585d6a23b959a9f7676bd4fb756c6a4a1fe2bf45fc453346d9",
+            "sourceUrl": "https://cala.ai/mock-source/ubo/meridian-textiles",
+            "retrievedAt": "2026-07-15T10:12:54Z",
+            "sourceLastUpdated": "2026-05-05T00:00:00Z",
+            "classification": "public",
+            "dataLineage": [
+                {
+                    "step": "provider-fetch",
+                    "processedAt": null,
+                    "ingestedAt": "2026-07-15T10:12:54Z",
+                    "sourcePipeline": "cala-adapter-v1",
+                    "chunkerVersion": null,
+                    "embeddingModel": null,
+                    "embeddingModelVersion": null
+                }
+            ]
+        },
+        {
+            "id": "citation-3",
+            "claimIds": [
+                "claim-3"
+            ],
+            "documentId": "urn:a2k:vendor:sayari:doc:meridian-textiles:profile",
+            "title": "Sayari Ownership Graph",
+            "selector": {
+                "type": "TextQuoteSelector",
+                "exact": "Sayari's ownership graph traces only 48% of Meridian Textiles Ltd to Devrim Holdings A.S., with the remaining stake held through a nominee arrangement Sayari could not fully resolve.",
+                "prefix": null,
+                "suffix": null
+            },
+            "sourceHash": "sha256:f32c7c193eb53f7be3da937c02e1d7a8253adf35d8fb5374d022d38ec5114ffe",
+            "sourceUrl": "https://sayari.com/mock-source/graph/meridian-textiles",
+            "retrievedAt": "2026-07-15T10:12:54Z",
+            "sourceLastUpdated": "2026-06-30T00:00:00Z",
+            "classification": "public",
+            "dataLineage": [
+                {
+                    "step": "provider-fetch",
+                    "processedAt": null,
+                    "ingestedAt": "2026-07-15T10:12:54Z",
+                    "sourcePipeline": "sayari-adapter-v1",
+                    "chunkerVersion": null,
+                    "embeddingModel": null,
+                    "embeddingModelVersion": null
+                }
+            ]
+        },
+        {
+            "id": "citation-4",
+            "claimIds": [
+                "claim-4"
+            ],
+            "documentId": "urn:a2k:vendor:cala:doc:meridian-textiles:profile",
+            "title": "OFAC SDN Screening",
+            "selector": {
+                "type": "TextQuoteSelector",
+                "exact": "Meridian Textiles Ltd returned no match against the OFAC Specially Designated Nationals (SDN) list.",
+                "prefix": null,
+                "suffix": null
+            },
+            "sourceHash": "sha256:b7267b000bb12af1d4771eabce54fb3d4837b67f662e755af97af3449ed81f0b",
+            "sourceUrl": "https://cala.ai/mock-source/ofac/meridian-textiles",
+            "retrievedAt": "2026-07-15T10:12:54Z",
+            "sourceLastUpdated": "2026-06-28T00:00:00Z",
+            "classification": "public",
+            "dataLineage": [
+                {
+                    "step": "provider-fetch",
+                    "processedAt": null,
+                    "ingestedAt": "2026-07-15T10:12:54Z",
+                    "sourcePipeline": "cala-adapter-v1",
+                    "chunkerVersion": null,
+                    "embeddingModel": null,
+                    "embeddingModelVersion": null
+                }
+            ]
+        },
+        {
+            "id": "citation-5",
+            "claimIds": [
+                "claim-5"
+            ],
+            "documentId": "urn:a2k:vendor:sayari:doc:meridian-textiles:profile",
+            "title": "Sayari Risk Screening",
+            "selector": {
+                "type": "TextQuoteSelector",
+                "exact": "Sayari's risk screening rates Meridian Textiles Ltd as Elevated risk due to adverse media referencing a 2025 customs fraud investigation.",
+                "prefix": null,
+                "suffix": null
+            },
+            "sourceHash": "sha256:d9c2454acb9f7835a6a64a9a3221e33b48b3aef22d7471f10548805ed482ae11",
+            "sourceUrl": "https://sayari.com/mock-source/risk/meridian-textiles",
+            "retrievedAt": "2026-07-15T10:12:54Z",
+            "sourceLastUpdated": "2026-07-08T00:00:00Z",
+            "classification": "public",
+            "dataLineage": [
+                {
+                    "step": "provider-fetch",
+                    "processedAt": null,
+                    "ingestedAt": "2026-07-15T10:12:54Z",
+                    "sourcePipeline": "sayari-adapter-v1",
+                    "chunkerVersion": null,
+                    "embeddingModel": null,
+                    "embeddingModelVersion": null
+                }
+            ]
+        }
+    ],
+    "grounding": {
+        "groundedRatio": 0.8897,
+        "ungroundedSpans": [
+            {
+                "type": "TextPositionSelector",
+                "start": 64,
+                "end": 138
+            }
+        ],
+        "confidence": null,
+        "confidenceMethod": null,
+        "strictGroundingSatisfied": false
+    },
+    "freshness": {
+        "sourceLastUpdated": "2026-01-10T00:00:00Z",
+        "reviewedAt": "2026-07-08T00:00:00Z",
+        "nextReviewDue": null,
+        "retrievedAt": "2026-07-15T10:12:54Z",
+        "stale": false,
+        "validAsOf": "2026-07-15",
+        "validUntil": null
+    },
+    "accessDecision": {
+        "decision": "allowed",
+        "reason": "Vendor commercial/public data (tier S0, A2K-KBCard-Schema section 4.4.1); no OBO assertion required at this tier.",
+        "appliedScopes": [],
+        "dataClassification": "public",
+        "policyEngine": "a2k-box-gateway",
+        "decisionId": "cda69628-4f26-4e16-af62-3a9f6ed84f1a",
+        "oboValidated": null
+    },
+    "audit": {
+        "requestId": "cb67e646-1168-4edc-a400-b77902673eba",
+        "sessionId": null,
+        "traceId": null,
+        "agentId": null,
+        "agentInstanceId": null,
+        "userId": null,
+        "sourceKbId": "urn:a2k:gateway:k2-external-intel",
+        "sourceKbVersion": "mock-fixtures-2026-07-14",
+        "kbCardVersion": null,
+        "operation": "ask",
+        "policyDecision": "allowed",
+        "decisionReason": null,
+        "citationIds": [
+            "citation-1",
+            "citation-2",
+            "citation-3",
+            "citation-4",
+            "citation-5"
+        ],
+        "logged": true,
+        "loggedAt": "2026-07-15T10:12:54Z",
+        "logTarget": "local-jsonl-worm-sim",
+        "immutableLogRequired": true,
+        "logRef": "ac640372-80e6-4d5f-8e6f-117579a5b9fe"
+    },
+    "conflicts": [
+        {
+            "id": "conflict-1",
+            "claimId": "claim-2",
+            "nature": "value-conflict",
+            "thisPosition": "Meridian Textiles Ltd's ultimate beneficial owner on file is Devrim Holdings A.S., holding a 62% equity stake.",
+            "otherPosition": "Sayari's ownership graph traces only 48% of Meridian Textiles Ltd to Devrim Holdings A.S., with the remaining stake held through a nominee arrangement Sayari could not fully resolve.",
+            "otherSource": {
+                "kbId": "urn:a2k:vendor:sayari",
+                "title": "Sayari entity profile"
+            },
+            "assessment": "unresolved-disagreement",
+            "rationale": "Cala and Sayari report different values for ultimate beneficial owner of Meridian Textiles Ltd. Neither is asserted as authoritative by this gateway -- surfaced per A2K-KCP section 12.4 rather than resolved silently."
+        }
+    ],
+    "referrals": [],
+    "usage": {
+        "latencyMs": 0,
+        "retrievalCount": 5
+    },
+    "pageInfo": null,
+    "responseSignature": {
+        "alg": "EdDSA",
+        "kid": "http://localhost:8000/.well-known/jwks.json#gateway-key-1",
+        "canonicalization": "sorted-keys-json-utf8 (JCS/RFC8785 approximation)",
+        "signedFields": [
+            "a2kVersion",
+            "operation",
+            "sourceKbId",
+            "answer",
+            "claims",
+            "citations",
+            "grounding",
+            "freshness",
+            "accessDecision",
+            "audit"
+        ],
+        "jws": "ZfSvCMsla6eVju0pHP6-iLcJiCKVAkGbpAlQ4tPkNdJ3JlYfDuDf9Wkl5ehIvYg2IWUdtsevPpl6zev_W48HDQ=="
+    },
+    "error": null,
+    "conflictReport": {
+        "a2kVersion": "0.6-baseline",
+        "kind": "conflictReport",
+        "query": "Meridian Textiles ownership",
+        "producedBy": {
+            "role": "knowledge-gateway",
+            "id": "urn:a2k:gateway:k2-external-intel"
+        },
+        "producedAt": "2026-07-15T10:12:54Z",
+        "onBehalfOf": null,
+        "kbsQueried": [
+            "urn:a2k:vendor:cala",
+            "urn:a2k:vendor:sayari"
+        ],
+        "responses": [
+            {
+                "sourceKbId": "urn:a2k:vendor:cala",
+                "responseRef": "cb67e646-1168-4edc-a400-b77902673eba"
+            },
+            {
+                "sourceKbId": "urn:a2k:vendor:sayari",
+                "responseRef": "cb67e646-1168-4edc-a400-b77902673eba"
+            }
+        ],
+        "conflicts": [
+            {
+                "id": "conflict-1",
+                "type": "value-conflict",
+                "severity": "high",
+                "claims": [
+                    "claim-2",
+                    "claim-3"
+                ],
+                "summary": "Meridian Textiles Ltd: Cala and Sayari disagree on ultimate beneficial owner."
+            }
+        ],
+        "reconciliation": {
+            "status": "unresolved-surfaced",
+            "recommendedAction": "Do not treat either source as authoritative for the disputed field(s). Corroborate against a primary filing or escalate before using this in a decision.",
+            "basis": [
+                "scope-match",
+                "corroboration",
+                "freshness"
+            ]
+        },
+        "escalationTelemetry": null,
+        "audit": {
+            "logged": true
+        }
+    }
+}

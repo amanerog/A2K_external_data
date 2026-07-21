@@ -1,0 +1,100 @@
+{
+  "entities": [
+    {
+      "entity_key": "acme-robotics",
+      "name": "Acme Robotics Inc.",
+      "aliases": ["Acme Robotics", "Acme Robotics, Inc."],
+      "jurisdiction": "US-DE",
+      "facts": [
+        {
+          "field": "incorporation_date",
+          "value": "2014-03-11",
+          "text": "Acme Robotics Inc. was incorporated in Delaware, USA on 2014-03-11, per Delaware Secretary of State registry records.",
+          "source_title": "Delaware SoS Corporate Registry",
+          "source_url": "https://cala.ai/mock-source/de-sos/acme-robotics",
+          "source_last_updated": "2026-04-02T00:00:00Z"
+        },
+        {
+          "field": "annual_revenue_usd",
+          "value": "$42.6M (FY2025)",
+          "text": "Acme Robotics Inc. reported annual revenue of $42.6M for fiscal year 2025 in its most recent SEC filing.",
+          "source_title": "SEC EDGAR 10-K Filing FY2025",
+          "source_url": "https://cala.ai/mock-source/edgar/acme-robotics-10k-2025",
+          "source_last_updated": "2026-02-15T00:00:00Z"
+        },
+        {
+          "field": "ofac_sanctions_status",
+          "value": "No match",
+          "text": "Acme Robotics Inc. returned no match against the OFAC Specially Designated Nationals (SDN) list.",
+          "source_title": "OFAC SDN Screening",
+          "source_url": "https://cala.ai/mock-source/ofac/acme-robotics",
+          "source_last_updated": "2026-07-01T00:00:00Z"
+        },
+        {
+          "field": "ultimate_beneficial_owner",
+          "value": "Janet Osei (71%)",
+          "text": "Acme Robotics Inc.'s ultimate beneficial owner on file is Janet Osei, holding a 71% equity stake.",
+          "source_title": "Beneficial Ownership Registry Extract",
+          "source_url": "https://cala.ai/mock-source/ubo/acme-robotics",
+          "source_last_updated": "2026-03-20T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "entity_key": "meridian-textiles",
+      "name": "Meridian Textiles Ltd",
+      "aliases": ["Meridian Textiles", "Meridian Textiles Limited"],
+      "jurisdiction": "MT",
+      "facts": [
+        {
+          "field": "incorporation_date",
+          "value": "2009-11-02",
+          "text": "Meridian Textiles Ltd was incorporated in Malta on 2009-11-02.",
+          "source_title": "Malta Business Registry",
+          "source_url": "https://cala.ai/mock-source/mbr/meridian-textiles",
+          "source_last_updated": "2026-01-10T00:00:00Z"
+        },
+        {
+          "field": "ultimate_beneficial_owner",
+          "value": "Devrim Holdings A.S. (62%)",
+          "text": "Meridian Textiles Ltd's ultimate beneficial owner on file is Devrim Holdings A.S., holding a 62% equity stake.",
+          "source_title": "Beneficial Ownership Registry Extract",
+          "source_url": "https://cala.ai/mock-source/ubo/meridian-textiles",
+          "source_last_updated": "2026-05-05T00:00:00Z"
+        },
+        {
+          "field": "ofac_sanctions_status",
+          "value": "No match",
+          "text": "Meridian Textiles Ltd returned no match against the OFAC Specially Designated Nationals (SDN) list.",
+          "source_title": "OFAC SDN Screening",
+          "source_url": "https://cala.ai/mock-source/ofac/meridian-textiles",
+          "source_last_updated": "2026-06-28T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "entity_key": "nordic-cold-chain",
+      "name": "Nordic Cold Chain AS",
+      "aliases": ["Nordic Cold Chain"],
+      "jurisdiction": "NO",
+      "facts": [
+        {
+          "field": "incorporation_date",
+          "value": "2018-06-19",
+          "text": "Nordic Cold Chain AS was incorporated in Norway on 2018-06-19.",
+          "source_title": "Bronnoysund Register Centre",
+          "source_url": "https://cala.ai/mock-source/brreg/nordic-cold-chain",
+          "source_last_updated": "2026-02-01T00:00:00Z"
+        },
+        {
+          "field": "annual_revenue_usd",
+          "value": "$11.2M (FY2025)",
+          "text": "Nordic Cold Chain AS reported annual revenue of $11.2M for fiscal year 2025 in its filed annual accounts.",
+          "source_title": "Annual Accounts Filing FY2025",
+          "source_url": "https://cala.ai/mock-source/brreg/nordic-cold-chain-accounts-2025",
+          "source_last_updated": "2026-03-30T00:00:00Z"
+        }
+      ]
+    }
+  ]
+}

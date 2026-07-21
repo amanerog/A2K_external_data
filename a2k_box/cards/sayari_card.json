@@ -1,0 +1,179 @@
+{
+  "a2kVersion": "0.6-baseline",
+  "profile": "enterprise",
+  "id": "urn:a2k:vendor:sayari",
+  "name": "Sayari -- Corporate Ownership & Risk Graph",
+  "description": "Vendor knowledge source backed by the Sayari API (sayari.com): entity resolution, beneficial-ownership graphs, corporate relationships, and risk/adverse-media screening. Fronted by the a2k-box gateway, which also exposes it over MCP at resource a2k://card/sayari.",
+  "url": "http://localhost:8000/a2k/sayari",
+  "transport": "https-json",
+  "enterprise": {
+    "ownership": {
+      "ownerTeam": "K2 External Intelligence Gateway",
+      "businessOwner": {
+        "type": "group",
+        "id": "grp:k2-platform-owners",
+        "identityProvider": "internal",
+        "name": "K2 Platform Owners",
+        "contact": "k2-platform@example.com"
+      },
+      "technicalOwner": {
+        "type": "group",
+        "id": "grp:k2-platform-ops",
+        "identityProvider": "internal",
+        "name": "K2 Platform Operations",
+        "contact": "k2-platform@example.com"
+      },
+      "maintainers": ["k2-platform@example.com"],
+      "supportChannel": "#k2-external-intel",
+      "escalationPolicy": "Contact the K2 Platform Owners for data-quality disputes; contact Sayari support for upstream data corrections."
+    },
+    "authority": {
+      "systemOfRecord": "vendor",
+      "sorScope": ["entity-resolution", "ownership-graph", "risk-screening"],
+      "authorityScope": "Sayari is authoritative only for what Sayari itself asserts as sourced from its graph; it is not this organization's system of record for any internal decision.",
+      "relationship": "vendor-data-source",
+      "publisher": "Sayari (sayari.com)",
+      "proof": {
+        "method": "vendor-contract",
+        "approvedBy": "K2 Platform Owners",
+        "approvalReference": "N/A -- mock mode, no live contract yet",
+        "approvedAt": null
+      }
+    },
+    "lifecycle": {
+      "status": "active",
+      "createdAt": "2026-07-14T00:00:00Z",
+      "lastUpdated": "2026-07-14T00:00:00Z",
+      "reviewedAt": "2026-07-14T00:00:00Z",
+      "reviewBy": "2027-01-14",
+      "attestation": {
+        "lastAttested": "2026-07-14T00:00:00Z",
+        "nextAttestationDue": "2027-01-14T00:00:00Z",
+        "attestedBy": "k2-platform@example.com",
+        "actionOnExpiry": "downgrade-to-unverified"
+      },
+      "deprecationDate": null,
+      "supersededBy": null,
+      "replacementKbId": null,
+      "changeLogUrl": null
+    },
+    "access": {
+      "visibility": "internal",
+      "dataClassification": "public",
+      "audiences": ["k2-agent", "employees"],
+      "requiredScopes": [],
+      "allowedDepartments": [],
+      "restrictedDepartments": [],
+      "crossDepartmentUse": true,
+      "externalUseAllowed": false,
+      "requiresUserContext": false,
+      "rowLevelSecurity": false,
+      "ethicalWallSensitive": false
+    }
+  },
+  "knowledgeProfile": {
+    "domains": ["compliance", "risk", "legal"],
+    "topics": [
+      "beneficial-ownership",
+      "corporate-relationships",
+      "adverse-media",
+      "risk-screening",
+      "entity-resolution"
+    ],
+    "coverage": {
+      "scope": "Entities covered by Sayari's ownership and risk graph.",
+      "departments": [],
+      "geography": ["global"],
+      "businessUnits": [],
+      "products": [],
+      "temporalRange": {
+        "from": "2000-01-01",
+        "to": "present"
+      },
+      "completeness": "partial"
+    },
+    "generation": "vendor-provided",
+    "freshness": {
+      "updateCadence": "continuous (vendor-controlled)",
+      "lastUpdated": "2026-07-14T00:00:00Z",
+      "reviewedAt": "2026-07-14T00:00:00Z",
+      "nextReviewDue": "2026-10-14T00:00:00Z",
+      "stalenessPolicy": "flag stale per request-level maxStalenessHours; the gateway does not impose its own default."
+    },
+    "languages": ["en"],
+    "sourceSystems": ["Sayari API"]
+  },
+  "operations": [
+    { "name": "search", "requiredLevel": 1, "inputModes": ["text"], "outputModes": ["cited-response-envelope"] },
+    { "name": "ask", "requiredLevel": 2, "inputModes": ["text"], "outputModes": ["cited-response-envelope"] },
+    { "name": "explain", "requiredLevel": 2, "inputModes": ["answerRef", "claimIds"], "outputModes": ["cited-response-envelope"] },
+    { "name": "getDocument", "requiredLevel": 1, "inputModes": ["documentId"], "outputModes": ["document"] }
+  ],
+  "auth": {
+    "schemes": ["oauth2"],
+    "oauth2": { "scopes": ["entity.read", "risk.read"] },
+    "delegatedUserRequired": false,
+    "serviceAccountAllowed": true,
+    "oboAssertionRequired": false,
+    "signedRequestRequired": false
+  },
+  "policies": {
+    "allowedUse": ["answering", "summarization", "citation", "internal-search", "risk-screening"],
+    "disallowedUse": ["model-training", "bulk-export", "redistribution-outside-org"],
+    "citationPolicy": "required",
+    "redistribution": "internal-citations-only",
+    "queryRetention": "limited",
+    "piiHandling": "minimal-entity-only",
+    "humanReviewRequiredFor": ["adverse-media-decision", "sanctions-match-decision"],
+    "sensitiveDecisionUse": "human-review-required"
+  },
+  "audit": {
+    "loggingRequired": true,
+    "immutableLogRequired": true,
+    "logTarget": "local-jsonl-worm-sim",
+    "logRetention": "7y",
+    "includeUserId": true,
+    "includeAgentId": true,
+    "includeCitationIds": true,
+    "includeProofFooter": true
+  },
+  "regulatedExtension": {
+    "supported": true,
+    "features": [
+      "strict-grounding",
+      "text-quote-selectors",
+      "data-lineage",
+      "immutable-audit",
+      "signed-response",
+      "conflict-escalation",
+      "streaming-proof-footer"
+    ],
+    "regulatedDomains": ["compliance", "risk", "legal"],
+    "minimumAuditRetention": "7y",
+    "immutableAuditRequired": true
+  },
+  "conformance": {
+    "level": 4,
+    "profile": "a2k-enterprise-v0.6-baseline",
+    "features": [
+      "kb-card",
+      "ownership",
+      "authority",
+      "lifecycle",
+      "access-policy",
+      "search",
+      "ask",
+      "explain",
+      "getDocument",
+      "citations",
+      "freshness",
+      "audit",
+      "grounding",
+      "strict-grounding",
+      "data-lineage",
+      "signed-response",
+      "conflict-report"
+    ]
+  },
+  "signature": null
+}
