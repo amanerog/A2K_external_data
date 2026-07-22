@@ -194,5 +194,6 @@ async def source_operation(source: str, operation: str, request: Request) -> JSO
 
 
 @app.get("/")
+@app.get("/health")
 async def health() -> dict:
     return {"service": "a2k-box", "status": "ok", "sources": sorted(SOURCES)}
