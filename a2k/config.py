@@ -78,9 +78,9 @@ class Config:
     )
 
     host: str = field(default_factory=lambda: os.environ.get("A2K_BOX_HOST", "0.0.0.0"))
-    port: int = field(default_factory=lambda: int(os.environ.get("A2K_BOX_PORT", "8000")))
+    port: int = field(default_factory=lambda: int(os.environ.get("A2K_BOX_PORT", "8080")))
     public_url: str = field(
-        default_factory=lambda: os.environ.get("A2K_BOX_PUBLIC_URL", "http://localhost:8000")
+        default_factory=lambda: os.environ.get("A2K_BOX_PUBLIC_URL", "http://localhost:8080")
     )
 
     @property

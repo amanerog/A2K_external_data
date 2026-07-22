@@ -8,8 +8,8 @@ data:
   # are populated in secret-provider-creds.yaml (see README "Deploy to EKS").
   A2K_BOX_MODE: "mock"
   A2K_BOX_HOST: "0.0.0.0"
-  A2K_BOX_PORT: "8000"
-  A2K_BOX_PUBLIC_URL: "http://a2k-box.a2k-box.svc.cluster.local:8000"
+  A2K_BOX_PORT: "8080"
+  A2K_BOX_PUBLIC_URL: "http://a2k-box.a2k-box.svc.cluster.local:8080"
   A2K_IMMUTABLE_AUDIT: "true"
   A2K_AUDIT_STDOUT: "true"
   A2K_SIGNING_KEY_PATH: "/app/keys/gateway_ed25519.pem"

@@ -47,14 +47,14 @@ RUN mkdir -p keys audit && \
 ENV SSL_CERT_FILE=/etc/pki/tls/certs/ca-bundle.crt \
     REQUESTS_CA_BUNDLE=/etc/pki/tls/certs/ca-bundle.crt \
     A2K_BOX_HOST=0.0.0.0 \
-    A2K_BOX_PORT=8000 \
+    A2K_BOX_PORT=8080 \
     A2K_SIGNING_KEY_PATH=$APP_HOME/keys/gateway_ed25519.pem \
     A2K_AUDIT_LOG_PATH=$APP_HOME/audit/audit.jsonl \
     A2K_AUDIT_STDOUT=true \
     A2K_BOX_MODE=mock
 
 ENV UID=29000
-EXPOSE 8000
+EXPOSE 8080
 
 ENTRYPOINT ["/bin/bash", "entrypoint.sh"]
 

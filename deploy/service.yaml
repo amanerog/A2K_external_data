@@ -11,5 +11,5 @@ spec:
     app: a2k-box
   ports:
     - name: http
-      port: 8000
+      port: 8080
       targetPort: http

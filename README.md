@@ -30,7 +30,7 @@ pip install -e ".[dev]"
 
 # REST transport
 python -m a2k.api
-# -> http://localhost:8000  (card at /.well-known/a2k-card.json)
+# -> http://localhost:8080  (card at /.well-known/a2k-card.json)
 
 # MCP transport (stdio) -- run in a separate process, or let K2 launch it
 python -m a2k.mcp_server
@@ -39,7 +39,7 @@ python -m a2k.mcp_server
 Try it:
 
 ```bash
-curl -s -X POST http://localhost:8000/a2k/ask \
+curl -s -X POST http://localhost:8080/a2k/ask \
   -H 'Content-Type: application/json' \
   -d '{"query": "Meridian Textiles ownership"}' | python3 -m json.tool
 ```
@@ -78,7 +78,7 @@ this into K2's actual process config is out of scope here since that config
 doesn't live in this repository -- the snippet above is what needs adding on
 the K2 side.
 
-**REST.** Point K2 at `http://localhost:8000` and speak A2K-KCP directly:
+**REST.** Point K2 at `http://localhost:8080` and speak A2K-KCP directly:
 `GET /.well-known/a2k-card.json`, `POST /a2k/{operation}` (fans out to both
 providers), `POST /a2k/{cala|sayari}/{operation}` (single provider),
 `POST /a2k/streamAsk` (SSE).
@@ -205,7 +205,7 @@ kubectl apply -f deploy/hpa.yaml          # optional
 
 This brings the box up in **mock mode** (`A2K_BOX_MODE: "mock"` in
 `configmap.yaml`), reachable inside the cluster at
-`http://a2k-box.a2k-box.svc.cluster.local:8000`. Point K2's tool config at
+`http://a2k-box.a2k-box.svc.cluster.local:8080`. Point K2's tool config at
 that URL and it can call `/a2k/ask`, `/a2k/search`, etc. exactly like the
 `curl` examples above.
 
