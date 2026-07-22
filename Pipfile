@@ -20,6 +20,7 @@ python-dotenv = ">=1.2.0,<2.0"
 [dev-packages]
 pytest = ">=9.1.0,<10.0"
 pytest-asyncio = ">=1.4.0,<2.0"
+pytest-cov = ">=6.0.0,<7.0"
 
 [requires]
 python_version = "3.14"
