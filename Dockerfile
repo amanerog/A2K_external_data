@@ -13,11 +13,15 @@ RUN pip config --user set global.index https://nexus.alm.europe.cloudcenter.corp
     pip config --user set global.trusted-host nexus.alm.europe.cloudcenter.corp
 
 WORKDIR /build
+COPY Pipfile Pipfile.lock ./
 COPY pyproject.toml ./
 COPY a2k_box ./a2k_box
 
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip wheel --no-cache-dir --wheel-dir /wheels .
+    pip install --no-cache-dir pipenv==2023.12.1 && \
+    pipenv requirements > requirements.txt && \
+    pip wheel --no-cache-dir --wheel-dir /wheels -r requirements.txt && \
+    pip wheel --no-cache-dir --no-deps --wheel-dir /wheels .
 
 FROM registry.global.ccc.srvb.bo.paas.cloudcenter.corp/produban/python-314-ubi9:1.1.20.RELEASE
 

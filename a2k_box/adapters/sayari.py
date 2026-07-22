@@ -74,7 +74,9 @@ class SayariAdapter(ProviderAdapter):
                 "A2K_BOX_MODE=live but SAYARI_CLIENT_ID/SAYARI_CLIENT_SECRET are not set.",
                 retryable=False,
             )
-        async with httpx.AsyncClient(base_url=config.sayari_base_url, timeout=15) as client:
+        async with httpx.AsyncClient(
+            base_url=config.sayari_base_url, timeout=15, verify=config.httpx_verify
+        ) as client:
             token = await self._get_token(client)
             headers = {"Authorization": f"Bearer {token}"}
             try:
@@ -145,7 +147,9 @@ class SayariAdapter(ProviderAdapter):
             entity_id = document_id.split(":")[-2]
         except IndexError:
             return None
-        async with httpx.AsyncClient(base_url=config.sayari_base_url, timeout=15) as client:
+        async with httpx.AsyncClient(
+            base_url=config.sayari_base_url, timeout=15, verify=config.httpx_verify
+        ) as client:
             token = await self._get_token(client)
             headers = {"Authorization": f"Bearer {token}"}
             try:

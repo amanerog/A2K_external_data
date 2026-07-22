@@ -1,0 +1,25 @@
+[[source]]
+url = "https://nexus.alm.europe.cloudcenter.corp/repository/pypi-public/simple"
+verify_ssl = false
+name = "nexus"
+
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+fastapi = ">=0.139.0,<1.0"
+uvicorn = {extras = ["standard"], version = ">=0.51.0,<1.0"}
+pydantic = ">=2.13.0,<3.0"
+httpx = ">=0.28.0,<1.0"
+mcp = ">=1.28.0,<2.0"
+cryptography = ">=49.0.0,<50.0"
+python-dotenv = ">=1.2.0,<2.0"
+
+[dev-packages]
+pytest = ">=9.1.0,<10.0"
+pytest-asyncio = ">=1.4.0,<2.0"
+
+[requires]
+python_version = "3.14"

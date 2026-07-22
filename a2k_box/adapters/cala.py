@@ -145,7 +145,7 @@ class CalaAdapter(ProviderAdapter):
     async def _live_search(self, query: str, limit: int) -> list[Fact]:
         self._require_live_ready()
         async with httpx.AsyncClient(
-            base_url=config.cala_base_url, headers=self._headers(), timeout=15
+            base_url=config.cala_base_url, headers=self._headers(), timeout=15, verify=config.httpx_verify
         ) as client:
             try:
                 resp = await client.get("/v1/entities", params={"name": query, "limit": limit})
@@ -342,7 +342,7 @@ class CalaAdapter(ProviderAdapter):
             return None
 
         async with httpx.AsyncClient(
-            base_url=config.cala_base_url, headers=self._headers(), timeout=15
+            base_url=config.cala_base_url, headers=self._headers(), timeout=15, verify=config.httpx_verify
         ) as client:
             detail = await self._fetch_entity_detail(client, entity_id, entity_id)
         if detail is None:

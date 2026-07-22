@@ -106,6 +106,7 @@ def patched_adapter(monkeypatch):
         cala_base_url="https://api.cala.ai",
         cala_live_ready=True,
         cala_introspection_cache_ttl_seconds=86400,
+        httpx_verify=True,
     )
     monkeypatch.setattr(cala_module, "config", fake_config)
 

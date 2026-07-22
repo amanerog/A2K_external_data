@@ -68,6 +68,15 @@ class Config:
     immutable_audit: bool = field(default_factory=lambda: _bool_env("A2K_IMMUTABLE_AUDIT", True))
     audit_stdout: bool = field(default_factory=lambda: _bool_env("A2K_AUDIT_STDOUT", True))
 
+    # httpx bundles its own certifi CA store and, unlike `requests`, does not
+    # read SSL_CERT_FILE/REQUESTS_CA_BUNDLE on its own -- on networks with a
+    # TLS-inspecting corporate proxy (self-signed root injected into the
+    # chain), outbound calls to Cala/Sayari fail CERTIFICATE_VERIFY_FAILED
+    # unless we point verify= at that CA bundle explicitly.
+    ca_bundle: str | None = field(
+        default_factory=lambda: os.environ.get("SSL_CERT_FILE") or os.environ.get("REQUESTS_CA_BUNDLE")
+    )
+
     host: str = field(default_factory=lambda: os.environ.get("A2K_BOX_HOST", "0.0.0.0"))
     port: int = field(default_factory=lambda: int(os.environ.get("A2K_BOX_PORT", "8000")))
     public_url: str = field(
@@ -85,6 +94,10 @@ class Config:
     @property
     def sayari_live_ready(self) -> bool:
         return bool(self.sayari_client_id and self.sayari_client_secret)
+
+    @property
+    def httpx_verify(self) -> str | bool:
+        return self.ca_bundle or True
 
 
 config = Config()
