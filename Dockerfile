@@ -1,5 +1,5 @@
 # A2K Box -- REST transport (see README "Deploy to EKS").
-# The MCP entrypoint (`python -m a2k_box.mcp_server`) is also present in this
+# The MCP entrypoint (`python -m a2k.mcp_server`) is also present in this
 # image and can be run instead by overriding the entrypoint command, but
 # stdio-transport MCP is not meant to run as its own K8s workload -- see
 # README for why.
@@ -15,7 +15,7 @@ RUN pip config --user set global.index https://nexus.alm.europe.cloudcenter.corp
 WORKDIR /build
 COPY Pipfile Pipfile.lock ./
 COPY pyproject.toml ./
-COPY a2k_box ./a2k_box
+COPY a2k ./a2k
 
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir pipenv==2023.12.1 && \

@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from a2k_box.api.rest import app
+from a2k.api.rest import app
 
 client = TestClient(app)
 

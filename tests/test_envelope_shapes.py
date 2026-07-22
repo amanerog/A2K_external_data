@@ -1,6 +1,6 @@
 """The Pydantic models validate the shapes shown in A2K-KCP-Consumption 4.md."""
 
-from a2k_box.models.envelope import (
+from a2k.models.envelope import (
     AccessDecision,
     Citation,
     CitedResponseEnvelope,
@@ -8,8 +8,8 @@ from a2k_box.models.envelope import (
     Grounding,
     TextQuoteSelector,
 )
-from a2k_box.models.kbcard import KBCard
-from a2k_box.cards import load_card
+from a2k.models.kbcard import KBCard
+from a2k.cards import load_card
 
 
 def test_ask_envelope_matches_spec_shape():
@@ -53,7 +53,7 @@ def test_search_envelope_has_null_answer():
 
 
 def test_error_envelope_shape():
-    from a2k_box.models.envelope import ErrorObject
+    from a2k.models.envelope import ErrorObject
 
     envelope = CitedResponseEnvelope(
         ok=False,

@@ -5,7 +5,7 @@ model, calls `gateway/engine.py`, and returns the resulting envelope as a
 dict. No business logic lives in this module -- K2 gets an identical
 envelope whether it talks to the box over REST or over this MCP server.
 
-Run standalone with `python -m a2k_box.mcp_server` (stdio transport).
+Run standalone with `python -m a2k.mcp_server` (stdio transport).
 """
 
 from __future__ import annotations

@@ -1,4 +1,4 @@
-from a2k_box.gateway import signing
+from a2k.gateway import signing
 
 
 def test_sign_and_verify_round_trip():

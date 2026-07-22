@@ -6,7 +6,7 @@ Construir una "caja" en Python que el agente K2 pueda consultar para obtener inf
 
 ## Que se construyo
 
-Un paquete Python (`a2k_box/`) que actua como **Gateway A2K-KCP**: recibe una pregunta de K2, la reparte en paralelo entre los adaptadores de Cala y Sayari, y devuelve una unica respuesta citada, con grounding verificable y firmada digitalmente. Expuesto por **dos transportes** con la misma logica de negocio detras:
+Un paquete Python (`a2k/`) que actua como **Gateway A2K-KCP**: recibe una pregunta de K2, la reparte en paralelo entre los adaptadores de Cala y Sayari, y devuelve una unica respuesta citada, con grounding verificable y firmada digitalmente. Expuesto por **dos transportes** con la misma logica de negocio detras:
 
 - **REST** (FastAPI) -- `POST /a2k/{operation}`, `POST /a2k/{cala|sayari}/{operation}`, `POST /a2k/streamAsk`, card en `.well-known/a2k-card.json`.
 - **MCP (stdio)** -- 7 tools (`a2k.search`, `a2k.ask`, `a2k.explain`, `a2k.getDocument`, `a2k.validateCitation`, `a2k.reportConflict`, `a2k.getAuditRecord`) + recursos `a2k://card`.

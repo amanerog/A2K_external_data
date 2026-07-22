@@ -18,7 +18,7 @@ whether it called REST or MCP. This is the **Gateway** topology from
 between Cala and Sayari, and always shows its citations.
 
 No live credentials exist yet, so the box runs in **mock mode** by default,
-backed by fixture data in `a2k_box/adapters/fixtures/`. Flipping to live mode
+backed by fixture data in `a2k/adapters/fixtures/`. Flipping to live mode
 is a config change, not a code change (see "Mock to live" below).
 
 ## Quickstart
@@ -29,11 +29,11 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 
 # REST transport
-python -m a2k_box.api
+python -m a2k.api
 # -> http://localhost:8000  (card at /.well-known/a2k-card.json)
 
 # MCP transport (stdio) -- run in a separate process, or let K2 launch it
-python -m a2k_box.mcp_server
+python -m a2k.mcp_server
 ```
 
 Try it:
@@ -64,7 +64,7 @@ server in K2's tool config, e.g.:
   "mcpServers": {
     "a2k-box": {
       "command": "/absolute/path/to/.venv/bin/python",
-      "args": ["-m", "a2k_box.mcp_server"],
+      "args": ["-m", "a2k.mcp_server"],
       "cwd": "/absolute/path/to/this/repo"
     }
   }
@@ -94,7 +94,7 @@ cp .env.example .env
 ```
 
 `ProviderAdapter.search()`/`.get_document()` have the identical signature in
-mock and live mode (`a2k_box/adapters/base.py`), so nothing above the
+mock and live mode (`a2k/adapters/base.py`), so nothing above the
 adapters changes.
 
 - **Cala (`adapters/cala.py`) -- confirmed, not just best-effort.** Verified
@@ -183,7 +183,7 @@ verified against the JWKS served by another. Generate it once locally and
 push it in as a Secret instead of letting the container mint one:
 
 ```bash
-python -c "from a2k_box.gateway import signing; signing.get_private_key()"  # writes keys/gateway_ed25519.pem
+python -c "from a2k.gateway import signing; signing.get_private_key()"  # writes keys/gateway_ed25519.pem
 kubectl create namespace a2k-box
 kubectl create secret generic a2k-box-signing-key -n a2k-box \
   --from-file=gateway_ed25519.pem=./keys/gateway_ed25519.pem
@@ -242,7 +242,7 @@ What's implemented:
 - `TextQuoteSelector` citations with `sourceHash`, `retrievedAt`, and
   per-citation `dataLineage`.
 - Deterministic, exactly-measured grounding: `answer` is built only from
-  verbatim citation quotes (`a2k_box/gateway/synthesis.py`), so
+  verbatim citation quotes (`a2k/gateway/synthesis.py`), so
   `groundedRatio` is an exact character count, not an estimate, and
   `strictGrounding` is satisfiable on demand.
 - Cross-source conflict detection and reporting (`gateway/conflict.py`):
@@ -287,7 +287,7 @@ as a compliance control.
 ## Project layout
 
 ```
-a2k_box/
+a2k/
   config.py, errors.py          environment config, KCP error codes
   models/                       Pydantic: envelope, KB Card, requests
   adapters/                     Cala + Sayari clients (mock + live), fixtures

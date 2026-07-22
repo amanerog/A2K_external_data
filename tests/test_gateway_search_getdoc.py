@@ -1,7 +1,7 @@
 import pytest
 
-from a2k_box.gateway.engine import GatewayEngine
-from a2k_box.models.request import A2KRequest, GetDocumentRequest, Pagination
+from a2k.gateway.engine import GatewayEngine
+from a2k.models.request import A2KRequest, GetDocumentRequest, Pagination
 
 
 @pytest.fixture

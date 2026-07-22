@@ -7,8 +7,8 @@ fixtures deliberately agree on everything they share.
 
 import pytest
 
-from a2k_box.gateway.engine import GatewayEngine
-from a2k_box.models.request import A2KRequest, Requirements
+from a2k.gateway.engine import GatewayEngine
+from a2k.models.request import A2KRequest, Requirements
 
 
 @pytest.fixture

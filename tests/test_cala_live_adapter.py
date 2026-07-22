@@ -12,7 +12,7 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
-from a2k_box.adapters import cala as cala_module
+from a2k.adapters import cala as cala_module
 
 ENTITY_ID = "e5bb591a-d308-4aa5-9672-96046d366cde"
 
@@ -195,7 +195,7 @@ async def test_get_document_resolves_cached_query_result_row(patched_adapter):
 
 
 async def test_rate_limit_maps_to_retryable_rate_limited_error(patched_adapter):
-    from a2k_box.errors import A2KError, ErrorCode
+    from a2k.errors import A2KError, ErrorCode
 
     with pytest.raises(A2KError) as excinfo:
         await patched_adapter._live_search("RateLimitMe", limit=10)
@@ -217,7 +217,7 @@ async def test_live_search_without_api_key_raises_upstream_error(monkeypatch):
     monkeypatch.setattr(cala_module, "config", fake_config)
     adapter = cala_module.CalaAdapter()
 
-    from a2k_box.errors import A2KError
+    from a2k.errors import A2KError
 
     with pytest.raises(A2KError) as excinfo:
         await adapter._live_search("Acme", limit=10)

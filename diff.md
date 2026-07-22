@@ -8,7 +8,7 @@ MCP (Model Context Protocol) es JSON-RPC 2.0 sobre un transporte -- en nuestro c
 
 Flujo real, tal como lo verificamos con el cliente stdio:
 
-1. K2 ejecuta `python -m a2k_box.mcp_server` como proceso hijo.
+1. K2 ejecuta `python -m a2k.mcp_server` como proceso hijo.
 2. Handshake `initialize` -- el cliente y el servidor negocian capacidades.
 3. K2 pide `list_tools()` / `list_resources()` -- el servidor le devuelve, en formato estructurado, los 7 tools (`a2k.search`, `a2k.ask`, ...) con su **schema de parametros generado automaticamente** desde las firmas Python (`mcp_server/server.py:63-118`) y los 3 recursos (`a2k://card`, etc.).
 4. El **modelo de K2 ve esa lista directamente** y decide el solo cuando llamar a `a2k.ask` -- no hace falta que alguien le describa la API en un prompt aparte.

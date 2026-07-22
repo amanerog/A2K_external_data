@@ -25,14 +25,14 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["a2k_box*"]
+include = ["a2k*"]
 
 [tool.setuptools.package-data]
 # Non-.py runtime data: mock fixtures and KB Cards. Without this, a
 # non-editable `pip install .` (e.g. in the Docker image) silently omits
 # them and the app fails at startup looking for files that "exist locally"
 # but never made it into the installed wheel.
-a2k_box = ["adapters/fixtures/*.json", "cards/*.json"]
+a2k = ["adapters/fixtures/*.json", "cards/*.json"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

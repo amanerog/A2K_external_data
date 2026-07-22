@@ -5,7 +5,7 @@ gateway logic already covered in test_gateway_*.py.
 
 import json
 
-from a2k_box.mcp_server.server import mcp
+from a2k.mcp_server.server import mcp
 
 
 def _content_json(result):

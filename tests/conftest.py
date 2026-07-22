@@ -14,7 +14,7 @@ private `_live_*` methods directly, which never consult `config.is_mock`.
 
 import pytest
 
-from a2k_box.config import Config
+from a2k.config import Config
 
 
 @pytest.fixture(autouse=True)

@@ -7,3 +7,6 @@ audit.jsonl
 *.egg-info/
 .pytest_cache/
 deploy/secret-provider-creds.yaml
+build/
+.coverage
+coverage.xml
