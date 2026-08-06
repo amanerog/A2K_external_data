@@ -56,27 +56,23 @@ pytest -q
 
 ## Wiring into K2
 
-**MCP (recommended for an agent tool integration).** Add the box as an MCP
-server in K2's tool config, e.g.:
+**MCP.** `python -m a2k.mcp_server` runs the box as a **streamable-http**
+MCP server on `0.0.0.0:8000/mcp` (not stdio -- see "Deploy to AgentCore"
+below for why). Any MCP client that speaks streamable-http can point at
+that URL directly, e.g. for local testing with the MCP Inspector:
 
-```json
-{
-  "mcpServers": {
-    "a2k-box": {
-      "command": "/absolute/path/to/.venv/bin/python",
-      "args": ["-m", "a2k.mcp_server"],
-      "cwd": "/absolute/path/to/this/repo"
-    }
-  }
-}
+```bash
+python -m a2k.mcp_server &
+npx @modelcontextprotocol/inspector   # then paste http://localhost:8000/mcp
 ```
 
 This exposes resource `a2k://card` (+ `a2k://card/cala`, `a2k://card/sayari`)
 and tools `a2k.search`, `a2k.ask`, `a2k.explain`, `a2k.getDocument`,
-`a2k.validateCitation`, `a2k.reportConflict`, `a2k.getAuditRecord`. Wiring
-this into K2's actual process config is out of scope here since that config
-doesn't live in this repository -- the snippet above is what needs adding on
-the K2 side.
+`a2k.validateCitation`, `a2k.reportConflict`, `a2k.getAuditRecord`. K2 itself
+only speaks REST (no MCP client, see "Wiring into K2" REST section below and
+"Deploy to EKS"), so this transport is for MCP-native agents/clients --
+concretely, an agent hosted on Bedrock AgentCore Runtime, reached through
+AgentCore Gateway (see "Deploy to AgentCore").
 
 **REST.** Point K2 at `http://localhost:8080` and speak A2K-KCP directly:
 `GET /.well-known/a2k-card.json`, `POST /a2k/{operation}` (fans out to both
@@ -161,11 +157,9 @@ adapters changes.
 K2's agent runtime only speaks plain REST/HTTP to external tools (no MCP
 client), so the box deploys as its own containerized service in the same
 EKS cluster and K2 calls it over the cluster-internal network -- no changes
-to K2's own container or config beyond pointing it at the Service URL. The
-MCP stdio transport is *not* deployed this way: stdio requires the client
-to spawn the server as a local child process, which only makes sense
-embedded inside K2's own container, not as an independent K8s workload --
-not needed here since K2 doesn't have an MCP client anyway.
+to K2's own container or config beyond pointing it at the Service URL. This
+is the REST transport (`a2k.api`, port 8080) only; the MCP transport is
+deployed separately, see "Deploy to AgentCore" below.
 
 **Build and push the image:**
 
@@ -232,6 +226,49 @@ non-editable `pip install .` into a clean venv -- the same install path the
 Dockerfile uses -- correctly includes the fixtures/cards and boots; and all
 six YAML files parse and carry the required `apiVersion`/`kind`/`metadata.name`
 fields. Build and apply for real before trusting this in production.
+
+## Deploy to AgentCore
+
+For an agent hosted on **Amazon Bedrock AgentCore Runtime** consuming this
+box over MCP (as opposed to K2's REST-only integration above), the box's
+MCP transport deploys as its own AgentCore Runtime workload, separate from
+the agent's own Runtime workload -- not as a Kubernetes/EKS service, and
+not self-hosted behind a load balancer or tunnel. Gateway-to-Runtime traffic
+stays on AWS's internal network; there's no VPC/TLS/ingress setup to do.
+
+**Why streamable-http, and why these exact settings.** AgentCore Runtime
+expects an MCP server container listening at `0.0.0.0:8000/mcp` -- both are
+`FastMCP` defaults, kept explicit in `mcp_server/server.py` since Runtime
+depends on them. `stateless_http=True` is set because this gateway has no
+sampling/elicitation/progress-notification tools that would need MCP
+session state preserved across requests.
+
+**Deploy** (needs the [AgentCore CLI](https://github.com/aws/agentcore-cli),
+`npm install -g @aws/agentcore`, run from your own machine/CI with AWS
+credentials -- not done as part of this repo):
+
+```bash
+agentcore create --protocol MCP   # scaffolds agentcore/agentcore.json; point
+                                   # its entrypoint at a2k/mcp_server/server.py
+agentcore deploy                  # packages + uploads to S3 + creates the
+                                   # AgentCore Runtime + deploys
+```
+
+This returns a Runtime ARN
+(`arn:aws:bedrock-agentcore:<region>:<account-id>:runtime/a2k-box-xyz123`).
+Register that ARN as an AgentCore Gateway target (`targetConfiguration.mcp.
+mcpServer.endpoint`, target type "AgentCore Runtime") so the agent -- itself
+running as a separate Runtime workload -- reaches this box through Gateway
+without ever holding CALA/Sayari credentials directly; those stay in this
+box's adapters (`adapters/cala.py`, `adapters/sayari.py`) exactly as in mock
+and REST-live mode.
+
+Not verified in this environment: no AWS account/credentials are available
+in this sandbox, so `agentcore create`/`agentcore deploy` were not actually
+run. What *was* verified: the server starts locally with
+`python -m a2k.mcp_server` and answers a real MCP `initialize` handshake on
+`http://localhost:8000/mcp` over streamable-http, and the full test suite
+(`pytest -q`, 38 tests) still passes after the transport change.
 
 ## Conformance -- A2K-KCP Level 4
 

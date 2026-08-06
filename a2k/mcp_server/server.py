@@ -5,7 +5,9 @@ model, calls `gateway/engine.py`, and returns the resulting envelope as a
 dict. No business logic lives in this module -- K2 gets an identical
 envelope whether it talks to the box over REST or over this MCP server.
 
-Run standalone with `python -m a2k.mcp_server` (stdio transport).
+Run standalone with `python -m a2k.mcp_server` (streamable-http transport,
+listening on 0.0.0.0:8000/mcp -- the path/port AgentCore Runtime expects
+when hosting an MCP server, see README "Deploy to AgentCore").
 """
 
 from __future__ import annotations
@@ -32,6 +34,13 @@ mcp = FastMCP(
         "evidence behind a prior a2k.ask response, and a2k.getDocument to retrieve "
         "the full source record behind any citation's documentId."
     ),
+    # AgentCore Runtime hosts MCP servers at 0.0.0.0:8000/mcp (both are
+    # FastMCP defaults, kept explicit here since Runtime depends on them).
+    # stateless_http=True: this gateway has no sampling/elicitation/progress
+    # notifications, so there's nothing that needs cross-request MCP session
+    # state -- see README "Deploy to AgentCore".
+    host="0.0.0.0",
+    stateless_http=True,
 )
 
 
@@ -139,7 +148,7 @@ async def a2k_get_audit_record(requestId: str) -> dict:
 
 
 def main() -> None:
-    mcp.run(transport="stdio")
+    mcp.run(transport="streamable-http")
 
 
 if __name__ == "__main__":

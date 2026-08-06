@@ -1,8 +1,8 @@
 # A2K Box -- REST transport (see README "Deploy to EKS").
-# The MCP entrypoint (`python -m a2k.mcp_server`) is also present in this
-# image and can be run instead by overriding the entrypoint command, but
-# stdio-transport MCP is not meant to run as its own K8s workload -- see
-# README for why.
+# The MCP entrypoint (`python -m a2k.mcp_server`, streamable-http on
+# 0.0.0.0:8000/mcp) is also present in this image and can be run instead by
+# overriding the entrypoint command, but AgentCore Runtime deploys don't use
+# this Dockerfile -- see README "Deploy to AgentCore".
 
 FROM registry.global.ccc.srvb.bo.paas.cloudcenter.corp/produban/python-314-ubi9:1.1.20.RELEASE AS build
 
