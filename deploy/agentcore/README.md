@@ -9,17 +9,23 @@ workload. This is unrelated to the REST transport's EKS deployment (see
 `../namespace.yaml` etc.) -- K2 keeps talking to the REST transport in EKS
 exactly as before; this path is for MCP-native agents on AgentCore.
 
-**Not verified in this environment.** No AWS account/credentials or the
-`agentcore` CLI (Node.js) were available in the sandbox this runbook was
-written in, so none of the AWS-side commands below were actually executed.
-What *was* verified locally: `entrypoint.py` in this directory imports
-`a2k.mcp_server.server` successfully with `fastapi`/`uvicorn` blocked, which
-is why `requirements.txt` here omits them (see comment in that file) --
-confirming the MCP-only deploy doesn't need the REST transport's
-dependencies. Treat the AWS-specific field names (`agentcore.json`'s
-`entrypoint` key, exact CLI flags) as best-effort from AWS's own docs, and
-confirm them against whatever your `agentcore create` run actually
-generates.
+Two ways to get the code deployed: **Option A** uses the `agentcore` CLI
+(Node.js/npm), the path AWS's own docs lead with. **Option B** needs nothing
+but `pip` (already have it) and either the AWS Console or the plain `aws`
+CLI -- use this one if `npm install -g` is blocked by corporate policy, as
+it was in the case this runbook was first written for.
+
+**Not verified in this environment.** No AWS account/credentials, the
+`agentcore` CLI, nor `npm` itself were available in the sandbox this runbook
+was written in, so none of the AWS-side commands below (either option) were
+actually executed. What *was* verified locally: `entrypoint.py` in this
+directory imports `a2k.mcp_server.server` successfully with `fastapi`/
+`uvicorn` blocked, which is why `requirements.txt` here omits them (see
+comment in that file) -- confirming the MCP-only deploy doesn't need the
+REST transport's dependencies. Treat the AWS-specific field names
+(`agentcore.json`'s `entrypoint` key, exact CLI flags, IAM permission
+names) as best-effort from AWS's own docs, and confirm them against what
+your account actually accepts.
 
 ## Files in this directory
 
@@ -38,8 +44,10 @@ generates.
 
 ```bash
 aws configure          # credentials for the target account, if not already set
-npm install -g @aws/agentcore
 ```
+
+`npm install -g @aws/agentcore` is only needed for Option A below (step 2).
+Option B needs nothing beyond `aws` and `pip`.
 
 ## 1. Inbound identity (Cognito quick setup, for testing)
 
@@ -82,7 +90,7 @@ echo "Client ID: $CLIENT_ID"
 Keep the **Discovery URL** and **Client ID** -- `agentcore create` asks for
 them next.
 
-## 2. Scaffold the deployment project
+## 2. Build and deploy -- Option A: `agentcore` CLI (needs npm)
 
 ```bash
 cd /tmp   # or wherever you want to build this, outside the repo checkout
@@ -101,9 +109,7 @@ cp /path/to/repo/deploy/agentcore/requirements.txt .
 ```
 
 Open the generated `agentcore/agentcore.json` and set its `entrypoint` field
-to `entrypoint.py`.
-
-## 3. Deploy
+to `entrypoint.py`. Then:
 
 ```bash
 agentcore deploy
@@ -116,7 +122,75 @@ it. Returns a Runtime ARN:
 arn:aws:bedrock-agentcore:eu-west-1:<account-id>:runtime/a2k-box-xyz123
 ```
 
-## 4. Test the deployed server
+Skip to step 3.
+
+## 2. Build and deploy -- Option B: no npm (plain `pip` + zip)
+
+AgentCore Runtime's direct-code-deploy path doesn't run `pip install` for
+you -- dependencies must already be inside the zip, built for **Linux
+arm64** (what Runtime actually runs on), which `pip`'s `--platform` flag
+can cross-download without needing a Linux machine, as long as every
+dependency ships a prebuilt wheel for that platform (true for all of ours:
+`mcp`, `pydantic`, `httpx`, `cryptography`, `python-dotenv`).
+
+**Build the package** (PowerShell shown; the same `pip`/zip logic works in
+bash with `zip -r` instead of `Compress-Archive`):
+
+```powershell
+mkdir C:\temp\a2k-agentcore-build
+cd C:\temp\a2k-agentcore-build
+
+pip install `
+  --platform manylinux2014_aarch64 `
+  --python-version 3.13 `
+  --implementation cp `
+  --only-binary=:all: `
+  --target . `
+  -r C:\path\to\repo\deploy\agentcore\requirements.txt
+
+Copy-Item -Recurse C:\path\to\repo\a2k .
+Copy-Item C:\path\to\repo\deploy\agentcore\entrypoint.py .
+
+# AWS explicitly warns against shipping __pycache__: bytecode built on your
+# machine's architecture/OS may not be compatible with Runtime's arm64 env.
+Get-ChildItem -Recurse -Directory -Filter "__pycache__" | Remove-Item -Recurse -Force
+
+Compress-Archive -Path * -DestinationPath ..\a2k-box-mcp.zip
+```
+
+**Deploy it -- via the console (zero CLI/API calls):**
+
+1. AgentCore console -> **Agent Runtime** -> **Host Agent**.
+2. **Source type** -> **Local Upload** -> pick `a2k-box-mcp.zip`.
+3. **Runtime version** -> Python 3.13. **Entry point** -> `entrypoint.py`.
+   **Execution role** -> "Create new" (simplest; avoids hand-writing an IAM
+   policy).
+4. **Protocol** -> MCP, if offered at this step; otherwise it's set via
+   `--protocol-configuration` as in the CLI form below.
+5. **Create Agent** -> **Create Endpoint** -> **Test Endpoint**.
+
+**Or deploy it -- via plain `aws` CLI** (no `agentcore`/npm involved):
+
+```powershell
+aws s3 cp a2k-box-mcp.zip s3://<your-bucket>/a2k-box/a2k-box-mcp.zip
+
+aws bedrock-agentcore-control create-agent-runtime `
+  --agent-runtime-name a2k-box `
+  --agent-runtime-artifact '{"codeConfiguration":{"code":{"s3":{"bucket":"<your-bucket>","prefix":"a2k-box/a2k-box-mcp.zip"}},"runtime":"PYTHON_3_13","entryPoint":["entrypoint.py"]}}' `
+  --role-arn arn:aws:iam::<account-id>:role/<execution-role> `
+  --network-configuration networkMode=PUBLIC `
+  --protocol-configuration serverProtocol=MCP
+```
+
+Either way, the result is a Runtime ARN, same shape as Option A:
+
+```
+arn:aws:bedrock-agentcore:eu-west-1:<account-id>:runtime/a2k-box-xyz123
+```
+
+## 3. Test the deployed server
+
+**With `npx` available:**
 
 ```bash
 export AGENT_ARN="arn:aws:bedrock-agentcore:eu-west-1:<account-id>:runtime/a2k-box-xyz123"
@@ -129,12 +203,41 @@ In the Inspector UI: transport "Streamable HTTP", URL
 https://bedrock-agentcore.eu-west-1.amazonaws.com/runtimes/<url-encoded-ARN>/invocations?qualifier=DEFAULT
 ```
 
-Authorization header: `Bearer $BEARER_TOKEN`. You should see the 7 tools
-(`a2k.search`, `a2k.ask`, `a2k.explain`, `a2k.getDocument`,
-`a2k.validateCitation`, `a2k.reportConflict`, `a2k.getAuditRecord`) and the
-3 card resources (`a2k://card`, `a2k://card/cala`, `a2k://card/sayari`).
+Authorization header: `Bearer $BEARER_TOKEN`.
 
-## 5. Register it as an AgentCore Gateway target
+**Without `npx`/npm** (uses the `mcp` package already in
+`requirements.txt`, so no new install needed -- run from the repo's own
+`.venv`):
+
+```python
+# test_remote_mcp.py
+import asyncio, os
+from mcp import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
+
+async def main():
+    arn = os.environ["AGENT_ARN"].replace(":", "%3A").replace("/", "%2F")
+    url = f"https://bedrock-agentcore.eu-west-1.amazonaws.com/runtimes/{arn}/invocations?qualifier=DEFAULT"
+    headers = {"authorization": f"Bearer {os.environ['BEARER_TOKEN']}"}
+    async with streamablehttp_client(url, headers, timeout=120) as (read, write, _):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            print(await session.list_tools())
+
+asyncio.run(main())
+```
+
+```bash
+export AGENT_ARN="arn:aws:bedrock-agentcore:eu-west-1:<account-id>:runtime/a2k-box-xyz123"
+python test_remote_mcp.py
+```
+
+Either way, you should see the 7 tools (`a2k.search`, `a2k.ask`,
+`a2k.explain`, `a2k.getDocument`, `a2k.validateCitation`,
+`a2k.reportConflict`, `a2k.getAuditRecord`) and the 3 card resources
+(`a2k://card`, `a2k://card/cala`, `a2k://card/sayari`).
+
+## 4. Register it as an AgentCore Gateway target
 
 With the Gateway already created (see AWS console: Gateways -> Create
 gateway, or `CreateGateway`), add a2k-box as a target of type "AgentCore
