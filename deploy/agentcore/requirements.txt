@@ -1,0 +1,9 @@
+# Runtime deps for the MCP-only deploy of a2k-box (AgentCore Runtime).
+# Deliberately narrower than Pipfile: fastapi/uvicorn are only used by
+# a2k/api (REST transport, deployed separately to EKS) and a2k/cli.py's
+# `run_mcp`/`run_rest` helpers, neither of which this entrypoint imports.
+mcp>=1.28.0,<2.0
+pydantic>=2.13.0,<3.0
+httpx>=0.28.0,<1.0
+cryptography>=49.0.0,<50.0
+python-dotenv>=1.2.0,<2.0

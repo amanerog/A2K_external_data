@@ -245,18 +245,18 @@ session state preserved across requests.
 
 **Deploy** (needs the [AgentCore CLI](https://github.com/aws/agentcore-cli),
 `npm install -g @aws/agentcore`, run from your own machine/CI with AWS
-credentials -- not done as part of this repo):
+credentials -- not done as part of this repo): full step-by-step runbook,
+including the Cognito inbound-auth setup, the exact `agentcore create`/
+`agentcore deploy` sequence, remote testing, and registering the result as
+an AgentCore Gateway target, is in
+[`deploy/agentcore/README.md`](deploy/agentcore/README.md). That directory
+also has the `entrypoint.py` and trimmed `requirements.txt` the deploy needs
+(no `fastapi`/`uvicorn` -- verified locally that the MCP-only import path
+doesn't touch either).
 
-```bash
-agentcore create --protocol MCP   # scaffolds agentcore/agentcore.json; point
-                                   # its entrypoint at a2k/mcp_server/server.py
-agentcore deploy                  # packages + uploads to S3 + creates the
-                                   # AgentCore Runtime + deploys
-```
-
-This returns a Runtime ARN
-(`arn:aws:bedrock-agentcore:<region>:<account-id>:runtime/a2k-box-xyz123`).
-Register that ARN as an AgentCore Gateway target (`targetConfiguration.mcp.
+In short: it returns a Runtime ARN
+(`arn:aws:bedrock-agentcore:<region>:<account-id>:runtime/a2k-box-xyz123`),
+which you register as an AgentCore Gateway target (`targetConfiguration.mcp.
 mcpServer.endpoint`, target type "AgentCore Runtime") so the agent -- itself
 running as a separate Runtime workload -- reaches this box through Gateway
 without ever holding CALA/Sayari credentials directly; those stay in this
