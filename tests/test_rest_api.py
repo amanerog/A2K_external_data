@@ -11,19 +11,14 @@ def test_well_known_card():
     assert response.json()["id"] == "urn:a2k:gateway:k2-external-intel"
 
 
-def test_jwks_endpoint():
-    response = client.get("/.well-known/jwks.json")
-    assert response.status_code == 200
-    assert response.json()["keys"][0]["alg"] == "EdDSA"
-
-
-def test_ask_returns_signed_envelope_with_conflict():
+def test_ask_returns_envelope_with_conflict():
     response = client.post("/a2k/ask", json={"query": "Meridian Textiles ownership"})
     assert response.status_code == 200
     data = response.json()
     assert data["ok"] is True
     assert len(data["conflicts"]) == 1
-    assert data["responseSignature"]["alg"] == "EdDSA"
+    # Level 2 (see README "Conformance"): no response signing.
+    assert data["responseSignature"] is None
 
 
 def test_single_source_route():

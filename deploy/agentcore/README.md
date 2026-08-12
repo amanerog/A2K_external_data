@@ -237,6 +237,15 @@ Either way, you should see the 7 tools (`a2k.search`, `a2k.ask`,
 `a2k.reportConflict`, `a2k.getAuditRecord`) and the 3 card resources
 (`a2k://card`, `a2k://card/cala`, `a2k://card/sayari`).
 
+**No Bearer token, only IAM credentials?** Both options above assume a
+JWT/Cognito inbound authorizer (step 1). If instead you have
+`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`/`AWS_SESSION_TOKEN` (e.g. from
+SSO) and the Runtime's inbound authorizer is IAM, use
+[`test_remote_mcp_iam.py`](test_remote_mcp_iam.py) in this directory
+instead -- it calls `invoke_agent_runtime` via `boto3` (SigV4-signed
+automatically from those env vars), no Cognito/Bearer token needed at all.
+Edit the `AGENT_RUNTIME_ARN`/`REGION` constants at the top before running.
+
 ## 4. Register it as an AgentCore Gateway target
 
 With the Gateway already created (see AWS console: Gateways -> Create

@@ -93,6 +93,15 @@ cp .env.example .env
 mock and live mode (`a2k/adapters/base.py`), so nothing above the
 adapters changes.
 
+**`gateway/engine.py` defaults to `adapters/cala_mcp.py` for Cala, not
+`adapters/cala.py`.** Both exist and both work -- `cala_mcp.py` talks to
+Cala's own hosted MCP server (confirmed live 2026-08-10/11, see that
+module's docstring), `cala.py` talks to Cala's REST API directly (confirmed
+live 2026-07-20/21, see below). The engine only ever uses one at a time;
+swap `engine.py`'s import/construction if you need the REST path instead.
+Sayari (`adapters/sayari.py`) is still REST-only -- no MCP endpoint
+confirmed yet.
+
 - **Cala (`adapters/cala.py`) -- confirmed, not just best-effort.** Verified
   against the real OpenAPI spec at `api.cala.ai/openapi.json` and the
   `docs.cala.ai/api-reference/api-v1/*` pages (2026-07-20): auth is an
@@ -170,23 +179,6 @@ aws ecr get-login-password --region <REGION> | docker login --username AWS --pas
 docker push <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/a2k-box:latest
 ```
 
-**Signing key -- generate once, share across all replicas.** The gateway
-signs every response (Level 4, section 14.3); if each pod auto-generated
-its own key on first boot, a response signed by one replica couldn't be
-verified against the JWKS served by another. Generate it once locally and
-push it in as a Secret instead of letting the container mint one:
-
-```bash
-python -c "from a2k.gateway import signing; signing.get_private_key()"  # writes keys/gateway_ed25519.pem
-kubectl create namespace a2k-box
-kubectl create secret generic a2k-box-signing-key -n a2k-box \
-  --from-file=gateway_ed25519.pem=./keys/gateway_ed25519.pem
-```
-
-Keep that local `keys/gateway_ed25519.pem` somewhere safe (it's gitignored) --
-regenerating it later invalidates every previously issued signature and
-requires re-pushing the Secret to all clusters.
-
 **Apply the manifests** (`deploy/`):
 
 ```bash
@@ -260,8 +252,8 @@ which you register as an AgentCore Gateway target (`targetConfiguration.mcp.
 mcpServer.endpoint`, target type "AgentCore Runtime") so the agent -- itself
 running as a separate Runtime workload -- reaches this box through Gateway
 without ever holding CALA/Sayari credentials directly; those stay in this
-box's adapters (`adapters/cala.py`, `adapters/sayari.py`) exactly as in mock
-and REST-live mode.
+box's adapters (`adapters/cala_mcp.py`, `adapters/sayari.py`) exactly as in
+mock and live mode.
 
 Not verified in this environment: no AWS account/credentials are available
 in this sandbox, so `agentcore create`/`agentcore deploy` were not actually
@@ -270,14 +262,23 @@ run. What *was* verified: the server starts locally with
 `http://localhost:8000/mcp` over streamable-http, and the full test suite
 (`pytest -q`, 38 tests) still passes after the transport change.
 
-## Conformance -- A2K-KCP Level 4
+## Conformance -- A2K-KCP Level 2
 
-What's implemented:
+**Deliberately targets Level 2, not Level 4.** Earlier drafts of this box
+implemented Level 4 (signed responses, immutable-audit framing, per-citation
+data lineage). Revisited once it was clear this box only ever handles
+public/commercial data (tier S0, see below): Level 4's verifiability
+machinery exists to satisfy regulatory/model-risk obligations that apply to
+*non-public* data at tier S1/S2 (A2K-Overview section 9.2) -- obligations
+this box never actually carries. Keeping it would have meant maintaining
+cryptographic infrastructure that verifies nothing anyone is required to
+check.
+
+What's implemented (Level 2 -- "Governed answers"):
 
 - All four operations (`search`, `ask`, `explain`, `getDocument`) with the
   full cited-response envelope.
-- `TextQuoteSelector` citations with `sourceHash`, `retrievedAt`, and
-  per-citation `dataLineage`.
+- `TextQuoteSelector` citations with `sourceHash` and `retrievedAt`.
 - Deterministic, exactly-measured grounding: `answer` is built only from
   verbatim citation quotes (`a2k/gateway/synthesis.py`), so
   `groundedRatio` is an exact character count, not an estimate, and
@@ -285,41 +286,40 @@ What's implemented:
 - Cross-source conflict detection and reporting (`gateway/conflict.py`):
   when Cala and Sayari disagree, both positions are surfaced via
   `conflicts[]` and a full `conflictReport` -- never resolved silently
-  (A2K-KCP section 12.4).
-- Signed responses: Ed25519 detached signatures over the fields KCP section
-  14.3 specifies, with a `/.well-known/jwks.json` verification endpoint
-  (`gateway/signing.py`).
-- Append-only audit trail (`gateway/audit.py`), `logTarget:
-  "local-jsonl-worm-sim"`.
+  (A2K-KCP section 12.4). This is a Level 2 baseline behavior, not a Level 4
+  feature -- it stays regardless of conformance level.
+- Append-only audit trail (`gateway/audit.py`), plain (`A2K_IMMUTABLE_AUDIT`
+  defaults to `false` -- see below).
 - The full KCP error model (`errors.py`) and access-leakage-safe `NOT_FOUND`
   handling.
 
-Two deliberate simplifications (this is a two-provider box, not a full
-enterprise Catalog+Gateway deployment):
+What's deliberately *not* implemented, and why that's fine at Level 2:
 
-1. **`/a2k/streamAsk` streams transport, not generation.** There is no LLM
-   inside the box writing tokens incrementally -- `answer` is fully computed
-   first, then chunked over SSE as `text_chunk` events with a real, signed
-   `proof_footer` at the end (KCP section 16). A client validating the
-   footer gets genuine verification; it just isn't watching genuine
-   incremental generation.
-2. **No Catalog.** Signed *requests* (section 14.4) and Catalog-issued card
-   signatures/attestations are out of scope -- there's no Catalog in a
-   fixed two-provider box. Response signing (14.3) is implemented.
+- **No response signing.** `gateway/signing.py`, the `/.well-known/jwks.json`
+  endpoint, and the shared-key-across-replicas deploy story were removed
+  entirely (not just disabled) once the box settled on Level 2 -- see git
+  history if you need the Ed25519 implementation back.
+- **No per-citation `dataLineage`.** KBCard-Schema marks it "Level 4 where
+  applicable."
+- **No immutable/WORM audit framing.** `A2K_IMMUTABLE_AUDIT` defaults to
+  `false`; flip it on if this box is ever repointed at non-public data.
+- **`/a2k/streamAsk`'s `proof_footer` carries no signature.** The endpoint
+  still streams `answer` as chunked `text_chunk` SSE events (there is no LLM
+  inside the box writing tokens incrementally -- `answer` is fully computed
+  first, then chunked) with a real footer of claims/citations/grounding at
+  the end; it just isn't cryptographically verifiable anymore.
+- **No Catalog**, same as before -- signed *requests* (KCP section 14.4) and
+  Catalog-issued card signatures/attestations were never in scope for a
+  fixed two-provider box.
 
 Security tier: both KB Cards declare `dataClassification: "public"`
 (commercial/public company data) -> **tier S0** per
 `A2K-KBCard-Schema` section 4.4.1, so `oboAssertionToken` is accepted and
-logged but not cryptographically validated. If Cala or Sayari data is ever
-paired with something non-public (e.g. an internal risk score), revisit this
-before reusing the cards as-is.
-
-Also honest about the signing implementation: canonicalization is a
-practical sorted-keys-JSON approximation of JCS/RFC 8785, not a certified
-implementation, and `jws` is a raw base64url Ed25519 signature rather than a
-full JWS compact serialization. Good enough to prove "this response left
-this gateway unmodified"; swap in a vetted JOSE library before treating it
-as a compliance control.
+logged but not cryptographically validated -- tier S0 never required
+response signing in the first place, independent of the conformance-level
+choice above. If Cala or Sayari data is ever paired with something
+non-public (e.g. an internal risk score), the tier changes to S1+ and this
+whole conformance decision needs revisiting before reusing the cards as-is.
 
 ## Project layout
 
@@ -328,7 +328,7 @@ a2k/
   config.py, errors.py          environment config, KCP error codes
   models/                       Pydantic: envelope, KB Card, requests
   adapters/                     Cala + Sayari clients (mock + live), fixtures
-  gateway/                      synthesis, conflict detection, signing, audit, engine
+  gateway/                      synthesis, conflict detection, audit, engine
   cards/                        the three KB Cards (gateway, cala, sayari)
   api/rest.py                   REST transport (FastAPI)
   mcp_server/server.py          MCP transport (stdio)

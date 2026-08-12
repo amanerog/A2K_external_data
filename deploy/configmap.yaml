@@ -10,7 +10,8 @@ data:
   A2K_BOX_HOST: "0.0.0.0"
   A2K_BOX_PORT: "8080"
   A2K_BOX_PUBLIC_URL: "http://a2k-box.a2k-box.svc.cluster.local:8080"
-  A2K_IMMUTABLE_AUDIT: "true"
+  # Level 3+/S2 concept -- off by default at Level 2/public data, see README
+  # "Conformance". Flip on if this box is ever repointed at non-public data.
+  A2K_IMMUTABLE_AUDIT: "false"
   A2K_AUDIT_STDOUT: "true"
-  A2K_SIGNING_KEY_PATH: "/app/keys/gateway_ed25519.pem"
   A2K_AUDIT_LOG_PATH: "/app/audit/audit.jsonl"

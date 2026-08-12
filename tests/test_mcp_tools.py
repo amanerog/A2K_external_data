@@ -36,7 +36,8 @@ async def test_ask_tool_matches_engine_envelope_shape():
     data = _content_json(result)
     assert data["ok"] is True
     assert len(data["conflicts"]) == 1
-    assert data["responseSignature"]["alg"] == "EdDSA"
+    # Level 2 (see README "Conformance"): no response signing.
+    assert data["responseSignature"] is None
 
 
 async def test_explain_tool_uses_prior_ask_request_id():

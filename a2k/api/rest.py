@@ -15,7 +15,6 @@ from pydantic import ValidationError
 
 from ..cards import load_card
 from ..errors import A2KError, ErrorCode
-from ..gateway import signing
 from ..gateway.engine import engine
 from ..models.request import A2KRequest, ExplainRequest, GetDocumentRequest
 
@@ -67,11 +66,6 @@ def _status_for(envelope) -> int:
 @app.get("/.well-known/a2k-card.json")
 async def well_known_card() -> dict:
     return load_card("gateway").model_dump(mode="json")
-
-
-@app.get("/.well-known/jwks.json")
-async def jwks() -> dict:
-    return signing.jwks()
 
 
 @app.get("/a2k/{source}/card")

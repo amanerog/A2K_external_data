@@ -35,12 +35,11 @@ RUN pip install --no-cache-dir /wheels/*.whl && rm -rf /wheels
 
 COPY entrypoint.sh ./
 
-# Runtime-writable locations. In Kubernetes: the signing key is mounted
-# read-only from a Secret (see deploy/deployment.yaml), and the local audit
-# file lives on an emptyDir -- both are pod-local; the durable audit trail is
-# the stdout copy (A2K_AUDIT_STDOUT=true, see gateway/audit.py) captured by
-# cluster log aggregation.
-RUN mkdir -p keys audit && \
+# Runtime-writable locations. The local audit file lives on an emptyDir in
+# Kubernetes -- pod-local; the durable audit trail is the stdout copy
+# (A2K_AUDIT_STDOUT=true, see gateway/audit.py) captured by cluster log
+# aggregation.
+RUN mkdir -p audit && \
     chmod +x entrypoint.sh && \
     chmod -R 775 $APP_HOME
 
@@ -48,7 +47,6 @@ ENV SSL_CERT_FILE=/etc/pki/tls/certs/ca-bundle.crt \
     REQUESTS_CA_BUNDLE=/etc/pki/tls/certs/ca-bundle.crt \
     A2K_BOX_HOST=0.0.0.0 \
     A2K_BOX_PORT=8080 \
-    A2K_SIGNING_KEY_PATH=$APP_HOME/keys/gateway_ed25519.pem \
     A2K_AUDIT_LOG_PATH=$APP_HOME/audit/audit.jsonl \
     A2K_AUDIT_STDOUT=true \
     A2K_BOX_MODE=mock

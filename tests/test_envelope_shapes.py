@@ -69,5 +69,5 @@ def test_all_three_kb_cards_validate():
     for name in ("gateway", "cala", "sayari"):
         card = load_card(name)
         assert isinstance(card, KBCard)
-        assert card.conformance.level == 4
+        assert card.conformance.level == 2
         assert card.enterprise.access.derived_security_tier == "S0"

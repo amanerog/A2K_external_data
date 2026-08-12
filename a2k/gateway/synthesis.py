@@ -13,7 +13,7 @@ import itertools
 from dataclasses import dataclass, field
 
 from ..adapters.base import Fact
-from ..models.envelope import Citation, Claim, LineageStep, Passage, TextPositionSelector, TextQuoteSelector
+from ..models.envelope import Citation, Claim, Passage, TextPositionSelector, TextQuoteSelector
 
 FIELD_CLAIM_TYPES = {
     "incorporation_date": "factual",
@@ -67,6 +67,9 @@ def group_facts(facts: list[Fact]) -> list[FactGroup]:
 
 
 def _citation_from_fact(fact: Fact, citation_id: str, claim_id: str) -> Citation:
+    # dataLineage deliberately left at its default (empty) -- KBCard-Schema
+    # marks it "Level 4 where applicable" (see README "Conformance"); this
+    # gateway targets Level 2.
     return Citation(
         id=citation_id,
         claimIds=[claim_id],
@@ -78,13 +81,6 @@ def _citation_from_fact(fact: Fact, citation_id: str, claim_id: str) -> Citation
         retrievedAt=fact.retrieved_at,
         sourceLastUpdated=fact.source_last_updated,
         classification=fact.classification,
-        dataLineage=[
-            LineageStep(
-                step="provider-fetch",
-                sourcePipeline=f"{provider_label(fact.kb_id).lower()}-adapter-v1",
-                ingestedAt=fact.retrieved_at,
-            )
-        ],
     )
 
 

@@ -91,6 +91,54 @@ def _is_unknown_sentinel(value: Any) -> bool:
     return isinstance(value, str) and value.strip().lower() == _UNKNOWN_VALUE_SENTINEL
 
 
+def facts_from_entity_response(detail: dict[str, Any], entity_id: str, entity_name: str, kb_id: str) -> list[Fact]:
+    """Turn a Cala entity-detail response into `Fact`s. Module-level (not a
+    `CalaAdapter` method) because `adapters/cala_mcp.py` needs the identical
+    parsing logic -- confirmed live against both `POST /v1/entities/{id}`
+    (REST) and the `entity_retrieval` MCP tool (2026-08-10): same response
+    shape, `properties: {field: {"value": ..., "sources": [...]}}`, just a
+    different transport getting it there.
+    """
+    entity_key = str(entity_id)
+    entity_name = detail.get("name") or entity_name
+    document_id = f"{kb_id}:doc:{entity_key}:profile"
+    retrieved_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    facts: list[Fact] = []
+
+    for field_name, entry in (detail.get("properties") or {}).items():
+        if not isinstance(entry, dict):
+            continue
+        value = entry.get("value")
+        if value in (None, "") or _is_unknown_sentinel(value):
+            continue
+        value_str = value if isinstance(value, str) else json.dumps(value, default=str)
+        sources = entry.get("sources") or []
+        primary_source = sources[0] if sources else {}
+
+        text = f"{entity_name} -- {field_name.replace('_', ' ')}: {value_str} (per Cala)."
+        digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
+        facts.append(
+            Fact(
+                entity_key=entity_key,
+                entity_name=entity_name,
+                field=str(field_name),
+                value=value_str,
+                text=text,
+                document_id=document_id,
+                title=primary_source.get("name") or primary_source.get("document") or f"{entity_name} (Cala)",
+                # Cala's `sources` entries carry a document/date, not a
+                # resolvable URL -- nothing to put here honestly.
+                source_url=None,
+                source_hash=f"sha256:{digest}",
+                retrieved_at=retrieved_at,
+                source_last_updated=primary_source.get("date"),
+                kb_id=kb_id,
+                raw=entry,
+            )
+        )
+    return facts
+
+
 def _wrap_http_error(exc: httpx.HTTPError, context: str) -> A2KError:
     """Confirmed live 2026-07-21: Cala's rate limit (free-tier credits) trips
     fast once a query touches several entities, since each one costs an
@@ -162,7 +210,7 @@ class CalaAdapter(ProviderAdapter):
                     continue
                 detail = await self._fetch_entity_detail(client, entity_id, entity_name)
                 if detail is not None:
-                    facts.extend(self._facts_from_entity_response(detail, entity_id, entity_name))
+                    facts.extend(facts_from_entity_response(detail, entity_id, entity_name, self.kb_id))
 
             if facts:
                 return facts
@@ -222,48 +270,6 @@ class CalaAdapter(ProviderAdapter):
         except httpx.HTTPError as exc:
             raise _wrap_http_error(exc, f"Cala POST /v1/entities/{entity_id} failed") from exc
         return detail_resp.json()
-
-    def _facts_from_entity_response(
-        self, detail: dict[str, Any], entity_id: str, entity_name: str
-    ) -> list[Fact]:
-        entity_key = str(entity_id)
-        entity_name = detail.get("name") or entity_name
-        document_id = f"{self.kb_id}:doc:{entity_key}:profile"
-        retrieved_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        facts: list[Fact] = []
-
-        for field_name, entry in (detail.get("properties") or {}).items():
-            if not isinstance(entry, dict):
-                continue
-            value = entry.get("value")
-            if value in (None, "") or _is_unknown_sentinel(value):
-                continue
-            value_str = value if isinstance(value, str) else json.dumps(value, default=str)
-            sources = entry.get("sources") or []
-            primary_source = sources[0] if sources else {}
-
-            text = f"{entity_name} -- {field_name.replace('_', ' ')}: {value_str} (per Cala)."
-            digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
-            facts.append(
-                Fact(
-                    entity_key=entity_key,
-                    entity_name=entity_name,
-                    field=str(field_name),
-                    value=value_str,
-                    text=text,
-                    document_id=document_id,
-                    title=primary_source.get("name") or primary_source.get("document") or f"{entity_name} (Cala)",
-                    # Cala's `sources` entries carry a document/date, not a
-                    # resolvable URL -- nothing to put here honestly.
-                    source_url=None,
-                    source_hash=f"sha256:{digest}",
-                    retrieved_at=retrieved_at,
-                    source_last_updated=primary_source.get("date"),
-                    kb_id=self.kb_id,
-                    raw=entry,
-                )
-            )
-        return facts
 
     async def _live_query_fallback(self, client: httpx.AsyncClient, query: str, limit: int) -> list[Fact]:
         try:

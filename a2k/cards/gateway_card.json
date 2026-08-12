@@ -131,31 +131,23 @@
   },
   "audit": {
     "loggingRequired": true,
-    "immutableLogRequired": true,
+    "immutableLogRequired": false,
     "logTarget": "local-jsonl-worm-sim",
     "logRetention": "7y",
     "includeUserId": true,
     "includeAgentId": true,
     "includeCitationIds": true,
-    "includeProofFooter": true
+    "includeProofFooter": false
   },
   "regulatedExtension": {
-    "supported": true,
-    "features": [
-      "strict-grounding",
-      "text-quote-selectors",
-      "data-lineage",
-      "immutable-audit",
-      "signed-response",
-      "conflict-escalation",
-      "streaming-proof-footer"
-    ],
+    "supported": false,
+    "features": [],
     "regulatedDomains": ["finance", "compliance", "risk"],
     "minimumAuditRetention": "7y",
-    "immutableAuditRequired": true
+    "immutableAuditRequired": false
   },
   "conformance": {
-    "level": 4,
+    "level": 2,
     "profile": "a2k-enterprise-v0.6-baseline",
     "features": [
       "kb-card",
@@ -171,9 +163,6 @@
       "freshness",
       "audit",
       "grounding",
-      "strict-grounding",
-      "data-lineage",
-      "signed-response",
       "conflict-report"
     ]
   },

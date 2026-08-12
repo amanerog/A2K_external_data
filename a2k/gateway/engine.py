@@ -12,7 +12,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from ..adapters.base import Fact, ProviderAdapter
-from ..adapters.cala import CalaAdapter
+from ..adapters.cala_mcp import CalaMcpAdapter
 from ..adapters.sayari import SayariAdapter
 from ..config import config
 from ..errors import A2KError, ErrorCode
@@ -26,12 +26,11 @@ from ..models.envelope import (
     Freshness,
     GetDocumentResponse,
     Grounding,
-    ResponseSignature,
     Usage,
 )
 from ..models.request import A2KRequest, ExplainRequest, GetDocumentRequest
 from . import audit as gw_audit
-from . import conflict, signing, synthesis
+from . import conflict, synthesis
 
 GATEWAY_KB_ID = "urn:a2k:gateway:k2-external-intel"
 _CACHE_MAX_SIZE = 500
@@ -39,7 +38,10 @@ _CACHE_MAX_SIZE = 500
 
 class GatewayEngine:
     def __init__(self) -> None:
-        self.adapters: dict[str, ProviderAdapter] = {"cala": CalaAdapter(), "sayari": SayariAdapter()}
+        # Cala: MCP (Cala's own hosted server, adapters/cala_mcp.py) is the
+        # default now -- Sayari still REST (adapters/sayari.py) until its
+        # MCP endpoint/tools are confirmed.
+        self.adapters: dict[str, ProviderAdapter] = {"cala": CalaMcpAdapter(), "sayari": SayariAdapter()}
         self.gateway_kb_id = GATEWAY_KB_ID
         self._response_cache: dict[str, CitedResponseEnvelope] = {}
 
@@ -86,7 +88,6 @@ class GatewayEngine:
             usage=Usage(latencyMs=self._elapsed_ms(t0), retrievalCount=len(all_facts)),
             pageInfo={"nextCursor": None, "hasMore": False, "pageLimit": limit},
         )
-        envelope = self._sign(envelope)
         self._cache(request_id, envelope)
         return envelope
 
@@ -170,7 +171,6 @@ class GatewayEngine:
             usage=Usage(latencyMs=self._elapsed_ms(t0), retrievalCount=len(all_facts)),
             conflictReport=conflict_report,
         )
-        envelope = self._sign(envelope)
         self._cache(request_id, envelope)
         return envelope
 
@@ -225,7 +225,7 @@ class GatewayEngine:
             accessDecision=self._access_decision(),
             audit=audit,
         )
-        return self._sign(envelope)
+        return envelope
 
     async def get_document(self, req: GetDocumentRequest) -> GetDocumentResponse:
         request_id = self._request_id(req)
@@ -344,12 +344,6 @@ class GatewayEngine:
             segments.append((f" is {note} {sources_desc}.", False))
         return synthesis.assemble_segments(segments)
 
-    def _sign(self, envelope: CitedResponseEnvelope) -> CitedResponseEnvelope:
-        dumped = envelope.model_dump(mode="json")
-        sig = signing.sign_envelope(dumped)
-        envelope.responseSignature = ResponseSignature(**sig)
-        return envelope
-
     def _cache(self, request_id: str, envelope: CitedResponseEnvelope) -> None:
         self._response_cache[request_id] = envelope
         while len(self._response_cache) > _CACHE_MAX_SIZE:
@@ -432,7 +426,7 @@ class GatewayEngine:
             accessDecision=self._access_decision(),
             audit=audit,
         )
-        return self._sign(envelope)
+        return envelope
 
 
 engine = GatewayEngine()
