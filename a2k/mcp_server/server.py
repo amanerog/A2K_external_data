@@ -14,7 +14,11 @@ from __future__ import annotations
 
 import json
 
+import anyio
+import uvicorn
 from mcp.server.fastmcp import FastMCP
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse
 
 from ..cards import load_card
 from ..config import config
@@ -147,8 +151,48 @@ async def a2k_get_audit_record(requestId: str) -> dict:
     return {"found": False}
 
 
+async def _agentcore_probe_short_circuit(request, call_next):
+    """AgentCore Runtime's internal liveness probe POSTs to `/mcp/` (trailing
+    slash) from 127.0.0.1 with no Authorization header, every ~2s. FastMCP
+    registers its endpoint at `/mcp` (no trailing slash, exact match), so the
+    probe never reaches the real handler -- Runtime accumulates failed probes
+    and eventually reports "MCP error -32010: Runtime health check failed"
+    even though the app itself started fine and is otherwise healthy (see
+    README "Deploy to AgentCore" for how this was diagnosed: clean startup in
+    CloudWatch logs, yet every invocation timed out, warm container or not).
+    Short-circuits only that exact probe fingerprint with a 200; every other
+    request -- including a real client hitting `/mcp/` -- falls through to
+    normal handling unchanged.
+    https://www.k9security.io/posts/2026/06/fix-agentcore-mcp-32010-health-check-failed/
+    """
+    client_host = request.client.host if request.client else None
+    if (
+        request.method == "POST"
+        and request.url.path == "/mcp/"
+        and client_host == "127.0.0.1"
+        and not request.headers.get("authorization")
+    ):
+        return JSONResponse({}, status_code=200)
+    return await call_next(request)
+
+
 def main() -> None:
-    mcp.run(transport="streamable-http")
+    # Same steps FastMCP.run(transport="streamable-http") takes internally
+    # (see mcp.server.fastmcp.FastMCP.run_streamable_http_async) -- done by
+    # hand here only to insert the AgentCore probe middleware, which FastMCP
+    # has no constructor hook for.
+    async def _run() -> None:
+        app = mcp.streamable_http_app()
+        app.add_middleware(BaseHTTPMiddleware, dispatch=_agentcore_probe_short_circuit)
+        server_config = uvicorn.Config(
+            app,
+            host=mcp.settings.host,
+            port=mcp.settings.port,
+            log_level=mcp.settings.log_level.lower(),
+        )
+        await uvicorn.Server(server_config).serve()
+
+    anyio.run(_run)
 
 
 if __name__ == "__main__":

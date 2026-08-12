@@ -27,6 +27,52 @@ REST transport's dependencies. Treat the AWS-specific field names
 names) as best-effort from AWS's own docs, and confirm them against what
 your account actually accepts.
 
+## Troubleshooting (confirmed against a real deploy, 2026-08)
+
+**Symptom: `invoke_agent_runtime`/console test always times out ("Runtime
+initialization time exceeded" or "MCP error -32010: Runtime health check
+failed"), even though CloudWatch logs show the container starting cleanly
+(`Uvicorn running on http://0.0.0.0:8000`).**
+
+Two distinct causes, in the order we actually hit them:
+
+1. **Execution role missing operational permissions, not just a broken
+   trust policy.** If CloudWatch has *no log group at all* for the runtime,
+   the execution role likely can't even call `logs:CreateLogGroup` -- it
+   needs the full permissions policy in "AgentCore Runtime execution role"
+   under [IAM Permissions for AgentCore
+   Runtime](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-permissions.html)
+   (`logs:*`, `xray:*`, `cloudwatch:PutMetricData`,
+   `bedrock-agentcore:GetWorkloadAccessToken*`, `bedrock:InvokeModel*`), not
+   just a trust policy that lets the service assume the role.
+
+2. **AgentCore's liveness probe hits `/mcp/` (trailing slash); FastMCP
+   registers the endpoint at `/mcp` (no trailing slash, exact match).**
+   Once (1) is fixed and the container demonstrably starts and keeps
+   running, this is the next thing to hit -- and it's silent: the mismatch
+   never appears in CloudWatch, because FastMCP's default routing rejects
+   the probe before any of your own code runs. AgentCore accumulates failed
+   probes and eventually reports the runtime unhealthy regardless of
+   whether real requests would have worked fine.
+
+   Fixed in `a2k/mcp_server/server.py`: `main()` no longer calls
+   `mcp.run(transport="streamable-http")` directly. It builds the same
+   Starlette app that call would have (`mcp.streamable_http_app()`) and
+   adds a middleware that short-circuits exactly AgentCore's probe
+   fingerprint (`POST /mcp/` from `127.0.0.1`, no `Authorization` header)
+   with a `200`, before serving it with `uvicorn` the same way FastMCP does
+   internally. Every other request -- including a real client hitting
+   `/mcp/` -- falls through unchanged. Verified locally: both
+   `curl -X POST http://127.0.0.1:8000/mcp/` (empty body, no auth --
+   returns `200 {}`) and a real MCP `initialize` against `/mcp` (unaffected)
+   were tested directly against the running server before this was
+   considered fixed. Root-caused with the help of [this writeup of the same
+   failure](https://www.k9security.io/posts/2026/06/fix-agentcore-mcp-32010-health-check-failed/).
+
+   **If you rebuild `a2k-box-mcp.zip` from an older checkout, confirm
+   `mcp_server/server.py`'s `main()` includes this middleware** -- an older
+   zip will silently reintroduce this exact failure.
+
 ## Files in this directory
 
 - `entrypoint.py` -- thin wrapper (`from a2k.mcp_server.server import main`)
