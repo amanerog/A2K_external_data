@@ -73,6 +73,18 @@ class Config:
         default_factory=lambda: os.environ.get("SAYARI_BASE_URL", "https://api.sayari.com")
     )
 
+    # Sayari's own hosted MCP server (confirmed live 2026-08-12): streamable-
+    # http, Auth0 client-credentials auth -- a *separate* credential/grant
+    # from the REST API's sayari_client_id/secret above (confirmed: REST
+    # credentials are rejected on the MCP audience). See adapters/sayari_mcp.py.
+    sayari_mcp_url: str = field(
+        default_factory=lambda: os.environ.get("SAYARI_MCP_URL", "https://mcp.sayari.com/mcp")
+    )
+    sayari_auth0_client_id: str | None = field(default_factory=lambda: os.environ.get("AUTH0_CLIENT_ID"))
+    sayari_auth0_client_secret: str | None = field(
+        default_factory=lambda: os.environ.get("AUTH0_CLIENT_SECRET")
+    )
+
     audit_log_path: Path = field(
         default_factory=lambda: Path(
             os.environ.get("A2K_AUDIT_LOG_PATH", str(REPO_ROOT / "audit.jsonl"))
@@ -111,6 +123,10 @@ class Config:
     @property
     def sayari_live_ready(self) -> bool:
         return bool(self.sayari_client_id and self.sayari_client_secret)
+
+    @property
+    def sayari_mcp_live_ready(self) -> bool:
+        return bool(self.sayari_auth0_client_id and self.sayari_auth0_client_secret)
 
     @property
     def httpx_verify(self) -> str | bool:

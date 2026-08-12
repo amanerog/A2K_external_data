@@ -13,7 +13,7 @@ from datetime import datetime, timedelta, timezone
 
 from ..adapters.base import Fact, ProviderAdapter
 from ..adapters.cala_mcp import CalaMcpAdapter
-from ..adapters.sayari import SayariAdapter
+from ..adapters.sayari_mcp import SayariMcpAdapter
 from ..config import config
 from ..errors import A2KError, ErrorCode
 from ..models.envelope import (
@@ -38,10 +38,11 @@ _CACHE_MAX_SIZE = 500
 
 class GatewayEngine:
     def __init__(self) -> None:
-        # Cala: MCP (Cala's own hosted server, adapters/cala_mcp.py) is the
-        # default now -- Sayari still REST (adapters/sayari.py) until its
-        # MCP endpoint/tools are confirmed.
-        self.adapters: dict[str, ProviderAdapter] = {"cala": CalaMcpAdapter(), "sayari": SayariAdapter()}
+        # Both providers default to their own hosted MCP servers now
+        # (adapters/cala_mcp.py, adapters/sayari_mcp.py) rather than REST --
+        # the REST adapters (adapters/cala.py, adapters/sayari.py) still
+        # exist and work, swap here if you need that transport instead.
+        self.adapters: dict[str, ProviderAdapter] = {"cala": CalaMcpAdapter(), "sayari": SayariMcpAdapter()}
         self.gateway_kb_id = GATEWAY_KB_ID
         self._response_cache: dict[str, CitedResponseEnvelope] = {}
 

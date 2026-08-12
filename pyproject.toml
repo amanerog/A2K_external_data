@@ -36,3 +36,8 @@ a2k = ["adapters/fixtures/*.json", "cards/*.json"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+# Without this, pytest's default discovery walks the whole repo and picks
+# up test_*.py-named scripts outside the real suite (e.g.
+# deploy/agentcore/test_remote_mcp_iam.py, a standalone AWS probe script,
+# not a pytest test -- it doesn't even have boto3 as a project dependency).
+testpaths = ["tests"]
