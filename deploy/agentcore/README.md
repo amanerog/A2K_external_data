@@ -46,32 +46,43 @@ Two distinct causes, in the order we actually hit them:
    `bedrock-agentcore:GetWorkloadAccessToken*`, `bedrock:InvokeModel*`), not
    just a trust policy that lets the service assume the role.
 
-2. **AgentCore's liveness probe hits `/mcp/` (trailing slash); FastMCP
-   registers the endpoint at `/mcp` (no trailing slash, exact match).**
-   Once (1) is fixed and the container demonstrably starts and keeps
-   running, this is the next thing to hit -- and it's silent: the mismatch
-   never appears in CloudWatch, because FastMCP's default routing rejects
-   the probe before any of your own code runs. AgentCore accumulates failed
-   probes and eventually reports the runtime unhealthy regardless of
-   whether real requests would have worked fine.
+2. **`/mcp` vs `/mcp/` (trailing slash), and a missing `/ping`.** Once (1)
+   is fixed and the container demonstrably starts and keeps running, this
+   is the next thing to hit -- and it's silent: FastMCP registers its
+   endpoint at `/mcp` only (exact match, no redirect), so anything hitting
+   `/mcp/` 404s before any of your own code runs. AWS's own docs are
+   internally inconsistent about which spelling AgentCore's sidecar
+   actually uses for its liveness probe -- and, per one of their
+   troubleshooting pages, possibly for real MCP traffic too -- so this
+   isn't safely narrowed down to "just short-circuit the probe's exact
+   fingerprint" (an earlier, narrower attempt at exactly that -- matching
+   only `POST /mcp/` from `127.0.0.1` with no auth header -- still failed
+   the exact same way; see git history). AgentCore's generic health/idle
+   contract (`GET /ping`, separate from the MCP-specific probe) was also
+   simply missing -- FastMCP doesn't register it on its own.
 
    Fixed in `a2k/mcp_server/server.py`: `main()` no longer calls
    `mcp.run(transport="streamable-http")` directly. It builds the same
-   Starlette app that call would have (`mcp.streamable_http_app()`) and
-   adds a middleware that short-circuits exactly AgentCore's probe
-   fingerprint (`POST /mcp/` from `127.0.0.1`, no `Authorization` header)
-   with a `200`, before serving it with `uvicorn` the same way FastMCP does
-   internally. Every other request -- including a real client hitting
-   `/mcp/` -- falls through unchanged. Verified locally: both
-   `curl -X POST http://127.0.0.1:8000/mcp/` (empty body, no auth --
-   returns `200 {}`) and a real MCP `initialize` against `/mcp` (unaffected)
-   were tested directly against the running server before this was
-   considered fixed. Root-caused with the help of [this writeup of the same
-   failure](https://www.k9security.io/posts/2026/06/fix-agentcore-mcp-32010-health-check-failed/).
+   Starlette app that call would have (`mcp.streamable_http_app()`), adds
+   an ASGI middleware that rewrites `/mcp/` to `/mcp` in the scope
+   *before* routing -- for every request, not a guessed fingerprint, so
+   `/mcp` and `/mcp/` are indistinguishable downstream whether the caller
+   is the probe, real MCP traffic, or a human with curl -- and appends an
+   explicit `GET /ping` route returning `{"status": "Healthy"}`. Then
+   serves it with `uvicorn` the same way FastMCP does internally.
+
+   Verified locally against the running server: `GET /ping` -> `200
+   {"status":"Healthy"}`; a real MCP `initialize` POSTed to `/mcp/` ->
+   normal MCP response (previously 404); the same POSTed to `/mcp` ->
+   unaffected. Root-caused with the help of [this writeup of the same
+   failure](https://www.k9security.io/posts/2026/06/fix-agentcore-mcp-32010-health-check-failed/),
+   generalized here after that fix's narrower version didn't hold up
+   against a real redeploy.
 
    **If you rebuild `a2k-box-mcp.zip` from an older checkout, confirm
-   `mcp_server/server.py`'s `main()` includes this middleware** -- an older
-   zip will silently reintroduce this exact failure.
+   `mcp_server/server.py`'s `main()` includes the `_TrailingSlashAliasMiddleware`
+   and `/ping` route** -- an older zip will silently reintroduce this
+   exact failure.
 
 ## Files in this directory
 

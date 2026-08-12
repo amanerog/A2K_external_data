@@ -17,8 +17,8 @@ import json
 import anyio
 import uvicorn
 from mcp.server.fastmcp import FastMCP
-from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
+from starlette.routing import Route
 
 from ..cards import load_card
 from ..config import config
@@ -151,39 +151,52 @@ async def a2k_get_audit_record(requestId: str) -> dict:
     return {"found": False}
 
 
-async def _agentcore_probe_short_circuit(request, call_next):
-    """AgentCore Runtime's internal liveness probe POSTs to `/mcp/` (trailing
-    slash) from 127.0.0.1 with no Authorization header, every ~2s. FastMCP
-    registers its endpoint at `/mcp` (no trailing slash, exact match), so the
-    probe never reaches the real handler -- Runtime accumulates failed probes
-    and eventually reports "MCP error -32010: Runtime health check failed"
-    even though the app itself started fine and is otherwise healthy (see
-    README "Deploy to AgentCore" for how this was diagnosed: clean startup in
-    CloudWatch logs, yet every invocation timed out, warm container or not).
-    Short-circuits only that exact probe fingerprint with a 200; every other
-    request -- including a real client hitting `/mcp/` -- falls through to
-    normal handling unchanged.
-    https://www.k9security.io/posts/2026/06/fix-agentcore-mcp-32010-health-check-failed/
+class _TrailingSlashAliasMiddleware:
+    """AgentCore Runtime's own docs disagree with each other on whether its
+    internal sidecar (liveness probe *and*, per one troubleshooting page,
+    real MCP traffic too) targets `/mcp` or `/mcp/` -- both spellings appear
+    across AWS's own pages. FastMCP registers the endpoint at `/mcp` only
+    (exact match, no redirect), so anything arriving at `/mcp/` 404s before
+    it reaches real handling. Rather than guess which exact requests need
+    special-casing (see git history for an earlier, narrower attempt that
+    only intercepted the probe's specific fingerprint and still failed),
+    this rewrites the ASGI scope's path unconditionally before routing, so
+    `/mcp` and `/mcp/` are indistinguishable to everything downstream --
+    correct for the probe, for real invocations, and for a human hitting
+    either path with curl.
     """
-    client_host = request.client.host if request.client else None
-    if (
-        request.method == "POST"
-        and request.url.path == "/mcp/"
-        and client_host == "127.0.0.1"
-        and not request.headers.get("authorization")
-    ):
-        return JSONResponse({}, status_code=200)
-    return await call_next(request)
+
+    def __init__(self, app):
+        self._app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http" and scope.get("path") == "/mcp/":
+            scope = dict(scope)
+            scope["path"] = "/mcp"
+        await self._app(scope, receive, send)
+
+
+async def _ping(request):
+    """AgentCore Runtime's generic health/idle-tracking contract (separate
+    from the MCP-specific /mcp probe): a GET /ping the platform polls to
+    read `status` (Healthy/HealthyBusy) for idle-session accounting. FastMCP
+    doesn't register this on its own -- added explicitly since AgentCore
+    Runtime's own troubleshooting docs list a missing /ping among the
+    startup/health failure causes. This gateway has no long-running
+    background work between requests, so "Healthy" (idle, safe to reclaim
+    after the idle timeout) is always correct here -- never "HealthyBusy"."""
+    return JSONResponse({"status": "Healthy"})
 
 
 def main() -> None:
     # Same steps FastMCP.run(transport="streamable-http") takes internally
     # (see mcp.server.fastmcp.FastMCP.run_streamable_http_async) -- done by
-    # hand here only to insert the AgentCore probe middleware, which FastMCP
-    # has no constructor hook for.
+    # hand here to add the /mcp//mcp alias and the /ping route, neither of
+    # which FastMCP has a constructor hook for.
     async def _run() -> None:
         app = mcp.streamable_http_app()
-        app.add_middleware(BaseHTTPMiddleware, dispatch=_agentcore_probe_short_circuit)
+        app.routes.append(Route("/ping", _ping, methods=["GET"]))
+        app = _TrailingSlashAliasMiddleware(app)
         server_config = uvicorn.Config(
             app,
             host=mcp.settings.host,
