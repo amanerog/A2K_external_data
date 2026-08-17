@@ -11,11 +11,19 @@ uses the `bedrock_agentcore` SDK's BedrockAgentCoreApp, which implements
 the /invocations (POST) and /ping (GET) contract AgentCore Runtime expects
 for HTTP-protocol workloads -- no manual routing needed here.
 
-Needs these environment variables set on the Runtime (see README):
-    GATEWAY_URL, CLIENT_ID, CLIENT_SECRET, BEDROCK_MODEL_ID
+Needs these set on the Runtime (see README):
+    - Plain environment variables (not secret): GATEWAY_URL, BEDROCK_MODEL_ID
+    - CLIENT_ID / CLIENT_SECRET: either as plain environment variables (fine for
+      a quick test) or, preferably, via AGENT_SECRETS_ARN pointing at a Secrets
+      Manager secret containing {"CLIENT_ID": "...", "CLIENT_SECRET": "..."} --
+      see core.py's secret_env(). Runtime environment variables are visible to
+      anyone with read access to the Runtime resource, unlike a Secrets Manager
+      value gated by its own IAM policy.
 Plus a `bedrock:InvokeModel*`/`bedrock:Converse*` permission on that model
 for the Runtime's own execution role -- this agent calls Bedrock directly
-(unlike a2k-box, which is purely a tool server with no model of its own).
+(unlike a2k-box, which is purely a tool server with no model of its own) --
+and, if using AGENT_SECRETS_ARN, `secretsmanager:GetSecretValue` scoped to
+that secret's ARN.
 
 Invocation payload contract: POST /invocations with {"prompt": "<question>"},
 returns {"response": "<answer text>"}.
@@ -27,7 +35,7 @@ import os
 
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 
-from core import ask
+from core import ask, secret_env
 
 app = BedrockAgentCoreApp()
 
@@ -38,8 +46,8 @@ def invoke(payload: dict) -> dict:
     answer = ask(
         question,
         gateway_url=os.environ["GATEWAY_URL"],
-        client_id=os.environ["CLIENT_ID"],
-        client_secret=os.environ["CLIENT_SECRET"],
+        client_id=secret_env("CLIENT_ID"),
+        client_secret=secret_env("CLIENT_SECRET"),
         model_id=os.environ["BEDROCK_MODEL_ID"],
         region=os.environ.get("AWS_REGION", "eu-west-1"),
         silent=True,

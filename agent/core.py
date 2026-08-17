@@ -23,7 +23,9 @@ found. Re-derive from the Cognito console if the gateway is ever recreated).
 
 from __future__ import annotations
 
+import json
 import os
+from functools import lru_cache
 
 import httpx
 from mcp.client.streamable_http import streamablehttp_client
@@ -52,6 +54,27 @@ If the tool response's `conflicts` array is non-empty, Cala and Sayari disagree 
 on a fact -- surface both positions to the user, never silently prefer one \
 source. Always cite claims back to the tool's citations.
 """
+
+
+@lru_cache(maxsize=1)
+def _secrets_manager_bundle() -> dict[str, str]:
+    """Live-credential fallback so entrypoint.py can point AGENT_SECRETS_ARN at a
+    Secrets Manager secret (flat JSON, same env var names) instead of putting
+    CLIENT_ID/CLIENT_SECRET in plaintext AgentCore Runtime environment variables,
+    which are visible to anyone with read access to the Runtime resource. Only
+    consulted when a name is genuinely unset -- router_agent.py's plain shell env
+    vars for local testing are unaffected."""
+    secret_arn = os.environ.get("AGENT_SECRETS_ARN")
+    if not secret_arn:
+        return {}
+    import boto3
+
+    client = boto3.client("secretsmanager")
+    return json.loads(client.get_secret_value(SecretId=secret_arn)["SecretString"])
+
+
+def secret_env(name: str) -> str | None:
+    return os.environ.get(name) or _secrets_manager_bundle().get(name)
 
 
 def get_bearer_token(client_id: str, client_secret: str) -> str:

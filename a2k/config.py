@@ -8,8 +8,10 @@ module, never os.environ directly, so the mock/live branch lives in one place.
 
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -30,11 +32,34 @@ def _bool_env(name: str, default: bool) -> bool:
     return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
+@lru_cache(maxsize=1)
+def _secrets_manager_bundle() -> dict[str, str]:
+    """Live-credential fallback for env vars not set directly -- lets AgentCore
+    Runtime deploys point A2K_SECRETS_ARN at a Secrets Manager secret (a flat
+    JSON object of the same env var names below) instead of putting
+    CALA_API_KEY/AUTH0_CLIENT_ID/AUTH0_CLIENT_SECRET in plaintext Runtime
+    environment variables, which are visible to anyone with read access to
+    the Runtime resource. Local/.env-based dev is unaffected: _secret_env
+    checks os.environ first, so this is only ever consulted when a name is
+    genuinely unset."""
+    secret_arn = os.environ.get("A2K_SECRETS_ARN")
+    if not secret_arn:
+        return {}
+    import boto3
+
+    client = boto3.client("secretsmanager")
+    return json.loads(client.get_secret_value(SecretId=secret_arn)["SecretString"])
+
+
+def _secret_env(name: str) -> str | None:
+    return os.environ.get(name) or _secrets_manager_bundle().get(name)
+
+
 @dataclass(frozen=True)
 class Config:
     mode: str = field(default_factory=lambda: os.environ.get("A2K_BOX_MODE", "mock").lower())
 
-    cala_api_key: str | None = field(default_factory=lambda: os.environ.get("CALA_API_KEY"))
+    cala_api_key: str | None = field(default_factory=lambda: _secret_env("CALA_API_KEY"))
     cala_base_url: str = field(
         default_factory=lambda: os.environ.get("CALA_BASE_URL", "https://api.cala.ai")
     )
@@ -65,9 +90,9 @@ class Config:
         default_factory=lambda: int(os.environ.get("CALA_INTROSPECTION_CACHE_TTL_SECONDS", "86400"))
     )
 
-    sayari_client_id: str | None = field(default_factory=lambda: os.environ.get("SAYARI_CLIENT_ID"))
+    sayari_client_id: str | None = field(default_factory=lambda: _secret_env("SAYARI_CLIENT_ID"))
     sayari_client_secret: str | None = field(
-        default_factory=lambda: os.environ.get("SAYARI_CLIENT_SECRET")
+        default_factory=lambda: _secret_env("SAYARI_CLIENT_SECRET")
     )
     sayari_base_url: str = field(
         default_factory=lambda: os.environ.get("SAYARI_BASE_URL", "https://api.sayari.com")
@@ -80,9 +105,9 @@ class Config:
     sayari_mcp_url: str = field(
         default_factory=lambda: os.environ.get("SAYARI_MCP_URL", "https://mcp.sayari.com/mcp")
     )
-    sayari_auth0_client_id: str | None = field(default_factory=lambda: os.environ.get("AUTH0_CLIENT_ID"))
+    sayari_auth0_client_id: str | None = field(default_factory=lambda: _secret_env("AUTH0_CLIENT_ID"))
     sayari_auth0_client_secret: str | None = field(
-        default_factory=lambda: os.environ.get("AUTH0_CLIENT_SECRET")
+        default_factory=lambda: _secret_env("AUTH0_CLIENT_SECRET")
     )
 
     audit_log_path: Path = field(

@@ -7,3 +7,6 @@ pydantic>=2.13.0,<3.0
 httpx>=0.28.0,<1.0
 cryptography>=49.0.0,<50.0
 python-dotenv>=1.2.0,<2.0
+# Only imported lazily (config.py, when A2K_SECRETS_ARN is set) to fetch live
+# Cala/Sayari credentials from Secrets Manager instead of plaintext Runtime env vars.
+boto3>=1.43.0,<2.0
