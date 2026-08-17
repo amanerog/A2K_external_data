@@ -15,17 +15,14 @@ but `pip` (already have it) and either the AWS Console or the plain `aws`
 CLI -- use this one if `npm install -g` is blocked by corporate policy, as
 it was in the case this runbook was first written for.
 
-**Not verified in this environment.** No AWS account/credentials, the
-`agentcore` CLI, nor `npm` itself were available in the sandbox this runbook
-was written in, so none of the AWS-side commands below (either option) were
-actually executed. What *was* verified locally: `entrypoint.py` in this
-directory imports `a2k.mcp_server.server` successfully with `fastapi`/
-`uvicorn` blocked, which is why `requirements.txt` here omits them (see
-comment in that file) -- confirming the MCP-only deploy doesn't need the
-REST transport's dependencies. Treat the AWS-specific field names
-(`agentcore.json`'s `entrypoint` key, exact CLI flags, IAM permission
-names) as best-effort from AWS's own docs, and confirm them against what
-your account actually accepts.
+**Deploy (sections 1-3) and the IAM-outbound Gateway target (section 4a)
+are now confirmed against a real AWS account, 2026-08-17** -- a2k-box is
+live on AgentCore Runtime, registered as a Gateway target with IAM outbound
+auth, and `test_gateway_mcp.py` lists all 7 tools through the Gateway. The
+sandbox this runbook was originally *written* in had no AWS
+account/credentials, so treat anything still marked "not verified" below
+(the 4b-4e OAuth fallback in particular) as best-effort from AWS's docs
+until someone actually runs it.
 
 ## Troubleshooting (confirmed against a real deploy, 2026-08)
 
@@ -34,7 +31,10 @@ initialization time exceeded" or "MCP error -32010: Runtime health check
 failed"), even though CloudWatch logs show the container starting cleanly
 (`Uvicorn running on http://0.0.0.0:8000`).**
 
-Two distinct causes, in the order we actually hit them:
+Three distinct causes, in the order we actually hit them. All three were
+real and needed fixing -- (1) and (2) don't become visible/testable until
+the one before is fixed, and (3) turned out to be the actual final blocker
+in our case even after (1) and (2) were both already fixed correctly.
 
 1. **Execution role missing operational permissions, not just a broken
    trust policy.** If CloudWatch has *no log group at all* for the runtime,
@@ -83,6 +83,37 @@ Two distinct causes, in the order we actually hit them:
    `mcp_server/server.py`'s `main()` includes the `_TrailingSlashAliasMiddleware`
    and `/ping` route** -- an older zip will silently reintroduce this
    exact failure.
+
+3. **The Runtime's protocol configuration wasn't actually set to MCP.**
+   This was the one that turned out to matter in our case, confirmed
+   2026-08-12 -- (1) and (2) above were both real and both necessary, but
+   neither was the final blocker. If a Runtime is created via the console's
+   "Host Agent" flow without explicitly choosing MCP as the protocol, it
+   defaults to the generic HTTP contract -- AgentCore's proxy then expects
+   your app at `/invocations` (POST) and `/ping` (GET), never touches
+   `/mcp` at all, and no amount of fixing the MCP-specific paths changes
+   that. CloudWatch logs look identical either way (the container starts
+   fine regardless of which contract AgentCore thinks it's talking to),
+   which is what made this one hard to distinguish from (2) without
+   checking the config directly.
+
+   **Check directly, don't infer from symptoms:**
+
+   ```bash
+   aws bedrock-agentcore-control get-agent-runtime \
+     --agent-runtime-id <runtime-id> --region <region>
+   ```
+
+   Look at `protocolConfiguration` in the response. If creating via the
+   console, look for an explicit MCP protocol selector during setup rather
+   than assuming a default.
+
+   **Also worth knowing while debugging this:** each test invocation in
+   the console (and `InvokeAgentRuntime` in general) is pinned to a
+   `Session ID` -- reusing an old one keeps hitting the code/config that
+   session was created against, even after you redeploy. Clear/change the
+   Session ID field when testing a fresh deploy, or you'll see identical
+   failures that look like nothing changed even when it did.
 
 ## Files in this directory
 
@@ -305,9 +336,191 @@ Edit the `AGENT_RUNTIME_ARN`/`REGION` constants at the top before running.
 
 ## 4. Register it as an AgentCore Gateway target
 
-With the Gateway already created (see AWS console: Gateways -> Create
-gateway, or `CreateGateway`), add a2k-box as a target of type "AgentCore
-Runtime":
+**AWS's own docs contradict each other on whether IAM/gateway-service-role
+auth works for "AgentCore Runtime (HTTP)" targets.** The general
+outbound-auth compatibility table lists it as supported; the VPC-egress
+page, which discusses AgentCore Runtime targets specifically rather than
+generically, states plainly that only two methods are supported --
+no-authorization and OAuth client-credentials -- with no IAM option
+mentioned. Rather than pick a side from documentation alone (see
+"Troubleshooting" above for how expensive that guessing game got with the
+Runtime deployment itself), **try IAM first, via the console** (4a below)
+-- it's a five-minute check, and if it works it skips the entire
+Cognito-M2M-client + credential-provider setup below. If it fails with an
+auth error, fall back to OAuth (4b-4e).
+
+### 4a. IAM via console -- confirmed working (2026-08-17), no OAuth setup needed
+
+IAM Role *is* offered as an Outbound Auth option for MCP server targets --
+the general compatibility table was right, the VPC-egress page (IAM not
+listed) was wrong or talking about a different scenario.
+
+1. Gateways -> **Create gateway**. Inbound Auth: **Quick create with
+   Cognito** (or reuse the pool from step 1 -- this is the agent-facing
+   side, unrelated to how Gateway reaches a2k-box). Permissions:
+   **Create and use a new service role**.
+2. In the **Target** section of the same page: **Target type** -> MCP
+   server. **Endpoint** ->
+   `https://bedrock-agentcore.eu-west-1.amazonaws.com/runtimes/<url-encoded-ARN>/invocations?qualifier=DEFAULT`
+   -- **no `accountId` query param**: an earlier version of this doc added
+   one on spec ("best-effort from AWS's docs, not verified"), and it turned
+   out to cause an HTTP 400 on the initialize handshake. Neither AWS's own
+   MCP-server-targets doc nor a live-tested writeup mention it.
+   **Outbound Auth configurations** -> **IAM Role**. **Service** ->
+   `bedrock-agentcore`. **Region** -> leave blank (defaults to the
+   gateway's own Region, which matches the Runtime's here).
+3. **Create gateway.**
+
+**The auto-generated service role does *not* include invoke permission on
+your specific Runtime by default** -- contrary to what you'd expect from
+"create and use a new service role", target creation fails with
+`Authorization error when sending message` until you add this inline
+policy to that role by hand (find its name/ARN on the Gateway's own
+**Permissions** tab):
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "InvokeA2KBox",
+      "Effect": "Allow",
+      "Action": "bedrock-agentcore:InvokeAgentRuntime",
+      "Resource": [
+        "<a2k-box Runtime ARN>",
+        "<a2k-box Runtime ARN>/*"
+      ]
+    }
+  ]
+}
+```
+
+The `/*` matters -- the actual invocation targets a subresource path
+(`runtime/<id>/runtime-endpoint/DEFAULT`), not the bare Runtime ARN.
+
+Once that policy's attached, save/re-sync the target. If a2k-box's 7 tools
+show up in the target's tool list, IAM auth worked end-to-end and 4b-4e
+below aren't needed.
+
+**Confirmed end-to-end 2026-08-17**: with the endpoint/policy fixes above,
+[`test_gateway_mcp.py`](test_gateway_mcp.py) in this directory (fetches a
+Bearer token from the Gateway's inbound Cognito pool via client_credentials,
+then does `initialize` + `tools/list` against the Gateway's own MCP
+endpoint) returned all 7 of a2k-box's tools through the Gateway.
+
+**Tool name prefixing**: Gateway namespaces every tool by target name to
+avoid collisions across multiple targets, so an agent calling through the
+Gateway sees `<target-name>___a2k.ask` etc., not the bare `a2k.ask` the MCP
+server itself exposes -- account for this when wiring up the agent side.
+
+### 4b-4e. Fallback: OAuth client-credentials (not needed here, kept for reference)
+
+### 4b. Machine-to-machine Cognito app client
+
+The Cognito pool from step 1 was set up for a human-style login
+(`ALLOW_USER_PASSWORD_AUTH`) -- client-credentials grant needs a
+*different* kind of app client, one with no secret exposed to a human,
+plus a Resource Server defining a custom scope (Cognito requires this for
+`client_credentials` grants; it's not optional the way it was for the
+password grant in step 1).
+
+```bash
+export POOL_ID="<pool id from step 1>"
+
+# A scope the Gateway will request when exchanging its client credentials
+# for a token -- the name is arbitrary, just has to match what's used below.
+aws cognito-idp create-resource-server \
+  --user-pool-id "$POOL_ID" \
+  --identifier "a2k-box" \
+  --name "a2k-box" \
+  --scopes '[{"ScopeName":"invoke","ScopeDescription":"Invoke a2k-box via the Gateway"}]' \
+  --region $REGION
+
+export M2M_CLIENT_ID=$(aws cognito-idp create-user-pool-client \
+  --user-pool-id "$POOL_ID" \
+  --client-name "a2k-box-gateway-m2m" \
+  --generate-secret \
+  --allowed-o-auth-flows client_credentials \
+  --allowed-o-auth-scopes "a2k-box/invoke" \
+  --allowed-o-auth-flows-user-pool-client \
+  --region $REGION | jq -r '.UserPoolClient.ClientId')
+
+export M2M_CLIENT_SECRET=$(aws cognito-idp describe-user-pool-client \
+  --user-pool-id "$POOL_ID" --client-id "$M2M_CLIENT_ID" \
+  --region $REGION | jq -r '.UserPoolClient.ClientSecret')
+```
+
+Cognito also needs a **domain** for its OAuth endpoints to resolve (skip if
+step 1 already set one up for this pool):
+
+```bash
+aws cognito-idp create-user-pool-domain \
+  --domain "a2k-box-$(echo $POOL_ID | tr -d '_' | tr '[:upper:]' '[:lower:]')" \
+  --user-pool-id "$POOL_ID" --region $REGION
+```
+
+### 4c. Register the OAuth2 credential provider in AgentCore Identity
+
+```bash
+aws bedrock-agentcore-control create-oauth2-credential-provider \
+  --name a2k-box-gateway-oauth \
+  --credential-provider-vendor CustomOAuth2 \
+  --oauth2-provider-config-input '{
+    "customOAuth2ProviderConfig": {
+      "oauthDiscovery": {
+        "discoveryUrl": "https://cognito-idp.'"$REGION"'.amazonaws.com/'"$POOL_ID"'/.well-known/openid-configuration"
+      },
+      "clientId": "'"$M2M_CLIENT_ID"'",
+      "clientSecret": "'"$M2M_CLIENT_SECRET"'"
+    }
+  }' \
+  --region $REGION
+```
+
+Note the `credentialProviderArn` and `secretArn` from the response -- both
+needed next.
+
+### 4d. Create the Gateway (console)
+
+Gateways -> **Create gateway**. Inbound Auth: reuse **Quick create with
+Cognito** or point at the same pool from step 1 (this is the agent-facing
+side, separate from the M2M client just created for the outbound leg).
+Permissions: **Create and use a new service role**.
+
+If a custom/existing service role is used instead of letting the console
+generate one, it needs this policy attached (fill in the gateway name and
+the two ARNs from 4b):
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "GetWorkloadAccessToken",
+      "Effect": "Allow",
+      "Action": ["bedrock-agentcore:GetWorkloadAccessToken"],
+      "Resource": [
+        "arn:aws:bedrock-agentcore:eu-west-1:396961015428:workload-identity-directory/default",
+        "arn:aws:bedrock-agentcore:eu-west-1:396961015428:workload-identity-directory/default/workload-identity/<gateway-name>-*"
+      ]
+    },
+    {
+      "Sid": "GetResourceOauth2Token",
+      "Effect": "Allow",
+      "Action": ["bedrock-agentcore:GetResourceOauth2Token"],
+      "Resource": ["<credentialProviderArn from 4b>"]
+    },
+    {
+      "Sid": "GetSecretValue",
+      "Effect": "Allow",
+      "Action": ["secretsmanager:GetSecretValue"],
+      "Resource": ["<secretArn from 4b>"]
+    }
+  ]
+}
+```
+
+### 4e. Add a2k-box as a target
 
 ```bash
 aws bedrock-agentcore create-gateway-target \
@@ -326,17 +539,22 @@ aws bedrock-agentcore create-gateway-target \
       {
         "credentialProviderType": "OAUTH",
         "credentialProvider": {
-          "oauthCredentialProvider": { "providerArn": "<oauth-provider-arn-in-agentcore-identity>" }
+          "oauthCredentialProvider": {
+            "providerArn": "<credentialProviderArn from 4b>",
+            "scopes": ["a2k-box/invoke"]
+          }
         }
       }
     ]
   }'
 ```
 
-The `providerArn` is an OAuth (client-credentials, two-legged) provider
-configured beforehand in AgentCore Identity, for the Gateway-to-Runtime
-outbound call -- a separate setup step not covered here.
-
 Traffic between Gateway and this Runtime-hosted MCP server stays on AWS's
 internal network end to end; there is no VPC, load balancer, or TLS
 certificate to provision for this path.
+
+**Not verified in this environment** -- same caveat as the rest of this
+runbook: no AWS account here, so 4a-4d were not actually run. The Cognito
+M2M/resource-server commands and the credential-provider JSON shape are
+best-effort from AWS's docs; confirm each step's output before assuming
+the next one's placeholders are correct.

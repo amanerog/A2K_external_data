@@ -1,0 +1,5 @@
+# Runtime deps for the Cala/Sayari router agent's AgentCore Runtime deploy.
+# mcp comes in transitively via strands-agents -- not pinned separately here.
+strands-agents>=1.52.0,<2.0
+bedrock-agentcore>=1.21.0,<2.0
+httpx>=0.28.0,<1.0
