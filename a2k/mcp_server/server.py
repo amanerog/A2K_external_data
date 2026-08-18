@@ -77,11 +77,14 @@ def sayari_card() -> str:
 @mcp.tool(name="a2k.listVendors")
 async def a2k_list_vendors() -> dict:
     """Lists the vendor knowledge sources behind this gateway and what each one
-    actually covers (domains, topics, human-readable scope) -- call this before
-    a2k.ask/a2k.search when it isn't already obvious which vendor(s) a query
-    needs, then pass the matching `sourceId` value(s) as a2k.ask's `sources`
-    param. Omit `sources` entirely (fan out to all vendors) when coverage
-    genuinely overlaps or stays unclear even after checking this. Same
+    actually covers (domains, topics, human-readable scope, status, priority) --
+    call this before a2k.ask/a2k.search when it isn't already obvious which
+    vendor(s) a query needs, then pass the matching `sourceId` value(s) as
+    a2k.ask's `sources` param. Never select a vendor whose `status` isn't
+    `active`. Omit `sources` entirely (fan out to all active vendors) when
+    coverage genuinely overlaps or stays unclear even after checking this --
+    `priority` (lower = preferred) is available as a tie-breaker if you need
+    one, not a reason to skip fan-out when genuine ambiguity remains. Same
     domains/topics/scope data as the a2k://card/<vendor> resources, exposed as
     a callable tool for clients that don't read MCP resources."""
     vendors = []
@@ -94,6 +97,8 @@ async def a2k_list_vendors() -> dict:
                 "domains": card.knowledgeProfile.domains,
                 "topics": card.knowledgeProfile.topics,
                 "scope": card.knowledgeProfile.coverage.scope,
+                "status": card.enterprise.lifecycle.status,
+                "priority": card.priority,
             }
         )
     return {"vendors": vendors}

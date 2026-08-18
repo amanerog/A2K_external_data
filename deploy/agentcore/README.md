@@ -15,14 +15,17 @@ but `pip` (already have it) and either the AWS Console or the plain `aws`
 CLI -- use this one if `npm install -g` is blocked by corporate policy, as
 it was in the case this runbook was first written for.
 
-**Deploy (sections 1-3) and the IAM-outbound Gateway target (section 4a)
-are now confirmed against a real AWS account, 2026-08-17** -- a2k-box is
-live on AgentCore Runtime, registered as a Gateway target with IAM outbound
-auth, and `test_gateway_mcp.py` lists all 7 tools through the Gateway. The
-sandbox this runbook was originally *written* in had no AWS
-account/credentials, so treat anything still marked "not verified" below
-(the 4b-4e OAuth fallback in particular) as best-effort from AWS's docs
-until someone actually runs it.
+**Deploy (sections 1-3), the IAM-outbound Gateway target (section 4a), live
+mode, and a consuming agent are all confirmed against a real AWS account as
+of 2026-08-18** -- a2k-box is live on AgentCore Runtime (real Cala/Sayari
+credentials via Secrets Manager, see section 5), registered as a Gateway
+target with IAM outbound auth, and `../../agent/test_gateway_mcp.py` lists
+all 8 tools through the Gateway. A separate Strands-based agent
+(`../../agent/`, see that directory's README) consumes this Gateway and is
+itself deployed to its own AgentCore Runtime. The sandbox this runbook was
+originally *written* in had no AWS account/credentials, so treat anything
+still marked "not verified" below (the 4b-4e OAuth fallback in particular)
+as best-effort from AWS's docs until someone actually runs it.
 
 ## Troubleshooting (confirmed against a real deploy, 2026-08)
 
@@ -320,7 +323,7 @@ export AGENT_ARN="arn:aws:bedrock-agentcore:eu-west-1:<account-id>:runtime/a2k-b
 python test_remote_mcp.py
 ```
 
-Either way, you should see the 7 tools (`a2k.search`, `a2k.ask`,
+Either way, you should see the 8 tools (`a2k.search`, `a2k.ask`, `a2k.listVendors`,
 `a2k.explain`, `a2k.getDocument`, `a2k.validateCitation`,
 `a2k.reportConflict`, `a2k.getAuditRecord`) and the 3 card resources
 (`a2k://card`, `a2k://card/cala`, `a2k://card/sayari`).
@@ -398,15 +401,16 @@ policy to that role by hand (find its name/ARN on the Gateway's own
 The `/*` matters -- the actual invocation targets a subresource path
 (`runtime/<id>/runtime-endpoint/DEFAULT`), not the bare Runtime ARN.
 
-Once that policy's attached, save/re-sync the target. If a2k-box's 7 tools
+Once that policy's attached, save/re-sync the target. If a2k-box's 8 tools
 show up in the target's tool list, IAM auth worked end-to-end and 4b-4e
 below aren't needed.
 
 **Confirmed end-to-end 2026-08-17**: with the endpoint/policy fixes above,
-[`test_gateway_mcp.py`](test_gateway_mcp.py) in this directory (fetches a
-Bearer token from the Gateway's inbound Cognito pool via client_credentials,
-then does `initialize` + `tools/list` against the Gateway's own MCP
-endpoint) returned all 7 of a2k-box's tools through the Gateway.
+[`../../agent/test_gateway_mcp.py`](../../agent/test_gateway_mcp.py) (fetches
+a Bearer token from the Gateway's inbound Cognito pool via
+client_credentials, then does `initialize` + `tools/list` against the
+Gateway's own MCP endpoint) returned all of a2k-box's tools through the
+Gateway.
 
 **Tool name prefixing**: Gateway namespaces every tool by target name to
 avoid collisions across multiple targets, so an agent calling through the
@@ -558,3 +562,85 @@ runbook: no AWS account here, so 4a-4d were not actually run. The Cognito
 M2M/resource-server commands and the credential-provider JSON shape are
 best-effort from AWS's docs; confirm each step's output before assuming
 the next one's placeholders are correct.
+
+## 5. Going live
+
+Confirmed against a real deploy, 2026-08-18. Flipping `A2K_BOX_MODE` from
+`mock` to `live` needs real Cala/Sayari credentials as Runtime environment
+variables -- but plaintext Runtime env vars are visible to anyone with read
+access to the Runtime resource, so prefer Secrets Manager over pasting
+credentials in directly:
+
+1. Create a secret (flat JSON, one object with all four keys):
+   ```bash
+   aws secretsmanager create-secret \
+     --name a2k/box/live-credentials \
+     --secret-string file:///path/to/local-only.json \
+     --region $REGION
+   # {"CALA_API_KEY": "...", "AUTH0_CLIENT_ID": "...", "AUTH0_CLIENT_SECRET": "..."}
+   ```
+   (`SAYARI_CLIENT_ID`/`SAYARI_CLIENT_SECRET` aren't needed -- `gateway/engine.py`
+   wires up the MCP adapters, not the REST ones, so only `CALA_API_KEY` and the
+   Auth0 pair matter here. See `config.py`'s field comments for which adapter
+   uses which credential.)
+2. Attach an inline policy to a2k-box's Runtime execution role, scoped to that
+   secret's ARN:
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [{
+       "Sid": "GetBoxLiveSecret",
+       "Effect": "Allow",
+       "Action": "secretsmanager:GetSecretValue",
+       "Resource": "arn:aws:secretsmanager:eu-west-1:<account-id>:secret:a2k/box/live-credentials-*"
+     }]
+   }
+   ```
+3. On the Runtime's environment variables: set `A2K_BOX_MODE=live` and
+   `A2K_SECRETS_ARN=<the secret's full ARN from step 1>` -- do **not** also set
+   `CALA_API_KEY`/`AUTH0_CLIENT_ID`/`AUTH0_CLIENT_SECRET` directly; `config.py`'s
+   `_secret_env()` only falls back to Secrets Manager when the plain env var is
+   unset, so leaving both would just make the plaintext one win silently.
+4. Rebuild and re-upload the zip (`a2k/config.py`'s Secrets Manager fallback and
+   `boto3` need to actually be in the deployed code -- see "Files in this
+   directory" above for the build steps).
+
+**Known perf issue, fixed 2026-08-18:** `CalaMcpAdapter`/`SayariMcpAdapter`
+used to fully hydrate (introspection+retrieval / get_entity_summary) *every*
+name-match candidate `entity_search`/`search_entities` returned, up to
+a2k.ask's internal `limit=50` -- for an ambiguous query this meant up to 50
+full entity fetches for one call, ~458KB/~114K tokens of Facts, enough on
+its own to trip Bedrock's per-request byte limit on the consuming agent's
+side. Fixed by capping hydration to the top `A2K_MAX_ENTITIES_TO_HYDRATE`
+candidates (default `3`, override via that env var) regardless of the
+search's own `limit` -- see `adapters/cala_mcp.py`/`adapters/sayari_mcp.py`
+and `agent/test_tool_result_size.py` for how this was measured.
+
+**`a2k.listVendors` tool, added 2026-08-18:** lets a consuming agent read
+each vendor's declared coverage (`domains`/`topics`/`coverage.scope`, from
+the KB Cards in `a2k/cards/*.json`) before deciding `a2k.ask`'s `sources`
+param, instead of a hardcoded routing rule on the agent side. Also returns
+`status` (reused from the card's existing `enterprise.lifecycle.status` --
+routing agents should never select a non-`active` vendor) and `priority` (a
+new field on `KBCard`, not part of the A2K-KBCard-Schema spec, lower = more
+preferred -- a tie-breaker only, not yet wired into any routing logic, both
+vendors currently set to `1`). See `a2k/mcp_server/server.py` and
+`a2k/models/kbcard.py`.
+
+**`CALA_RAW_KNOWLEDGE_SEARCH` test flag, added 2026-08-18:** when `true`,
+`a2k.ask`/`a2k.search` bypass the normal cited-Facts pipeline for any
+request that includes (or doesn't exclude) Cala as a source, returning
+Cala's own `knowledge_search` `content` (its LLM-synthesized prose)
+completely unprocessed instead. Requested explicitly for comparing "Cala's
+own answer" against this gateway's cited synthesis -- off by default, and
+normal grounded behavior is unaffected unless this is explicitly set. See
+`Config.cala_raw_knowledge_search` in `config.py` and
+`agent/test_cala_raw_mode.py`.
+
+## 6. The consuming agent
+
+A Strands-based agent that calls this Gateway (and Bedrock directly for its
+own reasoning) lives in `../../agent/` -- its own README covers setup,
+local testing, and deploying it to its own AgentCore Runtime. It's a
+separate Runtime workload from a2k-box, with its own execution role,
+inbound auth (IAM, not Cognito), and environment variables/secrets.

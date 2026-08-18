@@ -204,6 +204,12 @@ class KBCard(BaseModel):
     transport: Literal["https-json", "mcp", "a2a"]
     enterprise: Enterprise
     knowledgeProfile: KnowledgeProfile
+    # Local extension, not part of the A2K-KBCard-Schema spec (which has no
+    # additionalProperties:false, so this doesn't break conformance): a numeric
+    # tie-breaker for vendor routing among multiple topical matches, lower =
+    # preferred. Added 2026-08-18 at the routing agent's request; not yet
+    # consulted by any routing logic -- see a2k.listVendors in mcp_server/server.py.
+    priority: int | None = None
     operations: list[OperationDeclaration]
     auth: Auth
     policies: Policies | None = None

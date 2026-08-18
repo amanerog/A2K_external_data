@@ -103,6 +103,7 @@
     "languages": ["en"],
     "sourceSystems": ["Cala API"]
   },
+  "priority": 1,
   "operations": [
     { "name": "search", "requiredLevel": 1, "inputModes": ["text"], "outputModes": ["cited-response-envelope"] },
     { "name": "ask", "requiredLevel": 2, "inputModes": ["text"], "outputModes": ["cited-response-envelope"] },

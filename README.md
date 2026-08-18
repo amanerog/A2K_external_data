@@ -255,12 +255,13 @@ without ever holding CALA/Sayari credentials directly; those stay in this
 box's adapters (`adapters/cala_mcp.py`, `adapters/sayari.py`) exactly as in
 mock and live mode.
 
-Not verified in this environment: no AWS account/credentials are available
-in this sandbox, so `agentcore create`/`agentcore deploy` were not actually
-run. What *was* verified: the server starts locally with
-`python -m a2k.mcp_server` and answers a real MCP `initialize` handshake on
-`http://localhost:8000/mcp` over streamable-http, and the full test suite
-(`pytest -q`, 38 tests) still passes after the transport change.
+**Confirmed against a real AWS account as of 2026-08-18** -- a2k-box is live
+on AgentCore Runtime (real Cala/Sayari credentials via Secrets Manager),
+registered as a Gateway target, and a Strands-based agent (`agent/`, see
+that directory's README) consumes it from its own separate Runtime
+workload, calling Bedrock directly for its own reasoning and routing between
+Cala/Sayari via `a2k.listVendors`. The full test suite (`pytest -q`, 54
+tests) passes.
 
 ## Conformance -- A2K-KCP Level 2
 
@@ -331,9 +332,11 @@ a2k/
   gateway/                      synthesis, conflict detection, audit, engine
   cards/                        the three KB Cards (gateway, cala, sayari)
   api/rest.py                   REST transport (FastAPI)
-  mcp_server/server.py          MCP transport (stdio)
-tests/                          pytest suite (29 tests)
+  mcp_server/server.py          MCP transport (streamable-http)
+tests/                          pytest suite (54 tests)
 deploy/                         Kubernetes manifests (EKS deployment, see above)
+  agentcore/                    AgentCore Runtime deploy of a2k-box's MCP transport (see below)
+agent/                          Strands-based agent consuming a2k-box via AgentCore Gateway (see below)
 Dockerfile, .dockerignore       container image for the REST service
 ```
 

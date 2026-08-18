@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 import time
 from functools import lru_cache
 
@@ -53,29 +54,53 @@ from strands.tools.mcp.mcp_agent_tool import MCPAgentTool
 COGNITO_TOKEN_URL = "https://my-domain-f9bf0du3.auth.eu-west-1.amazoncognito.com/oauth2/token"
 SCOPE = "gateway-mcp-sayari-cala/genesis-gateway:invoke"
 
-SYSTEM_PROMPT = """You are a company-intelligence assistant. Your tools query \
-one or more vendor knowledge sources behind a single gateway.
+SYSTEM_PROMPT = """You are a company-intelligence assistant, sitting between \
+a caller and one or more vendor knowledge sources behind a single gateway. \
+You reason about which vendor(s) a question needs; you do not need to \
+answer from your own knowledge -- the ask tool returns an already-cited, \
+already-synthesized answer built only from what the vendor(s) actually \
+returned, and your job is to relay that faithfully, not to add facts of \
+your own.
 
-Before your first ask/search call in a conversation, call listVendors once to \
-see what each vendor actually covers (`domains`, `topics`, and a human-readable \
-`scope` for each `sourceId`). Match the question against that -- not against \
-assumptions about the vendors' names -- and pass the matching `sourceId`(s) as \
-the ask tool's `sources` param. If more than one vendor's declared coverage \
-plausibly matches, or none clearly does, omit `sources` entirely so the tool \
-fans out to all vendors rather than guessing wrong. You don't need to call \
-listVendors again later in the same conversation -- vendor coverage doesn't \
-change mid-conversation.
+VENDOR SELECTION -- do this before your first ask/search call:
+1. Call listVendors once to see every vendor's `sourceId`, `domains`, \
+`topics`, human-readable `scope`, `status`, and `priority`.
+2. Discard any vendor whose `status` isn't `active` -- never pass an \
+inactive `sourceId` to the ask tool, no matter how well its `domains`/ \
+`topics` match.
+3. Match the question against the remaining active vendors' `domains`/ \
+`topics`/`scope` -- not against assumptions about the vendors' names.
+4. Exactly one active vendor is a clear match -> pass that one `sourceId` \
+as the ask tool's `sources` param. `priority` (lower = preferred) is \
+available if you ever need a tie-breaker between two plausible matches, \
+though with only two vendors today their `topics` rarely overlap enough to \
+need it.
+5. More than one active vendor plausibly matches, or none clearly does -> \
+omit `sources` entirely so the tool fans out to all active vendors. Do not \
+guess a single vendor just to avoid a fan-out call -- an unnecessary second \
+vendor in the answer is a smaller problem than silently dropping a vendor \
+that had the answer.
+6. If listVendors fails or returns no active vendors, do not call the ask \
+tool at all -- tell the caller you couldn't retrieve the vendor list (or \
+that no vendor is currently available) rather than guessing.
+You don't need to call listVendors again later in the same conversation -- \
+vendor coverage doesn't change mid-conversation.
 
 Call the ask tool at most once per question. Its `sources` param already \
-fans out to both providers when omitted -- do not call it once per source, \
-and do not follow up with the search tool just to double-check an ask \
-result that already answered the question. Only make a second tool call if \
-the first response is genuinely insufficient (e.g. explicitly says no data \
-found and a differently-scoped query might help).
+fans out to multiple vendors when omitted -- do not call it once per \
+vendor, and do not follow up with the search tool just to double-check an \
+ask result that already answered the question. Only make a second tool \
+call if the first response is genuinely insufficient (e.g. explicitly says \
+no data found and a differently-scoped query might help). If the ask tool \
+itself fails, times out, or errors, say so plainly -- never fabricate an \
+answer to cover for a failed tool call.
 
-If the tool response's `conflicts` array is non-empty, Cala and Sayari disagree \
+If the tool response's `conflicts` array is non-empty, the vendors disagree \
 on a fact -- surface both positions to the user, never silently prefer one \
 source. Always cite claims back to the tool's citations.
+
+Never surface, ask for, or repeat any vendor credential or token -- you \
+never see them; the tools handle that entirely on their own.
 
 If the ask tool's response has a `content` field instead of the normal \
 `ok`/`claims`/`citations` envelope, that means Cala's own answer is being \
@@ -113,12 +138,25 @@ def secret_env(name: str) -> str | None:
 _token_cache: dict[str, tuple[str, float]] = {}
 # 60s safety margin so a token doesn't expire mid-request.
 _TOKEN_EXPIRY_MARGIN_SECONDS = 60
+# Guards both caches' dict reads/writes below (not the token HTTP call or the
+# MCPClient build itself -- those stay outside the lock on purpose). Holding
+# this lock across MCPClient.start() would deadlock: MCPClient calls
+# get_bearer_token() back from its own background thread (via _transport()
+# below), which also wants this same lock. So this narrows, but doesn't
+# fully close, the window where two truly concurrent first-calls could both
+# miss the cache and both build a client/fetch a token -- the second write
+# just overwrites the first in the dict (a wasted duplicate build/fetch, not
+# a data race), rather than corrupting the dict itself. AgentCore Runtime's
+# concurrency model within one warm container isn't documented as strictly
+# single-request-at-a-time, hence locking the dict ops at all.
+_cache_lock = threading.Lock()
 
 
 def get_bearer_token(client_id: str, client_secret: str) -> str:
-    cached = _token_cache.get(client_id)
-    if cached and cached[1] > time.time():
-        return cached[0]
+    with _cache_lock:
+        cached = _token_cache.get(client_id)
+        if cached and cached[1] > time.time():
+            return cached[0]
 
     response = httpx.post(
         COGNITO_TOKEN_URL,
@@ -130,22 +168,29 @@ def get_bearer_token(client_id: str, client_secret: str) -> str:
     body = response.json()
     token = body["access_token"]
     expires_in = body.get("expires_in", 3600)
-    _token_cache[client_id] = (token, time.time() + expires_in - _TOKEN_EXPIRY_MARGIN_SECONDS)
+    with _cache_lock:
+        _token_cache[client_id] = (token, time.time() + expires_in - _TOKEN_EXPIRY_MARGIN_SECONDS)
     return token
 
 
-# Cached (MCPClient, sanitized tools) keyed by gateway_url -- see module
-# docstring "Latency". MCPClient itself is documented as reusable across
-# calls ("allowing reuse of the same connection for multiple tool calls to
-# reduce latency"); we're just holding onto that reuse across `ask()` calls
-# instead of opening/closing a fresh one every time.
-_mcp_cache: dict[str, tuple[MCPClient, list[MCPAgentTool]]] = {}
+# Cached (MCPClient, sanitized tools) keyed by (gateway_url, client_id) -- see
+# module docstring "Latency". MCPClient itself is documented as reusable
+# across calls ("allowing reuse of the same connection for multiple tool
+# calls to reduce latency"); we're just holding onto that reuse across
+# `ask()` calls instead of opening/closing a fresh one every time. Keyed on
+# client_id too, not just gateway_url, so two different credential sets
+# against the same Gateway (not a real scenario in either deployed Runtime
+# today, both use one fixed credential set, but not guaranteed to stay that
+# way) can't collide and silently reuse each other's connection.
+_mcp_cache: dict[tuple[str, str], tuple[MCPClient, list[MCPAgentTool]]] = {}
 
 
 def _get_tools(gateway_url: str, client_id: str, client_secret: str) -> list[MCPAgentTool]:
-    cached = _mcp_cache.get(gateway_url)
-    if cached is not None:
-        return cached[1]
+    cache_key = (gateway_url, client_id)
+    with _cache_lock:
+        cached = _mcp_cache.get(cache_key)
+        if cached is not None:
+            return cached[1]
 
     def _transport():
         # Re-fetches (or returns the cached, still-valid) token on every reconnect
@@ -165,12 +210,14 @@ def _get_tools(gateway_url: str, client_id: str, client_secret: str) -> list[MCP
         MCPAgentTool(tool.mcp_tool, tool.mcp_client, name_override=tool.tool_name.replace(".", "_"))
         for tool in mcp_client.list_tools_sync()
     ]
-    _mcp_cache[gateway_url] = (mcp_client, tools)
+    with _cache_lock:
+        _mcp_cache[cache_key] = (mcp_client, tools)
     return tools
 
 
-def _evict_mcp_cache(gateway_url: str) -> None:
-    cached = _mcp_cache.pop(gateway_url, None)
+def _evict_mcp_cache(gateway_url: str, client_id: str) -> None:
+    with _cache_lock:
+        cached = _mcp_cache.pop((gateway_url, client_id), None)
     if cached is not None:
         try:
             cached[0].stop(None, None, None)
@@ -208,6 +255,6 @@ def ask(
         # Cached connection may have gone stale (Gateway-side session timeout, network
         # blip) -- evict so the *next* call rebuilds clean, then re-raise this one as a
         # failure rather than trying to recover a possibly-half-broken session mid-request.
-        _evict_mcp_cache(gateway_url)
+        _evict_mcp_cache(gateway_url, client_id)
         raise
     return str(result)

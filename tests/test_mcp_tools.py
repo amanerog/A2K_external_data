@@ -91,6 +91,8 @@ async def test_list_vendors_tool_returns_domains_topics_and_scope():
         assert vendor["domains"]
         assert vendor["topics"]
         assert vendor["scope"]
+        assert vendor["status"] == "active"
+        assert vendor["priority"] == 1
 
     # the whole point of granularizing the cards: no shared topic strings for
     # the agent to get confused by when picking a `sources` value.

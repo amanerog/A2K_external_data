@@ -3,10 +3,7 @@ the actual agent logic (shared with entrypoint.py, the AgentCore Runtime
 deploy of this same agent).
 
 Usage:
-    .venv/bin/python3.11 agent/router_agent.py "..."   # NOT .venv/bin/python,
-        # which is symlinked to python3.13 in this repo's venv and won't see
-        # the packages installed for 3.11 (mcp requires 3.10+; strands-agents
-        # was installed with pip on 3.11 here)
+    python agent/router_agent.py "..."
     # env vars needed -- see README.md in this directory:
     #   CLIENT_ID, CLIENT_SECRET, GATEWAY_URL, BEDROCK_MODEL_ID
 """

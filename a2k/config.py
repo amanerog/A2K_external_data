@@ -1,9 +1,12 @@
 """Environment-driven configuration for the A2K box.
 
-Mock mode is the default because no live Cala/Sayari credentials exist yet
-(see plan decision log). Flipping to live mode requires only setting
-A2K_BOX_MODE=live plus the provider credentials below -- adapters read this
-module, never os.environ directly, so the mock/live branch lives in one place.
+Mock mode is the default so a fresh checkout with no credentials configured
+still runs. Flipping to live mode requires only setting A2K_BOX_MODE=live
+plus the provider credentials below -- adapters read this module, never
+os.environ directly, so the mock/live branch lives in one place. The
+deployed a2k-box Runtime itself has run in live mode, credentials sourced
+from Secrets Manager, since 2026-08-18 -- see _secret_env()/A2K_SECRETS_ARN
+below.
 """
 
 from __future__ import annotations
