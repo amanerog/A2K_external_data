@@ -74,14 +74,14 @@
   "knowledgeProfile": {
     "domains": ["finance", "legal", "compliance", "risk"],
     "topics": [
-      "sec-filings",
-      "ofac-sanctions",
-      "business-registries",
-      "beneficial-ownership",
+      "sec-edgar-filings",
+      "ofac-sanctions-watchlists",
+      "business-registry-records",
+      "beneficial-ownership-disclosures",
       "regulatory-filings"
     ],
     "coverage": {
-      "scope": "Companies and entities covered by Cala's underlying public filings and registries.",
+      "scope": "Public company filings and registry records: SEC/EDGAR filings, OFAC sanctions/watchlist matches, business registry incorporation records, and beneficial-ownership disclosures as filed with regulators. Strongest for entities with a formal US/public filing history; does not build a relationship/ownership graph the way Sayari does.",
       "departments": [],
       "geography": ["global"],
       "businessUnits": [],

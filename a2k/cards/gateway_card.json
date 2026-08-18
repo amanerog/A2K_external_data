@@ -74,13 +74,16 @@
   "knowledgeProfile": {
     "domains": ["finance", "legal", "compliance", "risk"],
     "topics": [
-      "sec-filings",
-      "ofac-sanctions",
-      "business-registries",
-      "beneficial-ownership",
-      "corporate-relationships",
+      "sec-edgar-filings",
+      "ofac-sanctions-watchlists",
+      "business-registry-records",
+      "beneficial-ownership-disclosures",
+      "regulatory-filings",
+      "ownership-graph",
+      "corporate-relationship-network",
       "adverse-media",
-      "risk-screening"
+      "sanctions-pep-screening",
+      "entity-resolution"
     ],
     "coverage": {
       "scope": "Union of Cala's and Sayari's public/commercial company-intelligence coverage.",

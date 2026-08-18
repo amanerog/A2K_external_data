@@ -74,14 +74,14 @@
   "knowledgeProfile": {
     "domains": ["compliance", "risk", "legal"],
     "topics": [
-      "beneficial-ownership",
-      "corporate-relationships",
+      "ownership-graph",
+      "corporate-relationship-network",
       "adverse-media",
-      "risk-screening",
+      "sanctions-pep-screening",
       "entity-resolution"
     ],
     "coverage": {
-      "scope": "Entities covered by Sayari's ownership and risk graph.",
+      "scope": "Corporate ownership and risk graph: who owns/controls an entity, its network of corporate relationships, adverse-media mentions, and sanctions/PEP risk screening. Strongest for cross-border ownership structures and entities without a formal US filing history; does not carry primary filing documents (10-Ks, registry records) the way Cala does.",
       "departments": [],
       "geography": ["global"],
       "businessUnits": [],

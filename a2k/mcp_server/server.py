@@ -31,12 +31,16 @@ mcp = FastMCP(
     instructions=(
         "A2K-KCP gateway fronting Cala (financial/legal/regulatory filings) and "
         "Sayari (ownership/risk graph) company-intelligence data for the K2 agent. "
-        "Call a2k.search for raw cited passages, or a2k.ask for a synthesized, cited "
-        "answer. If the response's `conflicts` array is non-empty, Cala and Sayari "
-        "disagree on a fact -- surface both positions to the user; never silently "
-        "prefer one source. Use a2k.explain(answerRef=<audit.requestId>) to get the "
-        "evidence behind a prior a2k.ask response, and a2k.getDocument to retrieve "
-        "the full source record behind any citation's documentId."
+        "Not sure which vendor(s) a query needs? Call a2k.listVendors first to see "
+        "what each one actually covers, then pass the matching sourceId(s) as "
+        "a2k.ask's `sources` param -- omit `sources` to fan out to all vendors "
+        "when coverage genuinely overlaps or stays unclear. Call a2k.search for "
+        "raw cited passages, or a2k.ask for a synthesized, cited answer. If the "
+        "response's `conflicts` array is non-empty, Cala and Sayari disagree on a "
+        "fact -- surface both positions to the user; never silently prefer one "
+        "source. Use a2k.explain(answerRef=<audit.requestId>) to get the evidence "
+        "behind a prior a2k.ask response, and a2k.getDocument to retrieve the full "
+        "source record behind any citation's documentId."
     ),
     # AgentCore Runtime hosts MCP servers at 0.0.0.0:8000/mcp (both are
     # FastMCP defaults, kept explicit here since Runtime depends on them).
@@ -68,6 +72,31 @@ def cala_card() -> str:
 def sayari_card() -> str:
     """Sayari's KB Card."""
     return load_card("sayari").model_dump_json()
+
+
+@mcp.tool(name="a2k.listVendors")
+async def a2k_list_vendors() -> dict:
+    """Lists the vendor knowledge sources behind this gateway and what each one
+    actually covers (domains, topics, human-readable scope) -- call this before
+    a2k.ask/a2k.search when it isn't already obvious which vendor(s) a query
+    needs, then pass the matching `sourceId` value(s) as a2k.ask's `sources`
+    param. Omit `sources` entirely (fan out to all vendors) when coverage
+    genuinely overlaps or stays unclear even after checking this. Same
+    domains/topics/scope data as the a2k://card/<vendor> resources, exposed as
+    a callable tool for clients that don't read MCP resources."""
+    vendors = []
+    for source_id in ("cala", "sayari"):
+        card = load_card(source_id)
+        vendors.append(
+            {
+                "sourceId": source_id,
+                "name": card.name,
+                "domains": card.knowledgeProfile.domains,
+                "topics": card.knowledgeProfile.topics,
+                "scope": card.knowledgeProfile.coverage.scope,
+            }
+        )
+    return {"vendors": vendors}
 
 
 async def _cala_raw_response_if_enabled(query: str, sources: list[str] | None) -> dict | None:

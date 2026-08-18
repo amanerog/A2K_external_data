@@ -7,12 +7,13 @@ between Cala and Sayari via the `sources` param a2k.ask already exposes
 (a2k/mcp_server/server.py) -- this doesn't add a new mechanism, it just
 steers the existing tool.
 
-Routing rule for now (placeholder -- swap for something more principled
-once real usage data exists): national queries -> Cala, international/
-cross-border queries -> Sayari, ambiguous queries -> both (omit `sources`,
-a2k.ask's own default fan-out). The decision is left to the model's own
-reasoning via the system prompt below, not hardcoded classification code --
-keeps this agent dumb/stateless and easy to re-tune by editing the prompt.
+Routing: no hardcoded national/international-style rule anymore -- the model
+calls a2k.listVendors (a2k/mcp_server/server.py) to read each vendor's actual
+declared coverage (domains/topics/coverage.scope, from the KB Cards in
+a2k/cards/*.json) and picks `sources` based on that, per the system prompt
+below. Keeps this agent dumb/stateless (no classification code here) and
+keeps routing grounded in what the vendors actually declare instead of an
+assumption baked into a prompt.
 
 Auth: Cognito client_credentials flow (this Gateway's inbound identity --
 domain/scope confirmed live 2026-08-17 against the my-user-pool-278is5ma
@@ -53,17 +54,17 @@ COGNITO_TOKEN_URL = "https://my-domain-f9bf0du3.auth.eu-west-1.amazoncognito.com
 SCOPE = "gateway-mcp-sayari-cala/genesis-gateway:invoke"
 
 SYSTEM_PROMPT = """You are a company-intelligence assistant. Your tools query \
-two source providers behind a single gateway: Cala (financial/legal/regulatory \
-filings -- strongest for domestic/national entities) and Sayari (ownership/risk \
-graph -- strongest for cross-border/international entities and sanctions/PEP \
-screening).
+one or more vendor knowledge sources behind a single gateway.
 
-Routing rule (placeholder -- revisit as real usage patterns emerge):
-- National/domestic company or news -> call the ask tool with sources=["cala"].
-- International company, cross-border ownership, or sanctions/risk screening \
--> call it with sources=["sayari"].
-- Can't tell, or it could reasonably need both -> omit `sources` entirely so \
-the tool fans out to both providers.
+Before your first ask/search call in a conversation, call listVendors once to \
+see what each vendor actually covers (`domains`, `topics`, and a human-readable \
+`scope` for each `sourceId`). Match the question against that -- not against \
+assumptions about the vendors' names -- and pass the matching `sourceId`(s) as \
+the ask tool's `sources` param. If more than one vendor's declared coverage \
+plausibly matches, or none clearly does, omit `sources` entirely so the tool \
+fans out to all vendors rather than guessing wrong. You don't need to call \
+listVendors again later in the same conversation -- vendor coverage doesn't \
+change mid-conversation.
 
 Call the ask tool at most once per question. Its `sources` param already \
 fans out to both providers when omitted -- do not call it once per source, \

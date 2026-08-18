@@ -21,6 +21,7 @@ async def test_tools_and_resources_are_registered():
     assert names == {
         "a2k.search",
         "a2k.ask",
+        "a2k.listVendors",
         "a2k.explain",
         "a2k.getDocument",
         "a2k.validateCitation",
@@ -77,6 +78,23 @@ async def test_report_conflict_tool_returns_full_report():
     report_data = _content_json(report_result)
     assert report_data["ok"] is True
     assert report_data["conflictReport"]["reconciliation"]["status"] == "unresolved-surfaced"
+
+
+async def test_list_vendors_tool_returns_domains_topics_and_scope():
+    result = await mcp.call_tool("a2k.listVendors", {})
+    data = _content_json(result)
+    vendors = {v["sourceId"]: v for v in data["vendors"]}
+    assert set(vendors) == {"cala", "sayari"}
+
+    cala, sayari = vendors["cala"], vendors["sayari"]
+    for vendor in (cala, sayari):
+        assert vendor["domains"]
+        assert vendor["topics"]
+        assert vendor["scope"]
+
+    # the whole point of granularizing the cards: no shared topic strings for
+    # the agent to get confused by when picking a `sources` value.
+    assert not set(cala["topics"]) & set(sayari["topics"])
 
 
 async def test_cala_raw_mode_disabled_by_default(monkeypatch):
