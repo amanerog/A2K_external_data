@@ -90,6 +90,17 @@ class Config:
         default_factory=lambda: int(os.environ.get("CALA_INTROSPECTION_CACHE_TTL_SECONDS", "86400"))
     )
 
+    # entity_search/search_entities' `limit` controls how many name-match candidates
+    # come back -- it does not mean "fully hydrate this many entities" (each hydration
+    # is a separate introspection+retrieval/get_entity_summary round-trip). Confirmed
+    # live 2026-08-18: a2k.ask's internal limit=50 (gateway/engine.py) meant up to 50
+    # candidates each got fully hydrated for one query, ~458KB/~114K tokens of Facts for
+    # a single a2k.ask call -- enough on its own to blow Bedrock's per-request byte limit.
+    # See adapters/cala_mcp.py and adapters/sayari_mcp.py.
+    max_entities_to_hydrate: int = field(
+        default_factory=lambda: int(os.environ.get("A2K_MAX_ENTITIES_TO_HYDRATE", "3"))
+    )
+
     sayari_client_id: str | None = field(default_factory=lambda: _secret_env("SAYARI_CLIENT_ID"))
     sayari_client_secret: str | None = field(
         default_factory=lambda: _secret_env("SAYARI_CLIENT_SECRET")

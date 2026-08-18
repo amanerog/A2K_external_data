@@ -86,6 +86,7 @@ def patched_adapter(monkeypatch):
         sayari_auth0_client_secret="test-client-secret",
         sayari_mcp_live_ready=True,
         httpx_verify=True,
+        max_entities_to_hydrate=3,
     )
     monkeypatch.setattr(sayari_mcp_module, "config", fake_config)
     monkeypatch.setattr(sayari_mcp_module.SayariMcpAdapter, "_call_tool", _fake_call_tool)

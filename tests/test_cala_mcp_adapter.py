@@ -146,6 +146,7 @@ def patched_adapter(monkeypatch):
         cala_live_ready=True,
         cala_introspection_cache_ttl_seconds=86400,
         cala_search_mode="entity_first",
+        max_entities_to_hydrate=3,
     )
     monkeypatch.setattr(cala_mcp_module, "config", fake_config)
     monkeypatch.setattr(cala_mcp_module.CalaMcpAdapter, "_call_tool", _fake_call_tool)

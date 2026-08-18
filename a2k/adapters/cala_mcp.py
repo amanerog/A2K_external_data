@@ -189,7 +189,7 @@ class CalaMcpAdapter(ProviderAdapter):
         candidates = candidates.get("entities", []) if isinstance(candidates, dict) else (candidates or [])
 
         facts: list[Fact] = []
-        for candidate in candidates[:limit]:
+        for candidate in candidates[: config.max_entities_to_hydrate]:
             entity_id = candidate.get("id")
             entity_name = candidate.get("name", entity_id)
             if not entity_id:

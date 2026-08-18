@@ -231,7 +231,7 @@ class SayariMcpAdapter(ProviderAdapter):
                     items = (search_result or {}).get("items", []) if isinstance(search_result, dict) else []
 
                     facts: list[Fact] = []
-                    for item in items[:limit]:
+                    for item in items[: config.max_entities_to_hydrate]:
                         entity_id = item.get("entity_id")
                         if not entity_id:
                             continue
