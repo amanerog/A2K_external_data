@@ -19,12 +19,27 @@ domain/scope confirmed live 2026-08-17 against the my-user-pool-278is5ma
 pool's "gateway-mcp-sayari-cala" resource server, see
 ../deploy/agentcore/test_gateway_mcp.py's docstring for how those were
 found. Re-derive from the Cognito console if the gateway is ever recreated).
+
+Latency: AgentCore Runtime keeps a container warm across invocations within
+a session (it's not a fresh cold process per call the way Lambda often is),
+so module-level caching below actually pays off across calls, not just
+within one. Two things were previously re-done on every single `ask()`
+call and are now cached at module scope instead: the Cognito bearer token
+(was a fresh OAuth round-trip every time; Cognito's own `expires_in` now
+governs re-fetch) and the Gateway MCP connection + tool list (was a fresh
+`initialize` + `tools/list` handshake every time; AWS's own MCP-server-
+targets doc calls this out explicitly as avoidable latency for
+Runtime-hosted targets like a2k-box). If the cached connection goes stale
+(Gateway-side session timeout, network blip), `ask()` evicts both caches
+and lets the *next* call rebuild clean rather than trying to recover
+mid-request.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import time
 from functools import lru_cache
 
 import httpx
@@ -49,6 +64,13 @@ Routing rule (placeholder -- revisit as real usage patterns emerge):
 -> call it with sources=["sayari"].
 - Can't tell, or it could reasonably need both -> omit `sources` entirely so \
 the tool fans out to both providers.
+
+Call the ask tool at most once per question. Its `sources` param already \
+fans out to both providers when omitted -- do not call it once per source, \
+and do not follow up with the search tool just to double-check an ask \
+result that already answered the question. Only make a second tool call if \
+the first response is genuinely insufficient (e.g. explicitly says no data \
+found and a differently-scoped query might help).
 
 If the tool response's `conflicts` array is non-empty, Cala and Sayari disagree \
 on a fact -- surface both positions to the user, never silently prefer one \
@@ -77,7 +99,18 @@ def secret_env(name: str) -> str | None:
     return os.environ.get(name) or _secrets_manager_bundle().get(name)
 
 
+# (token, expiry epoch seconds) keyed by client_id -- module-level, so it
+# survives across `ask()` calls within the same warm Runtime container.
+_token_cache: dict[str, tuple[str, float]] = {}
+# 60s safety margin so a token doesn't expire mid-request.
+_TOKEN_EXPIRY_MARGIN_SECONDS = 60
+
+
 def get_bearer_token(client_id: str, client_secret: str) -> str:
+    cached = _token_cache.get(client_id)
+    if cached and cached[1] > time.time():
+        return cached[0]
+
     response = httpx.post(
         COGNITO_TOKEN_URL,
         auth=(client_id, client_secret),
@@ -85,7 +118,55 @@ def get_bearer_token(client_id: str, client_secret: str) -> str:
         data={"grant_type": "client_credentials", "scope": SCOPE},
     )
     response.raise_for_status()
-    return response.json()["access_token"]
+    body = response.json()
+    token = body["access_token"]
+    expires_in = body.get("expires_in", 3600)
+    _token_cache[client_id] = (token, time.time() + expires_in - _TOKEN_EXPIRY_MARGIN_SECONDS)
+    return token
+
+
+# Cached (MCPClient, sanitized tools) keyed by gateway_url -- see module
+# docstring "Latency". MCPClient itself is documented as reusable across
+# calls ("allowing reuse of the same connection for multiple tool calls to
+# reduce latency"); we're just holding onto that reuse across `ask()` calls
+# instead of opening/closing a fresh one every time.
+_mcp_cache: dict[str, tuple[MCPClient, list[MCPAgentTool]]] = {}
+
+
+def _get_tools(gateway_url: str, client_id: str, client_secret: str) -> list[MCPAgentTool]:
+    cached = _mcp_cache.get(gateway_url)
+    if cached is not None:
+        return cached[1]
+
+    def _transport():
+        # Re-fetches (or returns the cached, still-valid) token on every reconnect
+        # attempt, not just the first -- transport_callable can be invoked again by
+        # MCPClient on its own reconnect logic, potentially after the first token expired.
+        headers = {"authorization": f"Bearer {get_bearer_token(client_id, client_secret)}"}
+        return streamablehttp_client(gateway_url, headers=headers, timeout=120)
+
+    mcp_client = MCPClient(_transport)
+    mcp_client.start()
+    # Bedrock's Converse API restricts tool names to [a-zA-Z0-9_-]+, but a2k-box's own
+    # tool names use dots (a2k.ask, a2k.search, ...) and the Gateway namespaces them
+    # further as "<target>___a2k.ask" -- both dot-containing and otherwise valid MCP
+    # names. Rename for the model only; call_tool_async still uses each tool's original
+    # mcp_tool.name to reach the MCP server, so this doesn't touch a2k-box's real interface.
+    tools = [
+        MCPAgentTool(tool.mcp_tool, tool.mcp_client, name_override=tool.tool_name.replace(".", "_"))
+        for tool in mcp_client.list_tools_sync()
+    ]
+    _mcp_cache[gateway_url] = (mcp_client, tools)
+    return tools
+
+
+def _evict_mcp_cache(gateway_url: str) -> None:
+    cached = _mcp_cache.pop(gateway_url, None)
+    if cached is not None:
+        try:
+            cached[0].stop(None, None, None)
+        except Exception:
+            pass  # best-effort -- the connection is already presumed broken
 
 
 def ask(
@@ -104,23 +185,20 @@ def ask(
     -- use that when running as an AgentCore Runtime entrypoint, where nothing reads stdout
     as a terminal; leave it False for interactive CLI use.
     """
-    headers = {"authorization": f"Bearer {get_bearer_token(client_id, client_secret)}"}
-    mcp_client = MCPClient(lambda: streamablehttp_client(gateway_url, headers=headers, timeout=120))
     model = BedrockModel(model_id=model_id, region_name=region)
+    tools = _get_tools(gateway_url, client_id, client_secret)
 
-    with mcp_client:
-        # Bedrock's Converse API restricts tool names to [a-zA-Z0-9_-]+, but a2k-box's own
-        # tool names use dots (a2k.ask, a2k.search, ...) and the Gateway namespaces them
-        # further as "<target>___a2k.ask" -- both dot-containing and otherwise valid MCP
-        # names. Rename for the model only; call_tool_async still uses each tool's original
-        # mcp_tool.name to reach the MCP server, so this doesn't touch a2k-box's real interface.
-        tools = [
-            MCPAgentTool(tool.mcp_tool, tool.mcp_client, name_override=tool.tool_name.replace(".", "_"))
-            for tool in mcp_client.list_tools_sync()
-        ]
-        agent_kwargs = {"model": model, "tools": tools, "system_prompt": SYSTEM_PROMPT}
-        if silent:
-            agent_kwargs["callback_handler"] = None
-        agent = Agent(**agent_kwargs)
+    agent_kwargs = {"model": model, "tools": tools, "system_prompt": SYSTEM_PROMPT}
+    if silent:
+        agent_kwargs["callback_handler"] = None
+    agent = Agent(**agent_kwargs)
+
+    try:
         result = agent(question)
-        return str(result)
+    except Exception:
+        # Cached connection may have gone stale (Gateway-side session timeout, network
+        # blip) -- evict so the *next* call rebuilds clean, then re-raise this one as a
+        # failure rather than trying to recover a possibly-half-broken session mid-request.
+        _evict_mcp_cache(gateway_url)
+        raise
+    return str(result)
