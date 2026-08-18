@@ -217,9 +217,25 @@ def _fetch_vendor_catalogue_text(mcp_client: MCPClient, tools: list[MCPAgentTool
     result = mcp_client.call_tool_sync(
         tool_use_id="prefetch-vendor-catalogue", name=list_vendors.mcp_tool.name, arguments={}
     )
-    if result.get("status") != "success" or not result.get("structuredContent"):
+    if result.get("status") != "success":
         return "(fetching the vendor catalogue failed -- fan out to all sources; do not restrict `sources`.)"
-    return _format_vendor_catalogue(result["structuredContent"])
+
+    # Calling a2k.listVendors *through the Gateway* (vs. straight to a2k-box) confirmed
+    # live 2026-08-18: the Gateway doesn't pass through `structuredContent` at all -- only
+    # `content[0]["text"]`, a JSON-encoded string of the same data. Direct-to-a2k-box calls
+    # (e.g. deploy/agentcore/test_remote_mcp_iam.py) do get `structuredContent`, so prefer
+    # it when present and only fall back to parsing the text block when it's missing.
+    catalogue = result.get("structuredContent")
+    if not catalogue:
+        content = result.get("content") or []
+        text = content[0].get("text") if content and isinstance(content[0], dict) else None
+        if not text:
+            return "(vendor catalogue response had no usable content -- fan out to all sources; do not restrict `sources`.)"
+        try:
+            catalogue = json.loads(text)
+        except json.JSONDecodeError:
+            return "(vendor catalogue response wasn't valid JSON -- fan out to all sources; do not restrict `sources`.)"
+    return _format_vendor_catalogue(catalogue)
 
 
 # Cached (MCPClient, tools handed to the LLM, formatted vendor catalogue text)

@@ -143,7 +143,22 @@ python agent/test_router_agent_iam.py "¿Qué sabemos de Acme Robotics Inc.?"
   `[a-zA-Z0-9_-]+` in tool names, but the Gateway exposes a2k-box's tools as
   `<target-name>___a2k.ask` (dot included) -- `core.py` renames dots to
   underscores for the model, while still calling the MCP server by its real
-  name underneath. See `core.py`'s `_get_tools_and_catalogue`.
+  name underneath. See `core.py`'s `_get_tools_and_catalogue`. **Match tool
+  names by suffix, not equality**, when looking one up by its bare a2k-box
+  name (e.g. finding `listVendors` to call it directly) -- the Gateway
+  prefix means an exact match against `"a2k.listVendors"` never matches
+  `"<target>___a2k.listVendors"` (confirmed live 2026-08-18, a real bug that
+  shipped once before being caught).
+- **`structuredContent` isn't preserved through the Gateway**: calling an
+  MCP tool straight against a2k-box's own Runtime returns structured JSON
+  results in `structuredContent` (confirmed via
+  `../deploy/agentcore/test_remote_mcp_iam.py`), but the *same* tool called
+  through the Gateway only returns `content[0]["text"]` (the JSON encoded as
+  a string) -- confirmed live 2026-08-18. `core.py`'s
+  `_fetch_vendor_catalogue_text` tries `structuredContent` first and falls
+  back to `json.loads(content[0]["text"])`; any other code calling MCP
+  tools directly (not through the Strands tool-use loop, which already
+  handles this) needs the same fallback.
 - **Latency**: `core.py` caches the Cognito bearer token (until
   `expires_in`) and the Gateway MCP connection + tool list at module scope,
   since AgentCore Runtime keeps a container warm across invocations within a
