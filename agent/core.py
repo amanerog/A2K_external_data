@@ -75,6 +75,14 @@ found and a differently-scoped query might help).
 If the tool response's `conflicts` array is non-empty, Cala and Sayari disagree \
 on a fact -- surface both positions to the user, never silently prefer one \
 source. Always cite claims back to the tool's citations.
+
+If the ask tool's response has a `content` field instead of the normal \
+`ok`/`claims`/`citations` envelope, that means Cala's own answer is being \
+returned unprocessed (a test mode, not the normal path). When you see this \
+shape, reply with that `content` text verbatim -- word for word, same \
+language, no paraphrasing, no summarizing, no reformatting, no added \
+commentary before or after it. Do not treat it as a normal tool result to \
+synthesize an answer from.
 """
 
 
