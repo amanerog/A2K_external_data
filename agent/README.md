@@ -32,7 +32,6 @@ vendors) if more than one plausibly matches or none clearly does. Inactive
 | `entrypoint.py` | AgentCore Runtime entrypoint (`bedrock_agentcore` SDK) -- `POST /invocations` in, `{"response": "..."}` out. |
 | `requirements.txt` | Deploy deps: `strands-agents`, `bedrock-agentcore`, `httpx` (`mcp`/`boto3` come in transitively). |
 | `router-agent.zip` | Prebuilt deploy artifact (Linux arm64 wheels + `core.py`/`entrypoint.py`) -- see "Deploy to AgentCore Runtime" below for how to rebuild it. |
-| `test_gateway_mcp.py` | Raw MCP probe against the Gateway (Cognito token + `initialize`/`tools/list`) -- no agent/LLM involved, just confirms the Gateway->a2k-box path works. |
 | `test_router_agent_iam.py` | Invokes the *deployed* agent Runtime via `boto3`'s `invoke_agent_runtime` (IAM/SigV4, this Runtime's inbound auth). |
 | `test_router_agent_latency.py` | Runs the deployed agent N times against one pinned `runtimeSessionId`, to see whether `core.py`'s caching is actually paying off across calls. |
 | `test_tool_result_size.py` | Calls `a2k.ask` directly via MCP with each `sources` value, prints response byte/token size -- how the entity-hydration bug (see `../deploy/agentcore/README.md` section 5) was found. |
@@ -58,8 +57,9 @@ inside an activated venv works fine now).
 
 `CLIENT_ID`/`CLIENT_SECRET` come from the Gateway's inbound-auth Cognito app
 client (the `gateway-mcp-sayari-cala` resource server on pool
-`my-user-pool-278is5ma` -- see `test_gateway_mcp.py`'s docstring if that
-gateway/pool is ever recreated and these need re-deriving). `BEDROCK_MODEL_ID`
+`my-user-pool-278is5ma` -- see `../deploy/agentcore/test_gateway_mcp.py`'s
+docstring if that gateway/pool is ever recreated and these need
+re-deriving). `BEDROCK_MODEL_ID`
 needs to be something your account actually has Bedrock access to in the
 target region -- check **Bedrock console -> Model catalog**; cross-region
 inference profiles are prefixed by region (e.g. `eu.anthropic....`).

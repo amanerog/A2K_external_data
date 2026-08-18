@@ -19,8 +19,13 @@ it was in the case this runbook was first written for.
 mode, and a consuming agent are all confirmed against a real AWS account as
 of 2026-08-18** -- a2k-box is live on AgentCore Runtime (real Cala/Sayari
 credentials via Secrets Manager, see section 5), registered as a Gateway
-target with IAM outbound auth, and `../../agent/test_gateway_mcp.py` lists
-all 8 tools through the Gateway. A separate Strands-based agent
+target with IAM outbound auth, and `test_gateway_mcp.py` (this directory)
+lists a2k-box's tools through the Gateway. `a2k.listVendors` (section 5)
+exists on a2k-box's Runtime directly (confirmed via
+`test_remote_mcp_iam.py`) but the Gateway's own DEFAULT-mode tool-catalog
+cache needs an explicit `SynchronizeGatewayTargets` call (or re-saving the
+target) before *it* reflects new/changed tools -- confirmed live 2026-08-18
+that redeploying a2k-box alone isn't enough. A separate Strands-based agent
 (`../../agent/`, see that directory's README) consumes this Gateway and is
 itself deployed to its own AgentCore Runtime. The sandbox this runbook was
 originally *written* in had no AWS account/credentials, so treat anything
@@ -401,16 +406,18 @@ policy to that role by hand (find its name/ARN on the Gateway's own
 The `/*` matters -- the actual invocation targets a subresource path
 (`runtime/<id>/runtime-endpoint/DEFAULT`), not the bare Runtime ARN.
 
-Once that policy's attached, save/re-sync the target. If a2k-box's 8 tools
+Once that policy's attached, save/re-sync the target. If a2k-box's tools
 show up in the target's tool list, IAM auth worked end-to-end and 4b-4e
-below aren't needed.
+below aren't needed. **Whenever a2k-box's own tool list changes (new tool,
+removed tool), the target needs an explicit re-sync too** -- redeploying
+a2k-box's Runtime alone does not update the Gateway's own cached tool
+catalog for DEFAULT-mode targets (confirmed live 2026-08-18, see section 5).
 
 **Confirmed end-to-end 2026-08-17**: with the endpoint/policy fixes above,
-[`../../agent/test_gateway_mcp.py`](../../agent/test_gateway_mcp.py) (fetches
-a Bearer token from the Gateway's inbound Cognito pool via
-client_credentials, then does `initialize` + `tools/list` against the
-Gateway's own MCP endpoint) returned all of a2k-box's tools through the
-Gateway.
+[`test_gateway_mcp.py`](test_gateway_mcp.py) (this directory -- fetches a
+Bearer token from the Gateway's inbound Cognito pool via client_credentials,
+then does `initialize` + `tools/list` against the Gateway's own MCP
+endpoint) returned all of a2k-box's tools through the Gateway.
 
 **Tool name prefixing**: Gateway namespaces every tool by target name to
 avoid collisions across multiple targets, so an agent calling through the

@@ -36,7 +36,12 @@ def _call(client, *, payload: dict, mcp_session_id: Optional[str] = None) -> dic
         qualifier="DEFAULT",
         payload=json.dumps(payload).encode("utf-8"),
         contentType="application/json",
-        accept="application/json",
+        # MCP streamable-http requires the client to accept *both* -- the server may
+        # respond with an immediate JSON body or switch to an SSE stream; accepting
+        # only application/json fails content negotiation with an HTTP 406 (confirmed
+        # live 2026-08-18, this script's accept value had never actually been exercised
+        # before that -- see module docstring "Not verified").
+        accept="application/json, text/event-stream",
         mcpProtocolVersion=MCP_PROTOCOL_VERSION,
     )
     if mcp_session_id:
