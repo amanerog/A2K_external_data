@@ -8,14 +8,20 @@ AgentCore Runtime (`a2k_agent-06B5R9CAuJ`, confirmed working end-to-end
 2026-08-18) -- a separate Runtime workload from a2k-box, with its own
 execution role, inbound auth (IAM, not Cognito), and secrets.
 
-**Routing**: no hardcoded rule. The agent calls `a2k.listVendors` before its
-first `ask`/`search` call to read each vendor's actually-declared coverage
-(`domains`/`topics`/`coverage.scope`, plus `status`/`priority`, from the KB
-Cards in `a2k/cards/*.json`) and picks the `ask` tool's `sources` param based
-on that -- exactly one `sourceId` if there's a clear single match, several
-(or `sources` omitted entirely, fanning out to all active vendors) if more
-than one plausibly matches or none clearly does. Inactive (`status` !=
-`active`) vendors are never selected. See `core.py`'s `SYSTEM_PROMPT`.
+**Routing**: no hardcoded rule -- `sources` is picked from each vendor's
+actually-declared coverage (`domains`/`topics`/`coverage.scope`, plus
+`status`/`priority`, from the KB Cards in `a2k/cards/*.json`, via
+`a2k.listVendors`). **Not left to the model to decide when to look this up**:
+confirmed live 2026-08-18 that it doesn't reliably call listVendors on its
+own (see `test_routing_behavior.py`) -- `core.py`'s `ask()` fetches the
+catalogue itself before building the Agent and injects it straight into the
+system prompt, and `listVendors` is dropped from the tools the model even
+sees. Only the *lookup* is deterministic; which `sourceId`(s) to pick is
+still the model's judgment call -- exactly one if there's a clear single
+match, several (or `sources` omitted entirely, fanning out to all active
+vendors) if more than one plausibly matches or none clearly does. Inactive
+(`status` != `active`) vendors are never selected. See `core.py`'s
+`SYSTEM_PROMPT_TEMPLATE` and `_get_tools_and_catalogue`.
 
 ## Files in this directory
 
@@ -31,6 +37,7 @@ than one plausibly matches or none clearly does. Inactive (`status` !=
 | `test_router_agent_latency.py` | Runs the deployed agent N times against one pinned `runtimeSessionId`, to see whether `core.py`'s caching is actually paying off across calls. |
 | `test_tool_result_size.py` | Calls `a2k.ask` directly via MCP with each `sources` value, prints response byte/token size -- how the entity-hydration bug (see `../deploy/agentcore/README.md` section 5) was found. |
 | `test_cala_raw_mode.py` | Calls `a2k.ask` directly via MCP (not through the LLM) and reports which response shape came back -- `content` (raw mode) vs the normal cited envelope -- to verify `CALA_RAW_KNOWLEDGE_SEARCH` independent of how the agent's own LLM might rephrase either shape. |
+| `test_routing_behavior.py` | Runs the agent loop locally (needed for tool-call visibility -- see its own docstring) against three preset questions (Cala-leaning, Sayari-leaning, ambiguous) and reports the actual `sources` value passed to `ask` each time, plus the injected vendor catalogue. |
 
 ## Setup
 
@@ -136,7 +143,7 @@ python agent/test_router_agent_iam.py "¿Qué sabemos de Acme Robotics Inc.?"
   `[a-zA-Z0-9_-]+` in tool names, but the Gateway exposes a2k-box's tools as
   `<target-name>___a2k.ask` (dot included) -- `core.py` renames dots to
   underscores for the model, while still calling the MCP server by its real
-  name underneath. See `core.py`'s `_get_tools`.
+  name underneath. See `core.py`'s `_get_tools_and_catalogue`.
 - **Latency**: `core.py` caches the Cognito bearer token (until
   `expires_in`) and the Gateway MCP connection + tool list at module scope,
   since AgentCore Runtime keeps a container warm across invocations within a
@@ -147,7 +154,7 @@ python agent/test_router_agent_iam.py "¿Qué sabemos de Acme Robotics Inc.?"
   the per-call floor roughly in half.
 - **`CALA_RAW_KNOWLEDGE_SEARCH` (a2k-box env var, not this agent's)**: when
   set, `a2k.ask`'s response shape changes from the normal cited envelope to
-  Cala's raw `content`. `core.py`'s `SYSTEM_PROMPT` tells the model to
+  Cala's raw `content`. `core.py`'s `SYSTEM_PROMPT_TEMPLATE` tells the model to
   reproduce that verbatim rather than paraphrase it -- but that's a prompt
   instruction, not a hard guarantee; an LLM can still alter it. If a
   downstream consumer needs Cala's prose byte-for-byte, don't route it

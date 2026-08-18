@@ -7,13 +7,20 @@ between Cala and Sayari via the `sources` param a2k.ask already exposes
 (a2k/mcp_server/server.py) -- this doesn't add a new mechanism, it just
 steers the existing tool.
 
-Routing: no hardcoded national/international-style rule anymore -- the model
-calls a2k.listVendors (a2k/mcp_server/server.py) to read each vendor's actual
-declared coverage (domains/topics/coverage.scope, from the KB Cards in
-a2k/cards/*.json) and picks `sources` based on that, per the system prompt
-below. Keeps this agent dumb/stateless (no classification code here) and
-keeps routing grounded in what the vendors actually declare instead of an
-assumption baked into a prompt.
+Routing: no hardcoded national/international-style rule -- `sources` is
+picked based on each vendor's actual declared coverage (domains/topics/
+coverage.scope/status/priority, from the KB Cards in a2k/cards/*.json, via
+a2k.listVendors in a2k/mcp_server/server.py). Confirmed live 2026-08-18 that
+leaving this as "the model calls listVendors when it decides to" doesn't
+work reliably -- across three test questions (agent/test_routing_behavior.py)
+the model never called listVendors even once, always either omitted
+`sources` or split one question into multiple ask calls instead. So this is
+now deterministic: `ask()` fetches and formats the catalogue itself before
+building the Agent, injects it directly into the system prompt, and drops
+listVendors from the tools handed to the model entirely -- there's nothing
+left for the model to skip. Routing judgment (which sourceId(s) match the
+question) is still the model's job; only the catalogue *lookup* was made
+non-optional.
 
 Auth: Cognito client_credentials flow (this Gateway's inbound identity --
 domain/scope confirmed live 2026-08-17 against the my-user-pool-278is5ma
@@ -54,37 +61,38 @@ from strands.tools.mcp.mcp_agent_tool import MCPAgentTool
 COGNITO_TOKEN_URL = "https://my-domain-f9bf0du3.auth.eu-west-1.amazoncognito.com/oauth2/token"
 SCOPE = "gateway-mcp-sayari-cala/genesis-gateway:invoke"
 
-SYSTEM_PROMPT = """You are a company-intelligence assistant, sitting between \
-a caller and one or more vendor knowledge sources behind a single gateway. \
-You reason about which vendor(s) a question needs; you do not need to \
-answer from your own knowledge -- the ask tool returns an already-cited, \
+SYSTEM_PROMPT_TEMPLATE = """You are a company-intelligence assistant, sitting \
+between a caller and one or more vendor knowledge sources behind a single \
+gateway. You reason about which vendor(s) a question needs; you do not need \
+to answer from your own knowledge -- the ask tool returns an already-cited, \
 already-synthesized answer built only from what the vendor(s) actually \
 returned, and your job is to relay that faithfully, not to add facts of \
 your own.
 
-VENDOR SELECTION -- do this before your first ask/search call:
-1. Call listVendors once to see every vendor's `sourceId`, `domains`, \
-`topics`, human-readable `scope`, `status`, and `priority`.
-2. Discard any vendor whose `status` isn't `active` -- never pass an \
-inactive `sourceId` to the ask tool, no matter how well its `domains`/ \
-`topics` match.
-3. Match the question against the remaining active vendors' `domains`/ \
-`topics`/`scope` -- not against assumptions about the vendors' names.
-4. Exactly one active vendor is a clear match -> pass that one `sourceId` \
+VENDOR SELECTION. The current vendor catalogue (already fetched for you --
+do not look for a tool to re-fetch it, there isn't one; this list is
+current as of this request):
+
+{vendor_catalogue}
+
+1. Only vendors listed above with status "active" are eligible -- never \
+pass an inactive `sourceId` to the ask tool, no matter how well its \
+domains/topics match.
+2. Match the question against the active vendors' domains/topics/scope \
+above -- not against assumptions about the vendors' names.
+3. Exactly one active vendor is a clear match -> pass that one `sourceId` \
 as the ask tool's `sources` param. `priority` (lower = preferred) is \
 available if you ever need a tie-breaker between two plausible matches, \
-though with only two vendors today their `topics` rarely overlap enough to \
+though with only two vendors today their topics rarely overlap enough to \
 need it.
-5. More than one active vendor plausibly matches, or none clearly does -> \
+4. More than one active vendor plausibly matches, or none clearly does -> \
 omit `sources` entirely so the tool fans out to all active vendors. Do not \
 guess a single vendor just to avoid a fan-out call -- an unnecessary second \
 vendor in the answer is a smaller problem than silently dropping a vendor \
 that had the answer.
-6. If listVendors fails or returns no active vendors, do not call the ask \
-tool at all -- tell the caller you couldn't retrieve the vendor list (or \
-that no vendor is currently available) rather than guessing.
-You don't need to call listVendors again later in the same conversation -- \
-vendor coverage doesn't change mid-conversation.
+5. If the catalogue above is empty or every vendor is inactive, do not call \
+the ask tool at all -- tell the caller no vendor is currently available \
+rather than guessing.
 
 Call the ask tool at most once per question. Its `sources` param already \
 fans out to multiple vendors when omitted -- do not call it once per \
@@ -173,24 +181,63 @@ def get_bearer_token(client_id: str, client_secret: str) -> str:
     return token
 
 
-# Cached (MCPClient, sanitized tools) keyed by (gateway_url, client_id) -- see
-# module docstring "Latency". MCPClient itself is documented as reusable
-# across calls ("allowing reuse of the same connection for multiple tool
-# calls to reduce latency"); we're just holding onto that reuse across
-# `ask()` calls instead of opening/closing a fresh one every time. Keyed on
-# client_id too, not just gateway_url, so two different credential sets
-# against the same Gateway (not a real scenario in either deployed Runtime
-# today, both use one fixed credential set, but not guaranteed to stay that
-# way) can't collide and silently reuse each other's connection.
-_mcp_cache: dict[tuple[str, str], tuple[MCPClient, list[MCPAgentTool]]] = {}
+_LIST_VENDORS_MCP_NAME = "a2k.listVendors"
+_NO_VENDORS_CATALOGUE_TEXT = "(catalogue came back empty -- treat as no vendors available, see rule 5.)"
 
 
-def _get_tools(gateway_url: str, client_id: str, client_secret: str) -> list[MCPAgentTool]:
+def _format_vendor_catalogue(catalogue: dict) -> str:
+    vendors = catalogue.get("vendors") or []
+    if not vendors:
+        return _NO_VENDORS_CATALOGUE_TEXT
+    blocks = []
+    for v in vendors:
+        blocks.append(
+            f"- sourceId={v.get('sourceId')!r}  name={v.get('name')!r}  "
+            f"status={v.get('status')!r}  priority={v.get('priority')!r}\n"
+            f"  domains={v.get('domains')!r}\n"
+            f"  topics={v.get('topics')!r}\n"
+            f"  scope: {v.get('scope')}"
+        )
+    return "\n".join(blocks)
+
+
+def _fetch_vendor_catalogue_text(mcp_client: MCPClient, tools: list[MCPAgentTool]) -> str:
+    """Calls a2k.listVendors ourselves (not left to the model -- see module
+    docstring "Routing") and formats the result for direct injection into the
+    system prompt."""
+    list_vendors = next((t for t in tools if t.mcp_tool.name == _LIST_VENDORS_MCP_NAME), None)
+    if list_vendors is None:
+        return "(listVendors tool not found on this Gateway -- fan out to all sources; do not restrict `sources`.)"
+
+    result = mcp_client.call_tool_sync(
+        tool_use_id="prefetch-vendor-catalogue", name=list_vendors.mcp_tool.name, arguments={}
+    )
+    if result.get("status") != "success" or not result.get("structuredContent"):
+        return "(fetching the vendor catalogue failed -- fan out to all sources; do not restrict `sources`.)"
+    return _format_vendor_catalogue(result["structuredContent"])
+
+
+# Cached (MCPClient, tools handed to the LLM, formatted vendor catalogue text)
+# keyed by (gateway_url, client_id) -- see module docstring "Latency". MCPClient
+# itself is documented as reusable across calls ("allowing reuse of the same
+# connection for multiple tool calls to reduce latency"); we're just holding
+# onto that reuse across `ask()` calls instead of opening/closing a fresh one
+# every time -- the vendor catalogue is fetched once per cache entry for the
+# same reason, not re-fetched on every question (coverage doesn't change that
+# often; bump the cache key or restart the process if it ever does mid-session).
+# Keyed on client_id too, not just gateway_url, so two different credential
+# sets against the same Gateway (not a real scenario in either deployed
+# Runtime today, both use one fixed credential set, but not guaranteed to
+# stay that way) can't collide and silently reuse each other's connection.
+_mcp_cache: dict[tuple[str, str], tuple[MCPClient, list[MCPAgentTool], str]] = {}
+
+
+def _get_tools_and_catalogue(gateway_url: str, client_id: str, client_secret: str) -> tuple[list[MCPAgentTool], str]:
     cache_key = (gateway_url, client_id)
     with _cache_lock:
         cached = _mcp_cache.get(cache_key)
         if cached is not None:
-            return cached[1]
+            return cached[1], cached[2]
 
     def _transport():
         # Re-fetches (or returns the cached, still-valid) token on every reconnect
@@ -201,18 +248,25 @@ def _get_tools(gateway_url: str, client_id: str, client_secret: str) -> list[MCP
 
     mcp_client = MCPClient(_transport)
     mcp_client.start()
+    all_tools = mcp_client.list_tools_sync()
+    catalogue_text = _fetch_vendor_catalogue_text(mcp_client, all_tools)
+
     # Bedrock's Converse API restricts tool names to [a-zA-Z0-9_-]+, but a2k-box's own
     # tool names use dots (a2k.ask, a2k.search, ...) and the Gateway namespaces them
     # further as "<target>___a2k.ask" -- both dot-containing and otherwise valid MCP
     # names. Rename for the model only; call_tool_async still uses each tool's original
     # mcp_tool.name to reach the MCP server, so this doesn't touch a2k-box's real interface.
+    # listVendors itself is dropped here -- its result is injected into the system
+    # prompt above instead, so there's nothing left for the model to (redundantly, or
+    # unreliably -- see module docstring "Routing") call it for.
     tools = [
         MCPAgentTool(tool.mcp_tool, tool.mcp_client, name_override=tool.tool_name.replace(".", "_"))
-        for tool in mcp_client.list_tools_sync()
+        for tool in all_tools
+        if tool.mcp_tool.name != _LIST_VENDORS_MCP_NAME
     ]
     with _cache_lock:
-        _mcp_cache[cache_key] = (mcp_client, tools)
-    return tools
+        _mcp_cache[cache_key] = (mcp_client, tools, catalogue_text)
+    return tools, catalogue_text
 
 
 def _evict_mcp_cache(gateway_url: str, client_id: str) -> None:
@@ -242,9 +296,10 @@ def ask(
     as a terminal; leave it False for interactive CLI use.
     """
     model = BedrockModel(model_id=model_id, region_name=region)
-    tools = _get_tools(gateway_url, client_id, client_secret)
+    tools, catalogue_text = _get_tools_and_catalogue(gateway_url, client_id, client_secret)
+    system_prompt = SYSTEM_PROMPT_TEMPLATE.format(vendor_catalogue=catalogue_text)
 
-    agent_kwargs = {"model": model, "tools": tools, "system_prompt": SYSTEM_PROMPT}
+    agent_kwargs = {"model": model, "tools": tools, "system_prompt": system_prompt}
     if silent:
         agent_kwargs["callback_handler"] = None
     agent = Agent(**agent_kwargs)
