@@ -105,6 +105,23 @@ class CalaMcpAdapter(ProviderAdapter):
             return get_document_mock(self._mock_entities, self.kb_id, document_id, self.display_name)
         return await self._live_get_document(document_id)
 
+    async def raw_knowledge_search(self, query: str) -> dict:
+        """TEST-ONLY escape hatch (a2k.askCalaRaw in mcp_server/server.py): calls
+        *only* Cala's knowledge_search tool and returns its response completely
+        unprocessed -- including `content`, the LLM-synthesized prose that
+        search()'s normal entity_first/parallel/knowledge_search_only paths
+        deliberately discard (see this module's docstring). Never routed through
+        Fact/CitedResponseEnvelope, and never called by a2k.ask/a2k.search --
+        those keep citing explainability[] only, unchanged by this method's
+        existence. Requested explicitly for comparing "Cala's own answer" against
+        a2k-box's cited synthesis; not part of the stable a2k-box contract."""
+        self._require_live_ready()
+        async with self._open_session() as (read, write, _):
+            async with ClientSession(read, write) as session:
+                await session.initialize()
+                response = await self._call_tool(session, "knowledge_search", {"input": query})
+                return response or {}
+
     # -- MCP session handling ---------------------------------------------
 
     def _require_live_ready(self) -> None:

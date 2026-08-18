@@ -101,6 +101,16 @@ class Config:
         default_factory=lambda: int(os.environ.get("A2K_MAX_ENTITIES_TO_HYDRATE", "3"))
     )
 
+    # TEST-ONLY, requested explicitly 2026-08-18: when true, a2k.ask/a2k.search
+    # short-circuit entirely for any request that includes (or doesn't restrict away)
+    # Cala as a source -- instead of the normal cited-Facts pipeline, they return
+    # Cala's own knowledge_search `content` (its LLM-synthesized prose) completely
+    # unprocessed. See mcp_server/server.py's `_cala_raw_response_if_enabled`. Off by
+    # default -- normal grounded behavior is unchanged unless this is explicitly set.
+    cala_raw_knowledge_search: bool = field(
+        default_factory=lambda: _bool_env("CALA_RAW_KNOWLEDGE_SEARCH", False)
+    )
+
     sayari_client_id: str | None = field(default_factory=lambda: _secret_env("SAYARI_CLIENT_ID"))
     sayari_client_secret: str | None = field(
         default_factory=lambda: _secret_env("SAYARI_CLIENT_SECRET")

@@ -4,8 +4,10 @@ gateway logic already covered in test_gateway_*.py.
 """
 
 import json
+from types import SimpleNamespace
 
-from a2k.mcp_server.server import mcp
+from a2k.mcp_server import server
+from a2k.mcp_server.server import engine, mcp
 
 
 def _content_json(result):
@@ -75,3 +77,51 @@ async def test_report_conflict_tool_returns_full_report():
     report_data = _content_json(report_result)
     assert report_data["ok"] is True
     assert report_data["conflictReport"]["reconciliation"]["status"] == "unresolved-surfaced"
+
+
+async def test_cala_raw_mode_disabled_by_default(monkeypatch):
+    """config.cala_raw_knowledge_search defaults False -- a2k.ask keeps its normal
+    cited-envelope shape unless someone explicitly opts in."""
+    called = False
+
+    async def _fail_if_called(query):
+        nonlocal called
+        called = True
+        return {"content": "should not be reached"}
+
+    monkeypatch.setattr(engine.adapters["cala"], "raw_knowledge_search", _fail_if_called)
+
+    result = await mcp.call_tool("a2k.ask", {"query": "Meridian Textiles ownership"})
+    data = _content_json(result)
+    assert called is False
+    assert "ok" in data  # normal envelope shape, not the raw {"content": ...} shape
+
+
+async def test_cala_raw_mode_returns_content_unprocessed_when_enabled(monkeypatch):
+    monkeypatch.setattr(server, "config", SimpleNamespace(cala_raw_knowledge_search=True))
+
+    async def _fake_raw_knowledge_search(query):
+        return {"content": f"Cala's own synthesized answer about {query}", "explainability": ["ignored by this path"]}
+
+    monkeypatch.setattr(engine.adapters["cala"], "raw_knowledge_search", _fake_raw_knowledge_search)
+
+    result = await mcp.call_tool("a2k.ask", {"query": "Meridian Textiles"})
+    data = _content_json(result)
+    assert data == {"content": "Cala's own synthesized answer about Meridian Textiles", "explainability": ["ignored by this path"]}
+
+
+async def test_cala_raw_mode_skipped_when_sources_excludes_cala(monkeypatch):
+    monkeypatch.setattr(server, "config", SimpleNamespace(cala_raw_knowledge_search=True))
+    called = False
+
+    async def _fail_if_called(query):
+        nonlocal called
+        called = True
+        return {}
+
+    monkeypatch.setattr(engine.adapters["cala"], "raw_knowledge_search", _fail_if_called)
+
+    result = await mcp.call_tool("a2k.search", {"query": "Meridian Textiles", "sources": ["sayari"]})
+    data = _content_json(result)
+    assert called is False
+    assert "citations" in data  # normal a2k.search envelope shape

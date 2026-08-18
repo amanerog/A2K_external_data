@@ -70,9 +70,27 @@ def sayari_card() -> str:
     return load_card("sayari").model_dump_json()
 
 
+async def _cala_raw_response_if_enabled(query: str, sources: list[str] | None) -> dict | None:
+    """TEST-ONLY (config.cala_raw_knowledge_search, off by default): if enabled and
+    Cala is among the requested sources (or none were specified), returns Cala's own
+    knowledge_search `content` completely unprocessed instead of the normal cited
+    envelope -- see Config.cala_raw_knowledge_search's docstring in config.py for why
+    this exists. Returns None (meaning: proceed normally) when disabled, or when
+    `sources` explicitly excludes Cala."""
+    if not config.cala_raw_knowledge_search:
+        return None
+    if sources is not None and "cala" not in sources:
+        return None
+    cala_adapter = engine.adapters["cala"]
+    return await cala_adapter.raw_knowledge_search(query)
+
+
 @mcp.tool(name="a2k.search")
 async def a2k_search(query: str, sources: list[str] | None = None, limit: int = 10) -> dict:
     """Retrieve relevant passages with citations from Cala and/or Sayari. No synthesized answer -- use a2k.ask for that."""
+    raw = await _cala_raw_response_if_enabled(query, sources)
+    if raw is not None:
+        return raw
     req = A2KRequest(operation="search", query=query, sources=sources, pagination={"limit": limit})
     return _dump(await engine.search(req))
 
@@ -91,6 +109,9 @@ async def a2k_ask(
     response is non-empty, the sources disagree on a fact -- surface both
     positions rather than picking one.
     """
+    raw = await _cala_raw_response_if_enabled(query, sources)
+    if raw is not None:
+        return raw
     req = A2KRequest(
         operation="ask",
         query=query,
