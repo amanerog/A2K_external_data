@@ -205,7 +205,12 @@ def _fetch_vendor_catalogue_text(mcp_client: MCPClient, tools: list[MCPAgentTool
     """Calls a2k.listVendors ourselves (not left to the model -- see module
     docstring "Routing") and formats the result for direct injection into the
     system prompt."""
-    list_vendors = next((t for t in tools if t.mcp_tool.name == _LIST_VENDORS_MCP_NAME), None)
+    # Matching by suffix, not equality: through the Gateway, tool names carry a
+    # "<target-name>___" prefix (e.g. "target-quick-start-h9x11y___a2k.listVendors"),
+    # confirmed live 2026-08-18 -- an exact match against the bare a2k-box name never
+    # matched, so this fetch (and, separately, the tools-list exclusion below) silently
+    # fell back to "not found" every time even once the Gateway target was in sync.
+    list_vendors = next((t for t in tools if t.mcp_tool.name.endswith(_LIST_VENDORS_MCP_NAME)), None)
     if list_vendors is None:
         return "(listVendors tool not found on this Gateway -- fan out to all sources; do not restrict `sources`.)"
 
@@ -262,7 +267,7 @@ def _get_tools_and_catalogue(gateway_url: str, client_id: str, client_secret: st
     tools = [
         MCPAgentTool(tool.mcp_tool, tool.mcp_client, name_override=tool.tool_name.replace(".", "_"))
         for tool in all_tools
-        if tool.mcp_tool.name != _LIST_VENDORS_MCP_NAME
+        if not tool.mcp_tool.name.endswith(_LIST_VENDORS_MCP_NAME)
     ]
     with _cache_lock:
         _mcp_cache[cache_key] = (mcp_client, tools, catalogue_text)
