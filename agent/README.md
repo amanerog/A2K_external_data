@@ -37,6 +37,7 @@ vendors) if more than one plausibly matches or none clearly does. Inactive
 | `test_tool_result_size.py` | Calls `a2k.ask` directly via MCP with each `sources` value, prints response byte/token size -- how the entity-hydration bug (see `../deploy/agentcore/README.md` section 5) was found. |
 | `test_cala_raw_mode.py` | Calls `a2k.ask` directly via MCP (not through the LLM) and reports which response shape came back -- `content` (raw mode) vs the normal cited envelope -- to verify `CALA_RAW_KNOWLEDGE_SEARCH` independent of how the agent's own LLM might rephrase either shape. |
 | `test_routing_behavior.py` | Runs the agent loop locally (needed for tool-call visibility -- see its own docstring) against three preset questions (Cala-leaning, Sayari-leaning, ambiguous) and reports the actual `sources` value passed to `ask` each time, plus the injected vendor catalogue. |
+| `test_routing_behavior_deployed.py` | Same three questions against the *deployed* Runtime via `invoke_agent_runtime` -- no tool-call trace available there, so it asks the agent to self-report which vendor(s) it used and prints the raw answers; a plausibility check, not the hard assertion the local version gives. |
 
 ## Setup
 
