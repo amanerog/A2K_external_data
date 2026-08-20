@@ -6,7 +6,10 @@ AgentCore Gateway set up in `../deploy/agentcore/README.md` (step 4), and
 Bedrock (Claude Sonnet) directly for its own reasoning. Deployed to its own
 AgentCore Runtime (`a2k_agent-06B5R9CAuJ`, confirmed working end-to-end
 2026-08-18) -- a separate Runtime workload from a2k-box, with its own
-execution role, inbound auth (IAM, not Cognito), and secrets.
+execution role and secrets. **Inbound auth is JWT/Cognito** (switched from
+the IAM default on 2026-08-19, specifically to allow plain `curl`/Bearer-
+token calls instead of requiring a SigV4-signed `boto3` call) -- see
+"Calling the deployed agent" below.
 
 **Routing**: no hardcoded rule -- `sources` is picked from each vendor's
 actually-declared coverage (`domains`/`topics`/`coverage.scope`, plus
@@ -32,12 +35,12 @@ vendors) if more than one plausibly matches or none clearly does. Inactive
 | `entrypoint.py` | AgentCore Runtime entrypoint (`bedrock_agentcore` SDK) -- `POST /invocations` in, `{"response": "..."}` out. |
 | `requirements.txt` | Deploy deps: `strands-agents`, `bedrock-agentcore`, `httpx` (`mcp`/`boto3` come in transitively). |
 | `router-agent.zip` | Prebuilt deploy artifact (Linux arm64 wheels + `core.py`/`entrypoint.py`) -- see "Deploy to AgentCore Runtime" below for how to rebuild it. |
-| `test_router_agent_iam.py` | Invokes the *deployed* agent Runtime via `boto3`'s `invoke_agent_runtime` (IAM/SigV4, this Runtime's inbound auth). |
-| `test_router_agent_latency.py` | Runs the deployed agent N times against one pinned `runtimeSessionId`, to see whether `core.py`'s caching is actually paying off across calls. |
+| `test_router_agent_jwt.py` | Invokes the *deployed* agent Runtime via a JWT Bearer token over raw HTTPS (this Runtime's inbound auth -- see "Calling the deployed agent" below). Replaces the old `test_router_agent_iam.py`, which stopped working once inbound auth moved off IAM. |
+| `test_router_agent_latency.py` | Runs the deployed agent N times against one pinned session (`X-Amzn-Bedrock-AgentCore-Runtime-Session-Id` header), to see whether `core.py`'s caching is actually paying off across calls. |
 | `test_tool_result_size.py` | Calls `a2k.ask` directly via MCP with each `sources` value, prints response byte/token size -- how the entity-hydration bug (see `../deploy/agentcore/README.md` section 5) was found. |
 | `test_cala_raw_mode.py` | Calls `a2k.ask` directly via MCP (not through the LLM) and reports which response shape came back -- `content` (raw mode) vs the normal cited envelope -- to verify `CALA_RAW_KNOWLEDGE_SEARCH` independent of how the agent's own LLM might rephrase either shape. |
 | `test_routing_behavior.py` | Runs the agent loop locally (needed for tool-call visibility -- see its own docstring) against three preset questions (Cala-leaning, Sayari-leaning, ambiguous) and reports the actual `sources` value passed to `ask` each time, plus the injected vendor catalogue. |
-| `test_routing_behavior_deployed.py` | Same three questions against the *deployed* Runtime via `invoke_agent_runtime` -- no tool-call trace available there, so it asks the agent to self-report which vendor(s) it used and prints the raw answers; a plausibility check, not the hard assertion the local version gives. |
+| `test_routing_behavior_deployed.py` | Same three questions against the *deployed* Runtime via a JWT Bearer token -- no tool-call trace available there, so it asks the agent to self-report which vendor(s) it used and prints the raw answers; a plausibility check, not the hard assertion the local version gives. |
 
 ## Setup
 
@@ -67,6 +70,18 @@ inference profiles are prefixed by region (e.g. `eu.anthropic....`).
 
 Also needs normal AWS credentials in the environment (for `bedrock:InvokeModel*`)
 -- whatever `boto3`'s default credential chain picks up.
+
+**Don't confuse `CLIENT_ID`/`CLIENT_SECRET` above with `AGENT_CLIENT_ID`/
+`AGENT_USERNAME`/`AGENT_PASSWORD`** used by the deployed-Runtime test
+scripts (`test_router_agent_jwt.py` and friends) -- those two credential
+pairs authenticate opposite legs of the pipeline. `CLIENT_ID`/`CLIENT_SECRET`
+is this agent calling *out* to the Gateway (client-credentials grant, no
+human involved). `AGENT_CLIENT_ID`/`AGENT_USERNAME`/`AGENT_PASSWORD` is
+something calling *into* this agent's own Runtime (human-login grant,
+Cognito pool created specifically for that -- see "Calling the deployed
+agent" below). Neither is a Runtime environment variable; both are just
+inputs to whatever script/curl you're using to talk to the respective
+service.
 
 ## Run locally
 
@@ -101,12 +116,14 @@ zip -r ../router-agent.zip .
 Console: **AgentCore -> Agent Runtime -> Host Agent -> Local Upload** ->
 `router-agent.zip`. **Runtime version** Python 3.13, **Entry point**
 `entrypoint.py`, **Protocol** HTTP (not MCP -- this is an agent, not an MCP
-server). **Inbound Auth**: leave the default (IAM/SigV4) -- no Cognito setup
-needed for this Runtime; consume it with `boto3`'s `invoke_agent_runtime`
-like `test_router_agent_iam.py` does. Environment variables: see the table
-above. **The auto-generated execution role does not include
-`bedrock:InvokeModel*`/`Converse*` by default** -- confirmed live, target
-creation/first invoke fails with `AccessDeniedException` until an inline
+server). **Inbound Auth**: the default (IAM/SigV4) works to get the Runtime
+created -- confirmed live it's editable afterwards too, so switch it to
+JWT/Cognito once created if you want plain-Bearer-token/`curl` access
+instead of a SigV4-signed call; see "Calling the deployed agent" below for
+that setup. Environment variables: see the table above. **The
+auto-generated execution role does not include `bedrock:InvokeModel*`/
+`Converse*` by default** -- confirmed live, target creation/first invoke
+fails with `AccessDeniedException` until an inline
 policy is added by hand:
 
 ```json
@@ -132,10 +149,83 @@ foundation-model ARN needs a region wildcard, not the Runtime's own region.
 If your organization has data-residency constraints, don't just widen this
 to `*` without checking with whoever owns that policy first.
 
-Test it:
+## Calling the deployed agent
+
+**Inbound auth is JWT/Cognito, not IAM** (switched 2026-08-19, specifically
+so `curl` works with a plain Bearer token instead of needing a SigV4-signed
+`boto3` call -- an AgentCore Runtime supports exactly one inbound auth mode
+at a time, so this Runtime can no longer be called via
+`invoke_agent_runtime` at all).
+
+This Runtime has its **own** Cognito pool -- separate from the Gateway's
+`CLIENT_ID`/`CLIENT_SECRET` client-credentials pair (that one authenticates
+the agent's *outbound* call to the Gateway; this one authenticates whoever
+calls the agent itself, e.g. you, from a terminal). No such pool existed
+before 2026-08-19; created fresh, same commands as
+`../deploy/agentcore/README.md` step 1 (human-login,
+`ALLOW_USER_PASSWORD_AUTH`, works from AWS CloudShell with no local AWS CLI
+needed):
 
 ```bash
-python agent/test_router_agent_iam.py "¿Qué sabemos de Acme Robotics Inc.?"
+export REGION=eu-west-1
+export USERNAME=agent-caller
+export PASSWORD="ChangeThisPassword123!"
+
+export AGENT_POOL_ID=$(aws cognito-idp create-user-pool \
+  --pool-name "a2k-agent-pool" \
+  --policies '{"PasswordPolicy":{"MinimumLength":8}}' \
+  --region $REGION | jq -r '.UserPool.Id')
+
+export AGENT_CLIENT_ID=$(aws cognito-idp create-user-pool-client \
+  --user-pool-id $AGENT_POOL_ID \
+  --client-name "a2k-agent-client" \
+  --no-generate-secret \
+  --explicit-auth-flows "ALLOW_USER_PASSWORD_AUTH" "ALLOW_REFRESH_TOKEN_AUTH" \
+  --region $REGION | jq -r '.UserPoolClient.ClientId')
+
+aws cognito-idp admin-create-user --user-pool-id $AGENT_POOL_ID --username $USERNAME \
+  --region $REGION --message-action SUPPRESS > /dev/null
+aws cognito-idp admin-set-user-password --user-pool-id $AGENT_POOL_ID --username $USERNAME \
+  --password "$PASSWORD" --region $REGION --permanent > /dev/null
+
+echo "Discovery URL: https://cognito-idp.$REGION.amazonaws.com/$AGENT_POOL_ID/.well-known/openid-configuration"
+echo "Client ID: $AGENT_CLIENT_ID"
+```
+
+Then, on the Runtime's own console page (Agent Runtime -> `a2k_agent` ->
+edit -> Inbound Auth -> switch IAM to JWT, paste the Discovery URL, add the
+Client ID to allowed clients, save) -- confirmed editable post-creation,
+2026-08-19.
+
+**Plain curl:**
+
+```bash
+export TOKEN=$(aws cognito-idp initiate-auth \
+  --client-id "$AGENT_CLIENT_ID" --auth-flow USER_PASSWORD_AUTH \
+  --auth-parameters USERNAME=$USERNAME,PASSWORD="$PASSWORD" \
+  --region $REGION | jq -r '.AuthenticationResult.AccessToken')
+
+ARN="arn:aws:bedrock-agentcore:eu-west-1:396961015428:runtime/a2k_agent-06B5R9CAuJ"
+ENCODED_ARN=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$ARN")
+
+curl -s -X POST \
+  "https://bedrock-agentcore.eu-west-1.amazonaws.com/runtimes/${ENCODED_ARN}/invocations?qualifier=DEFAULT" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json" \
+  -d '{"prompt": "¿Qué sabemos de Acme Robotics Inc.?"}'
+```
+
+**Or the Python equivalent** (same auth, used by `test_router_agent_jwt.py`
+and the other deployed-Runtime test scripts -- set
+`AGENT_CLIENT_ID`/`AGENT_USERNAME`/`AGENT_PASSWORD` from the setup above):
+
+```bash
+export AGENT_CLIENT_ID="..."
+export AGENT_USERNAME=agent-caller
+export AGENT_PASSWORD="ChangeThisPassword123!"
+
+python agent/test_router_agent_jwt.py "¿Qué sabemos de Acme Robotics Inc.?"
 ```
 
 ## Known behavior / gotchas

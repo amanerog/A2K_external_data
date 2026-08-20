@@ -1,46 +1,53 @@
 """Measures whether core.py's token/MCP-connection caching (see its module
 docstring "Latency") actually pays off across calls -- runs the same
 question N times against the deployed router agent, pinning all calls to
-the *same* runtimeSessionId so they land on the same warm AgentCore Runtime
-container (otherwise AWS may route each call to a fresh microVM with its
-own empty cache, and this would measure nothing).
+the *same* session (via the X-Amzn-Bedrock-AgentCore-Runtime-Session-Id
+header) so they land on the same warm AgentCore Runtime container
+(otherwise AWS may route each call to a fresh microVM with its own empty
+cache, and this would measure nothing).
+
+Uses a JWT Bearer token over raw HTTPS, not boto3's invoke_agent_runtime --
+see test_router_agent_jwt.py's docstring for why (this Runtime's inbound
+authorizer was switched from IAM to Cognito on 2026-08-19, and an
+AgentCore Runtime only ever supports one inbound auth mode at a time).
 
 Usage:
+    export AGENT_CLIENT_ID=... AGENT_USERNAME=... AGENT_PASSWORD=...
     python test_router_agent_latency.py [n_calls]
 """
 
-import json
 import sys
 import time
+import urllib.parse
 import uuid
 
-import boto3
+import httpx
 
-REGION = "eu-west-1"
-AGENT_RUNTIME_ARN = "arn:aws:bedrock-agentcore:eu-west-1:396961015428:runtime/a2k_agent-06B5R9CAuJ"
+from test_router_agent_jwt import REGION, AGENT_RUNTIME_ARN, _get_bearer_token
+
 QUESTION = "¿Qué sabemos de Acme Robotics Inc.?"
 
 
 def main() -> None:
     n_calls = int(sys.argv[1]) if len(sys.argv) > 1 else 3
-    # AgentCore requires runtimeSessionId to be at least 33 chars -- a UUID4 (36 chars) covers that.
+    # AgentCore requires the session id to be at least 33 chars -- a UUID4 (36 chars) covers that.
     session_id = str(uuid.uuid4())
-    print(f"runtimeSessionId={session_id}\n")
+    print(f"session_id={session_id}\n")
 
-    client = boto3.client("bedrock-agentcore", region_name=REGION)
+    token = _get_bearer_token()
+    encoded_arn = urllib.parse.quote(AGENT_RUNTIME_ARN, safe="")
+    url = f"https://bedrock-agentcore.{REGION}.amazonaws.com/runtimes/{encoded_arn}/invocations?qualifier=DEFAULT"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "X-Amzn-Bedrock-AgentCore-Runtime-Session-Id": session_id,
+    }
+
     durations = []
-
     for i in range(1, n_calls + 1):
         start = time.monotonic()
-        response = client.invoke_agent_runtime(
-            agentRuntimeArn=AGENT_RUNTIME_ARN,
-            qualifier="DEFAULT",
-            runtimeSessionId=session_id,
-            payload=json.dumps({"prompt": QUESTION}).encode("utf-8"),
-            contentType="application/json",
-            accept="application/json",
-        )
-        response["response"].read()  # drain the body; content itself isn't what we're measuring here
+        httpx.post(url, headers=headers, json={"prompt": QUESTION}, timeout=120)
         elapsed = time.monotonic() - start
         durations.append(elapsed)
         print(f"call {i}: {elapsed:.2f}s")

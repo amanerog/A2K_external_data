@@ -104,6 +104,23 @@ class Config:
         default_factory=lambda: int(os.environ.get("A2K_MAX_ENTITIES_TO_HYDRATE", "3"))
     )
 
+    # Cala's entity_retrieval accepts a `relationships` param (confirmed live 2026-08-19
+    # against the real inputSchema) -- {"outgoing": {"IS_ULTIMATE_PARENT_OF": {}, ...},
+    # "incoming": {"IS_SUBSIDIARY_OF": {}, ...}}, built from the relationship type names
+    # entity_introspection discovers for that entity. Unset (default) requests every
+    # discovered type in both directions -- one entity_retrieval call handles all of them,
+    # so unlike max_entities_to_hydrate there's no per-call multiplication risk from doing
+    # this by default. Set this if a specific entity's relationship fan-out ever produces a
+    # response large enough to matter (Microsoft alone had 12 outgoing + 21 incoming types
+    # -- confirmed live, not yet a problem in practice, but the knob exists for when it is).
+    cala_max_relationship_types: int | None = field(
+        default_factory=lambda: (
+            int(os.environ["A2K_CALA_MAX_RELATIONSHIP_TYPES"])
+            if os.environ.get("A2K_CALA_MAX_RELATIONSHIP_TYPES")
+            else None
+        )
+    )
+
     # TEST-ONLY, requested explicitly 2026-08-18: when true, a2k.ask/a2k.search
     # short-circuit entirely for any request that includes (or doesn't restrict away)
     # Cala as a source -- instead of the normal cited-Facts pipeline, they return

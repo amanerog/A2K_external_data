@@ -222,3 +222,58 @@ async def test_live_search_without_api_key_raises_upstream_error(monkeypatch):
     with pytest.raises(A2KError) as excinfo:
         await adapter._live_search("Acme", limit=10)
     assert excinfo.value.code.value == "UPSTREAM_ERROR"
+
+
+# Shape confirmed live 2026-08-19 (real entity_retrieval response for Microsoft,
+# requested with a `relationships` body -- see adapters/cala_mcp.py's
+# _build_relationship_query and cala.py's _facts_from_relationships).
+_RELATIONSHIPS_DETAIL = {
+    "id": "eb3b1e84-1f45-486c-8d10-d2b498992830",
+    "name": "MICROSOFT CORP",
+    "properties": {},
+    "relationships": {
+        "outgoing": {
+            "IS_ULTIMATE_PARENT_OF": [
+                {
+                    "id": "child-1",
+                    "name": "LinkedIn Corporation",
+                    "entity_type": "Company",
+                    "properties": {"sources": [{"name": "SEC", "document": "https://sec.gov/x", "date": "2025-07-30"}]},
+                }
+            ]
+        },
+        "incoming": {
+            "IS_SUBSIDIARY_OF": [
+                {"id": f"sub-{i}", "name": f"Subsidiary {i}", "entity_type": "Company", "properties": {"sources": []}}
+                for i in range(8)  # more than MAX_RELATED_ENTITIES_PER_TYPE, to test the cap
+            ]
+        },
+    },
+}
+
+
+def test_facts_from_entity_response_builds_facts_from_relationships():
+    facts = cala_module.facts_from_entity_response(_RELATIONSHIPS_DETAIL, "eb3b1e84-...", "Microsoft Corp", cala_module.KB_ID)
+
+    parent_facts = [f for f in facts if f.field == "IS_ULTIMATE_PARENT_OF"]
+    assert len(parent_facts) == 1
+    # outgoing: this entity is the subject -- "Microsoft Corp IS_ULTIMATE_PARENT_OF LinkedIn Corporation".
+    assert parent_facts[0].value == "LinkedIn Corporation"
+    assert parent_facts[0].text.startswith("MICROSOFT CORP IS_ULTIMATE_PARENT_OF LinkedIn Corporation")
+
+    subsidiary_facts = [f for f in facts if f.field == "IS_SUBSIDIARY_OF"]
+    # incoming: the related entity is the subject -- "Subsidiary 0 IS_SUBSIDIARY_OF Microsoft Corp".
+    assert subsidiary_facts[0].text.startswith("Subsidiary 0 IS_SUBSIDIARY_OF MICROSOFT CORP")
+
+
+def test_facts_from_entity_response_caps_related_entities_per_type():
+    facts = cala_module.facts_from_entity_response(_RELATIONSHIPS_DETAIL, "eb3b1e84-...", "Microsoft Corp", cala_module.KB_ID)
+    subsidiary_facts = [f for f in facts if f.field == "IS_SUBSIDIARY_OF"]
+    assert len(subsidiary_facts) == cala_module.MAX_RELATED_ENTITIES_PER_TYPE
+
+
+def test_facts_from_entity_response_handles_missing_or_empty_relationships():
+    detail_no_key = {"id": "x", "name": "X Corp", "properties": {}}
+    detail_empty = {"id": "x", "name": "X Corp", "properties": {}, "relationships": {}}
+    assert cala_module.facts_from_entity_response(detail_no_key, "x", "X Corp", cala_module.KB_ID) == []
+    assert cala_module.facts_from_entity_response(detail_empty, "x", "X Corp", cala_module.KB_ID) == []

@@ -9,14 +9,26 @@ Confirmed live against `https://api.cala.ai/mcp/` (2026-08-10):
 - `entity_search({"name": ..., "limit": ...})` -> `{"entities": [{id, name,
   entity_type, description}, ...]}` -- same shape as `GET /v1/entities`.
 - `entity_introspection({"entity_id": ...})` -> `{"properties": [...],
-  "relationships": {...}, "numerical_observations": {...}}` -- same shape
-  as `GET /v1/entities/{id}/introspection`.
-- `entity_retrieval({"entity_id": ..., "properties": [...]})` -> same
-  response shape as `POST /v1/entities/{id}`: `{properties: {field:
-  {"value": ..., "sources": [{name, document, date}]}}, ...}`. Because the
-  shape is identical to the REST version, Fact-building reuses
-  `cala.facts_from_entity_response` rather than duplicating it -- see that
-  function's docstring.
+  "relationships": {"outgoing": [type, ...], "incoming": [type, ...]},
+  "numerical_observations": {...}}` -- `relationships` is a **flat list of
+  relationship-type names per direction** (confirmed live 2026-08-19, e.g.
+  Microsoft: 12 outgoing types incl. `IS_ULTIMATE_PARENT_OF`, 21 incoming
+  incl. `IS_SUBSIDIARY_OF`) -- same shape as `GET
+  /v1/entities/{id}/introspection`.
+- `entity_retrieval({"entity_id": ..., "properties": [...], "relationships":
+  {...}})` -> same response shape as `POST /v1/entities/{id}`: `{properties:
+  {field: {"value": ..., "sources": [{name, document, date}]}}, relationships:
+  {direction: {relationship_type: [{id, name, entity_type, properties:
+  {sources: [...]}}, ...]}}, ...}`. The `relationships` request param wants
+  `{direction: {relationship_type: {}}}` -- an empty body per type means
+  "Cala's own server-side default limit/offset" (confirmed valid live, not
+  necessarily small: one type alone returned 9+ related entities for
+  Microsoft) -- built by `_build_relationship_query()` below from
+  introspection's flat list, since that's not the shape entity_retrieval
+  wants directly. Because both response shapes are identical to the REST
+  version, Fact-building reuses `cala.facts_from_entity_response` (which now
+  also parses `relationships`, not just `properties`) rather than
+  duplicating it -- see that function's docstring.
 - `knowledge_query({"input": ...})` -- **not yet confirmed live** (only
   entity_search/introspection/retrieval were exercised against the real
   account so far, blocked earlier by an account-balance error, not a
@@ -93,7 +105,7 @@ class CalaMcpAdapter(ProviderAdapter):
     def __init__(self) -> None:
         self._mock_entities = load_entities("cala_companies.json")
         self._query_result_cache: dict[str, ProviderDocument] = {}
-        self._introspection_cache: dict[str, tuple[float, list[str]]] = {}
+        self._introspection_cache: dict[str, tuple[float, list[str], dict[str, list[str]]]] = {}
 
     async def search(self, query: str, *, limit: int = 10) -> list[Fact]:
         if config.is_mock:
@@ -286,40 +298,66 @@ class CalaMcpAdapter(ProviderAdapter):
         while len(self._query_result_cache) > MAX_QUERY_RESULT_CACHE:
             del self._query_result_cache[next(iter(self._query_result_cache))]
 
-    def _cached_properties(self, entity_id: str) -> list[str] | None:
+    def _cached_introspection(self, entity_id: str) -> tuple[list[str], dict[str, list[str]]] | None:
         entry = self._introspection_cache.get(entity_id)
         if entry is None:
             return None
-        cached_at, properties = entry
+        cached_at, properties, relationships = entry
         if time.monotonic() - cached_at >= config.cala_introspection_cache_ttl_seconds:
             del self._introspection_cache[entity_id]
             return None
-        return properties
+        return properties, relationships
 
-    def _cache_properties(self, entity_id: str, properties: list[str]) -> None:
-        self._introspection_cache[entity_id] = (time.monotonic(), properties)
+    def _cache_introspection(self, entity_id: str, properties: list[str], relationships: dict[str, list[str]]) -> None:
+        self._introspection_cache[entity_id] = (time.monotonic(), properties, relationships)
         while len(self._introspection_cache) > MAX_INTROSPECTION_CACHE:
             del self._introspection_cache[next(iter(self._introspection_cache))]
+
+    def _build_relationship_query(self, relationships: dict[str, list[str]]) -> dict[str, dict[str, dict]]:
+        """Builds entity_retrieval's `relationships` param from what
+        entity_introspection discovered -- {"outgoing": [type, ...], "incoming":
+        [type, ...]} (confirmed live 2026-08-19: a flat list of relationship-type
+        names per direction) becomes {"outgoing": {type: {}, ...}, "incoming":
+        {type: {}, ...}}, an empty body per type meaning "Cala's own server-side
+        default limit/offset" (confirmed valid live, e.g. its own docs example
+        `{"incoming": {"IS_CEO_OF": {}}}`). Every discovered type is requested
+        unless config.cala_max_relationship_types caps it -- see that field's
+        docstring in config.py for why unbounded is the default here."""
+        max_types = config.cala_max_relationship_types
+        query: dict[str, dict[str, dict]] = {}
+        for direction in ("outgoing", "incoming"):
+            types = relationships.get(direction) or []
+            if max_types is not None:
+                types = types[:max_types]
+            if types:
+                query[direction] = {rel_type: {} for rel_type in types}
+        return query
 
     async def _fetch_entity_detail(
         self, session: ClientSession, entity_id: str, entity_name: str
     ) -> dict[str, Any] | None:
-        properties = self._cached_properties(entity_id)
-        if properties is None:
+        cached = self._cached_introspection(entity_id)
+        if cached is None:
             intro = await self._call_tool(session, "entity_introspection", {"entity_id": entity_id})
             if intro is None:
                 return None
             properties = intro.get("properties", [])
-            self._cache_properties(entity_id, properties)
+            relationships = intro.get("relationships") or {}
+            self._cache_introspection(entity_id, properties, relationships)
+        else:
+            properties, relationships = cached
 
-        if not properties:
+        if not properties and not relationships:
             return None
 
-        return await self._call_tool(
-            session,
-            "entity_retrieval",
-            {"entity_id": entity_id, "properties": properties[:MAX_PROPERTIES_PER_ENTITY]},
-        )
+        body: dict[str, Any] = {"entity_id": entity_id}
+        if properties:
+            body["properties"] = properties[:MAX_PROPERTIES_PER_ENTITY]
+        relationship_query = self._build_relationship_query(relationships)
+        if relationship_query:
+            body["relationships"] = relationship_query
+
+        return await self._call_tool(session, "entity_retrieval", body)
 
     async def _live_query_fallback(self, session: ClientSession, query: str, limit: int) -> list[Fact]:
         response = await self._call_tool(session, "knowledge_query", {"input": query})

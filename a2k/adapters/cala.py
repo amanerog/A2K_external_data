@@ -63,6 +63,17 @@ KB_ID = "urn:a2k:vendor:cala"
 # POST body and response bounded even for entities with a very rich schema.
 MAX_PROPERTIES_PER_ENTITY = 25
 
+# Cap on how many related entities per relationship *type* become Facts --
+# separate from config.cala_max_relationship_types (which caps how many
+# relationship *types* get requested at all). Confirmed live 2026-08-19: a
+# single type (OPERATES_IN_INDUSTRY, for Microsoft) returned 9+ related
+# entities on its own, an empty `{}` request body meaning "Cala's own
+# server-side default" -- unknown, not necessarily small. Requesting many
+# types (Microsoft had 12 outgoing + 21 incoming) with no per-type cap here
+# would reintroduce the same unbounded-payload problem
+# max_entities_to_hydrate fixed on the entity-candidate side.
+MAX_RELATED_ENTITIES_PER_TYPE = 5
+
 # /v1/knowledge/query result rows aren't independently addressable resources
 # (no entity id to re-fetch later), so we cache the documents we synthesize
 # from them in-process for getDocument. Pod-local and best-effort, same
@@ -136,6 +147,67 @@ def facts_from_entity_response(detail: dict[str, Any], entity_id: str, entity_na
                 raw=entry,
             )
         )
+
+    facts.extend(_facts_from_relationships(detail.get("relationships"), entity_key, entity_name, document_id, kb_id))
+    return facts
+
+
+def _facts_from_relationships(
+    relationships: dict[str, Any] | None, entity_key: str, entity_name: str, document_id: str, kb_id: str
+) -> list[Fact]:
+    """`entity_retrieval`'s `relationships` (requested via
+    adapters/cala_mcp.py's _build_relationship_query) -- confirmed live
+    2026-08-19: `{direction: {relationship_type: [{id, name, entity_type,
+    properties: {sources: [...], id}}, ...]}}`. `outgoing` means this entity
+    is the subject of `relationship_type` (e.g. outgoing
+    IS_ULTIMATE_PARENT_OF -> this entity is the ultimate parent of the
+    related one); `incoming` means the related entity is the subject (e.g.
+    incoming IS_SUBSIDIARY_OF -> the related entity is a subsidiary of this
+    one). Phrasing the Fact text as "<subject> <relationship_type>
+    <object>" with subject/object swapped by direction reads correctly for
+    both without needing to special-case what each relationship type means.
+    """
+    if not relationships:
+        return []
+
+    retrieved_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    facts: list[Fact] = []
+
+    for direction in ("outgoing", "incoming"):
+        for relationship_type, related_entities in (relationships.get(direction) or {}).items():
+            if not isinstance(related_entities, list):
+                continue
+            for related in related_entities[:MAX_RELATED_ENTITIES_PER_TYPE]:
+                if not isinstance(related, dict):
+                    continue
+                related_name = related.get("name")
+                if not related_name:
+                    continue
+                subject, obj = (entity_name, related_name) if direction == "outgoing" else (related_name, entity_name)
+
+                related_properties = related.get("properties") or {}
+                sources = related_properties.get("sources") or []
+                primary_source = sources[0] if sources else {}
+
+                text = f"{subject} {relationship_type} {obj} (per Cala)."
+                digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
+                facts.append(
+                    Fact(
+                        entity_key=entity_key,
+                        entity_name=entity_name,
+                        field=relationship_type,
+                        value=related_name,
+                        text=text,
+                        document_id=document_id,
+                        title=primary_source.get("name") or primary_source.get("document") or f"{entity_name} (Cala)",
+                        source_url=None,
+                        source_hash=f"sha256:{digest}",
+                        retrieved_at=retrieved_at,
+                        source_last_updated=primary_source.get("date"),
+                        kb_id=kb_id,
+                        raw=related,
+                    )
+                )
     return facts
 
 

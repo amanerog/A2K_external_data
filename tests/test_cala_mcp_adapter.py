@@ -16,11 +16,13 @@ from a2k.errors import A2KError, ErrorCode
 ENTITY_ID = "e5bb591a-d308-4aa5-9672-96046d366cde"
 
 _call_counts = {"entity_introspection": 0}
+_entity_retrieval_calls: list[dict] = []
 
 
 @pytest.fixture(autouse=True)
 def _reset_call_counts():
     _call_counts["entity_introspection"] = 0
+    _entity_retrieval_calls.clear()
     yield
 
 
@@ -49,9 +51,23 @@ async def _fake_call_tool(self, session, tool, arguments):
         _call_counts["entity_introspection"] += 1
         if arguments["entity_id"] == "does-not-exist":
             return None
+        if arguments["entity_id"] == "has-relationships":
+            # Shape confirmed live 2026-08-19 (real Microsoft introspection) --
+            # a flat list of relationship-type names per direction.
+            return {
+                "properties": ["name"],
+                "relationships": {
+                    "outgoing": ["IS_ULTIMATE_PARENT_OF", "IS_DIRECT_PARENT_OF"],
+                    "incoming": ["IS_SUBSIDIARY_OF"],
+                },
+                "numerical_observations": {},
+            }
         return {"properties": ["name", "employee_count"], "relationships": {}, "numerical_observations": {}}
 
     if tool == "entity_retrieval":
+        if arguments["entity_id"] == "has-relationships":
+            _entity_retrieval_calls.append(arguments)
+            return {"id": "has-relationships", "name": "Parent Co", "properties": {}, "relationships": {}}
         assert arguments["properties"] == ["name", "employee_count"]
         return {
             "id": ENTITY_ID,
@@ -147,6 +163,7 @@ def patched_adapter(monkeypatch):
         cala_introspection_cache_ttl_seconds=86400,
         cala_search_mode="entity_first",
         max_entities_to_hydrate=3,
+        cala_max_relationship_types=None,
     )
     monkeypatch.setattr(cala_mcp_module, "config", fake_config)
     monkeypatch.setattr(cala_mcp_module.CalaMcpAdapter, "_call_tool", _fake_call_tool)
@@ -267,6 +284,44 @@ async def test_entity_introspection_404_returns_none_not_upstream_error(patched_
         async with cala_mcp_module.ClientSession(read, write) as session:
             detail = await patched_adapter._fetch_entity_detail(session, "does-not-exist", "Ghost Corp")
     assert detail is None
+
+
+def test_build_relationship_query_converts_flat_lists_to_empty_bodies(patched_adapter):
+    # Confirmed live 2026-08-19: entity_retrieval wants {type: {}, ...} per direction
+    # (empty body = Cala's own server-side default limit/offset), not the flat list
+    # entity_introspection returns.
+    query = patched_adapter._build_relationship_query(
+        {"outgoing": ["IS_ULTIMATE_PARENT_OF", "IS_DIRECT_PARENT_OF"], "incoming": ["IS_SUBSIDIARY_OF"]}
+    )
+    assert query == {
+        "outgoing": {"IS_ULTIMATE_PARENT_OF": {}, "IS_DIRECT_PARENT_OF": {}},
+        "incoming": {"IS_SUBSIDIARY_OF": {}},
+    }
+
+
+def test_build_relationship_query_empty_input_returns_empty_query(patched_adapter):
+    assert patched_adapter._build_relationship_query({}) == {}
+    assert patched_adapter._build_relationship_query({"outgoing": [], "incoming": []}) == {}
+
+
+def test_build_relationship_query_respects_max_relationship_types_cap(monkeypatch, patched_adapter):
+    monkeypatch.setattr(cala_mcp_module.config, "cala_max_relationship_types", 1)
+    query = patched_adapter._build_relationship_query(
+        {"outgoing": ["IS_ULTIMATE_PARENT_OF", "IS_DIRECT_PARENT_OF"], "incoming": ["IS_SUBSIDIARY_OF"]}
+    )
+    assert query == {"outgoing": {"IS_ULTIMATE_PARENT_OF": {}}, "incoming": {"IS_SUBSIDIARY_OF": {}}}
+
+
+async def test_fetch_entity_detail_sends_discovered_relationships_to_entity_retrieval(patched_adapter):
+    async with patched_adapter._open_session() as (read, write, _):
+        async with cala_mcp_module.ClientSession(read, write) as session:
+            await patched_adapter._fetch_entity_detail(session, "has-relationships", "Parent Co")
+
+    assert len(_entity_retrieval_calls) == 1
+    assert _entity_retrieval_calls[0]["relationships"] == {
+        "outgoing": {"IS_ULTIMATE_PARENT_OF": {}, "IS_DIRECT_PARENT_OF": {}},
+        "incoming": {"IS_SUBSIDIARY_OF": {}},
+    }
 
 
 async def test_live_search_without_api_key_raises_upstream_error(monkeypatch):
