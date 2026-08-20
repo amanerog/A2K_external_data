@@ -205,6 +205,10 @@ def _facts_from_relationships(
                         retrieved_at=retrieved_at,
                         source_last_updated=primary_source.get("date"),
                         kb_id=kb_id,
+                        # An entity naturally has many simultaneously-true relationships of
+                        # the same type (many subsidiaries, many board members, ...) -- not
+                        # a disputed single value. See Fact.multi_valued's docstring.
+                        multi_valued=True,
                         raw=related,
                     )
                 )

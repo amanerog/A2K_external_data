@@ -50,15 +50,24 @@ class FactGroup:
 
 
 def group_facts(facts: list[Fact]) -> list[FactGroup]:
-    """Group facts by (entity, field) -- the join key for conflict detection.
+    """Group facts by (entity, field) -- the join key for conflict detection --
+    except `multi_valued` facts (see `Fact.multi_valued`'s docstring), which
+    also join on `value`: an entity naturally has many simultaneously-true
+    values for that kind of field (e.g. Cala's `IS_SUBSIDIARY_OF`), so each
+    distinct value gets its own group instead of the whole set being flagged
+    "disputed" just because there's more than one of them. Trade-off: since
+    `value` is part of the key for these fields, genuine cross-source
+    disagreement (two sources reporting *different* values) is no longer
+    detectable either -- only identical-value corroboration still groups.
+    Accepted deliberately, see `Fact.multi_valued`'s docstring.
 
     Preserves first-seen order so the synthesized answer reads in a stable,
     predictable sequence across requests.
     """
-    groups: dict[tuple[str, str], FactGroup] = {}
-    order: list[tuple[str, str]] = []
+    groups: dict[tuple[str, str, str], FactGroup] = {}
+    order: list[tuple[str, str, str]] = []
     for fact in facts:
-        key = (fact.entity_key, fact.field)
+        key = (fact.entity_key, fact.field, fact.value if fact.multi_valued else "")
         if key not in groups:
             groups[key] = FactGroup(entity_key=fact.entity_key, entity_name=fact.entity_name, field=fact.field)
             order.append(key)
