@@ -67,6 +67,7 @@ from mcp.client.streamable_http import streamable_http_client
 
 from ..config import config
 from ..errors import A2KError, ErrorCode
+from ..gateway import tracing
 from ._mock_common import get_document_mock, load_entities, search_mock
 from .base import Fact, ProviderAdapter, ProviderDocument
 
@@ -200,18 +201,22 @@ class SayariMcpAdapter(ProviderAdapter):
         and json.loads() when that shape is seen; pass through unchanged
         otherwise (get_entity_summary was observed returning the object
         directly, see module docstring)."""
+        tracing.trace("sayari.call_tool.request", tool=tool, arguments=arguments)
         try:
             result = await session.call_tool(tool, arguments)
         except Exception as exc:
+            tracing.trace("sayari.call_tool.transport_error", tool=tool, error=str(exc))
             raise A2KError(ErrorCode.UPSTREAM_ERROR, f"Sayari MCP tool {tool!r} unreachable: {exc}") from exc
 
         if result.isError:
             message = result.content[0].text if result.content else f"tool {tool!r} failed"
+            tracing.trace("sayari.call_tool.tool_error", tool=tool, message=message)
             raise A2KError(ErrorCode.UPSTREAM_ERROR, f"Sayari MCP tool {tool!r} failed: {message}")
 
         data = result.structuredContent
         if isinstance(data, dict) and isinstance(data.get("result"), str):
-            return json.loads(data["result"])
+            data = json.loads(data["result"])
+        tracing.trace("sayari.call_tool.response", tool=tool, result=data)
         return data
 
     # -- live branch (confirmed against mcp.sayari.com/mcp, 2026-08-12) -----

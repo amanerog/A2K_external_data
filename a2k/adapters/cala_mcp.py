@@ -83,6 +83,7 @@ from mcp.client.streamable_http import streamablehttp_client
 
 from ..config import config
 from ..errors import A2KError, ErrorCode
+from ..gateway import tracing
 from ._mock_common import get_document_mock, load_entities, search_mock
 from .base import Fact, ProviderAdapter, ProviderDocument
 from .cala import MAX_PROPERTIES_PER_ENTITY, KB_ID, facts_from_entity_response
@@ -163,15 +164,19 @@ class CalaMcpAdapter(ProviderAdapter):
         object (that's a FastMCP convention our own dev_mocks tools trigger,
         not something Cala's real tools do -- see
         `dev_mocks/mcp_client_adapter.py` for the contrast)."""
+        tracing.trace("cala.call_tool.request", tool=tool, arguments=arguments)
         try:
             result = await session.call_tool(tool, arguments)
         except Exception as exc:  # connection/transport-level failure, not a tool error
+            tracing.trace("cala.call_tool.transport_error", tool=tool, error=str(exc))
             raise A2KError(ErrorCode.UPSTREAM_ERROR, f"Cala MCP tool {tool!r} unreachable: {exc}") from exc
 
         if not result.isError:
+            tracing.trace("cala.call_tool.response", tool=tool, result=result.structuredContent)
             return result.structuredContent
 
         message = result.content[0].text if result.content else f"tool {tool!r} failed"
+        tracing.trace("cala.call_tool.tool_error", tool=tool, message=message)
         status_match = _HTTP_STATUS_RE.search(message)
         if status_match and status_match.group(1) == "429":
             raise A2KError(ErrorCode.RATE_LIMITED, f"Cala rate limit hit -- {tool}: {message}", retryable=True)

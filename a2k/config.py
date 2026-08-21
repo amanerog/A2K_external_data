@@ -131,6 +131,14 @@ class Config:
         default_factory=lambda: _bool_env("CALA_RAW_KNOWLEDGE_SEARCH", False)
     )
 
+    # Opt-in call tracing (gateway/tracing.py) -- off by default, since dumping
+    # every request and upstream tool call/result to stdout is noisy and
+    # results can be large (see max_entities_to_hydrate's history; tracing.py
+    # truncates previews for the same reason). Added 2026-08-21 after
+    # debugging the Cala relationships fix blind, with zero visibility into
+    # what adapters/cala_mcp.py was actually sending/receiving.
+    trace_calls: bool = field(default_factory=lambda: _bool_env("A2K_TRACE_CALLS", False))
+
     sayari_client_id: str | None = field(default_factory=lambda: _secret_env("SAYARI_CLIENT_ID"))
     sayari_client_secret: str | None = field(
         default_factory=lambda: _secret_env("SAYARI_CLIENT_SECRET")

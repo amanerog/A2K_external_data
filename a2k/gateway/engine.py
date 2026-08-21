@@ -30,7 +30,7 @@ from ..models.envelope import (
 )
 from ..models.request import A2KRequest, ExplainRequest, GetDocumentRequest
 from . import audit as gw_audit
-from . import conflict, synthesis
+from . import conflict, synthesis, tracing
 
 GATEWAY_KB_ID = "urn:a2k:gateway:k2-external-intel"
 _CACHE_MAX_SIZE = 500
@@ -54,6 +54,7 @@ class GatewayEngine:
         source_kb_id = self._source_kb_id(sources)
         limit = req.pagination.limit if req.pagination else 10
         t0 = time.monotonic()
+        tracing.trace("engine.search.request", requestId=request_id, query=req.query, sources=sources, limit=limit)
 
         try:
             facts_by_source = await self._gather_facts(req.query, sources, limit=limit)
@@ -90,6 +91,13 @@ class GatewayEngine:
             pageInfo={"nextCursor": None, "hasMore": False, "pageLimit": limit},
         )
         self._cache(request_id, envelope)
+        tracing.trace(
+            "engine.search.response",
+            requestId=request_id,
+            ok=True,
+            passageCount=len(passages),
+            citationCount=len(citations),
+        )
         return envelope
 
     async def ask(self, req: A2KRequest) -> CitedResponseEnvelope:
@@ -97,6 +105,7 @@ class GatewayEngine:
         sources = req.sources or list(self.adapters)
         source_kb_id = self._source_kb_id(sources)
         t0 = time.monotonic()
+        tracing.trace("engine.ask.request", requestId=request_id, query=req.query, sources=sources)
 
         try:
             facts_by_source = await self._gather_facts(req.query, sources, limit=50)
@@ -173,6 +182,14 @@ class GatewayEngine:
             conflictReport=conflict_report,
         )
         self._cache(request_id, envelope)
+        tracing.trace(
+            "engine.ask.response",
+            requestId=request_id,
+            ok=True,
+            claimCount=len(claims),
+            citationCount=len(citations),
+            groundedRatio=grounded_ratio,
+        )
         return envelope
 
     async def explain(self, req: ExplainRequest) -> CitedResponseEnvelope:
