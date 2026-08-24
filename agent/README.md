@@ -31,6 +31,7 @@ vendors) if more than one plausibly matches or none clearly does. Inactive
 | File | What it is |
 |---|---|
 | `core.py` | The actual agent logic (system prompt, tool-name sanitization for Bedrock, token/MCP-connection caching) -- shared by both entrypoints below. |
+| `observability.py` | Structured logs (one JSON line per tool call) + CloudWatch EMF metrics (one per `ask()` call), both printed to stdout -- see "Observability" below. |
 | `router_agent.py` | Local CLI entrypoint. One question in, prints the answer (and Strands' tool-call trace) to stdout. |
 | `entrypoint.py` | AgentCore Runtime entrypoint (`bedrock_agentcore` SDK) -- `POST /invocations` in, `{"response": "..."}` out. |
 | `requirements.txt` | Deploy deps: `strands-agents`, `bedrock-agentcore`, `httpx` (`mcp`/`boto3` come in transitively). |
@@ -108,7 +109,8 @@ mkdir /tmp/router-agent-build && cd /tmp/router-agent-build
 pip install --platform manylinux2014_aarch64 --python-version 3.13 \
   --implementation cp --only-binary=:all: --target . \
   -r /path/to/repo/agent/requirements.txt
-cp /path/to/repo/agent/entrypoint.py /path/to/repo/agent/core.py .
+cp /path/to/repo/agent/entrypoint.py /path/to/repo/agent/core.py \
+  /path/to/repo/agent/observability.py .
 find . -type d -name "__pycache__" -exec rm -rf {} +
 zip -r ../router-agent.zip .
 ```
@@ -227,6 +229,44 @@ export AGENT_PASSWORD="ChangeThisPassword123!"
 
 python agent/test_router_agent_jwt.py "¿Qué sabemos de Acme Robotics Inc.?"
 ```
+
+## Observability
+
+`observability.py` prints two kinds of JSON line to stdout on every `ask()`
+call -- no extra plumbing needed, same convention a2k-box uses
+(`gateway/audit.py`, `gateway/tracing.py`): CloudWatch Logs picks up
+anything a Runtime container writes to stdout automatically.
+
+**Tool-call logs** (`event: "agent.tool_call"`, one per tool the model
+actually calls -- normally just the one `a2k.ask` call):
+
+| Field | Where it comes from |
+|---|---|
+| `agent_timestamp` | Same as `tool_end_time` below. |
+| `session_id` | Passed into `ask()` -- from `context.session_id` (AgentCore Runtime's own session header) when deployed, a fresh `uuid4()` per run from the local CLI. |
+| `chosen_vendor` | The `sources` argument the model passed to `a2k.ask`, straight from Strands' `BeforeToolCallEvent.tool_use["input"]`. `null` means either fan-out-to-all-vendors (`sources` omitted, a valid routing outcome -- see "Routing" above) or a non-`ask` tool call. |
+| `tool_start_time` / `tool_end_time` | Wall-clock timestamps bracketing the tool call, from Strands' `BeforeToolCallEvent`/`AfterToolCallEvent` hooks. |
+| `tool_http_status` | **Approximated** -- MCP tool results don't carry a real HTTP status. 200 on `ToolResult.status == "success"`, otherwise the real code from an `httpx.HTTPStatusError` if that's the underlying exception, else 502. See `observability.py`'s module docstring. |
+| `error_type` | The exception's class name, `"ToolError"` for a non-exception tool failure (`ToolResult.status == "error"`), or `null`. |
+| `internal_client` | From the `X-Internal-Client` request header when deployed (case-insensitive lookup, falls back to `"unknown"` if the caller doesn't set it); `"local-cli"` from `router_agent.py`. |
+
+**Query metrics** (CloudWatch EMF, one line per `ask()` call, namespace
+`A2K/RouterAgent` by default -- override with `A2K_AGENT_METRICS_NAMESPACE`):
+`QueryCount`, `ErrorCount`, `Latency` (ms), `InvocationCount` (tool calls
+made during this query), `ClientCount` -- all dimensioned by
+`internal_client`. EMF means CloudWatch auto-extracts these from the log
+line itself; no `cloudwatch:PutMetricData` call on the request path, and no
+extra IAM permission beyond the `logs:*` the execution role already needs
+(see `../deploy/agentcore/README.md`'s IAM troubleshooting section).
+`ClientCount` is 1-per-query, not a running distinct-client gauge -- SUM/
+group-by `internal_client` for volume per client, or run CloudWatch
+Contributor Insights against the tool-call logs' `internal_client` field
+for a true distinct count.
+
+Callers that want to show up as anything other than `"unknown"` in these
+logs/metrics need to set the `X-Internal-Client` header on their
+`InvokeAgentRuntime`/HTTPS call -- there's no default identity for "which
+internal system is calling us" the way there is for `session_id`.
 
 ## Known behavior / gotchas
 

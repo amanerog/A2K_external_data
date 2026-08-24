@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import os
 import sys
+import uuid
 
 from core import ask
 
@@ -25,6 +26,12 @@ def main() -> None:
         client_secret=os.environ["CLIENT_SECRET"],
         model_id=os.environ["BEDROCK_MODEL_ID"],
         region=os.environ.get("AWS_REGION", "eu-west-1"),
+        # No Runtime session/caller identity to inherit locally -- mint a fresh
+        # session_id per run and label the client explicitly, so agent.tool_call
+        # log lines and EMF metrics from local testing are still distinguishable
+        # from real deployed traffic (see observability.py).
+        session_id=str(uuid.uuid4()),
+        internal_client="local-cli",
     )
 
 

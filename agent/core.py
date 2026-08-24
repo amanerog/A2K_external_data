@@ -58,6 +58,8 @@ from strands.models import BedrockModel
 from strands.tools.mcp import MCPClient
 from strands.tools.mcp.mcp_agent_tool import MCPAgentTool
 
+import observability
+
 COGNITO_TOKEN_URL = "https://my-domain-f9bf0du3.auth.eu-west-1.amazoncognito.com/oauth2/token"
 SCOPE = "gateway-mcp-sayari-cala/genesis-gateway:invoke"
 
@@ -309,22 +311,33 @@ def ask(
     model_id: str,
     region: str = "eu-west-1",
     silent: bool = False,
+    session_id: str | None = None,
+    internal_client: str | None = None,
 ) -> str:
     """Run one question through the router agent and return the final answer text.
 
     `silent=True` suppresses Strands' default stdout streaming (PrintingCallbackHandler)
     -- use that when running as an AgentCore Runtime entrypoint, where nothing reads stdout
     as a terminal; leave it False for interactive CLI use.
+
+    `session_id`/`internal_client` are purely for observability (see observability.py) --
+    they identify this call in the `agent.tool_call` log lines and the QueryCount/
+    ErrorCount/Latency/InvocationCount/ClientCount EMF metrics emitted below, and are
+    never sent to the model or to a2k-box/Cala/Sayari.
     """
+    query_start = time.monotonic()
+    tool_logger = observability.ToolCallLogger(session_id=session_id, internal_client=internal_client)
+
     model = BedrockModel(model_id=model_id, region_name=region)
     tools, catalogue_text = _get_tools_and_catalogue(gateway_url, client_id, client_secret)
     system_prompt = SYSTEM_PROMPT_TEMPLATE.format(vendor_catalogue=catalogue_text)
 
-    agent_kwargs = {"model": model, "tools": tools, "system_prompt": system_prompt}
+    agent_kwargs = {"model": model, "tools": tools, "system_prompt": system_prompt, "hooks": [tool_logger]}
     if silent:
         agent_kwargs["callback_handler"] = None
     agent = Agent(**agent_kwargs)
 
+    query_errored = False
     try:
         result = agent(question)
     except Exception:
@@ -332,5 +345,14 @@ def ask(
         # blip) -- evict so the *next* call rebuilds clean, then re-raise this one as a
         # failure rather than trying to recover a possibly-half-broken session mid-request.
         _evict_mcp_cache(gateway_url, client_id)
+        query_errored = True
         raise
+    finally:
+        observability.emit_query_metrics(
+            internal_client=internal_client,
+            latency_ms=(time.monotonic() - query_start) * 1000,
+            invocation_count=tool_logger.invocation_count,
+            error_count=tool_logger.error_count,
+            query_errored=query_errored,
+        )
     return str(result)
