@@ -1,0 +1,1131 @@
+
+=== a2k.search (raw Sayari facts/passages) ===
+{
+  "a2kVersion": "0.6-baseline",
+  "ok": true,
+  "operation": "search",
+  "sourceKbId": "urn:a2k:vendor:sayari",
+  "answer": null,
+  "passages": [
+    {
+      "id": "passage-1",
+      "text": "Ansari, Ali -- type: person (per Sayari).",
+      "documentId": "urn:a2k:vendor:sayari:doc:NFfT90y8D6LxVX6mhePoMA:profile",
+      "score": 1.0,
+      "citationIds": [
+        "citation-1"
+      ]
+    },
+    {
+      "id": "passage-2",
+      "text": "Ansari, Ali -- closed: False (per Sayari).",
+      "documentId": "urn:a2k:vendor:sayari:doc:NFfT90y8D6LxVX6mhePoMA:profile",
+      "score": 1.0,
+      "citationIds": [
+        "citation-2"
+      ]
+    },
+    {
+      "id": "passage-3",
+      "text": "Ansari, Ali -- names: Ansari, Ali (per Sayari).",
+      "documentId": "urn:a2k:vendor:sayari:doc:NFfT90y8D6LxVX6mhePoMA:profile",
+      "score": 1.0,
+      "citationIds": [
+        "citation-3"
+      ]
+    },
+    {
+      "id": "passage-4",
+      "text": "Ansari, Ali -- addresses: PO BOX 571937, HOUSTON, TX 77257, UNITED STATES, 1207 KENNEY STREET, BROOKSHIRE, TX 77423, UNITED STATES (per Sayari).",
+      "documentId": "urn:a2k:vendor:sayari:doc:NFfT90y8D6LxVX6mhePoMA:profile",
+      "score": 1.0,
+      "citationIds": [
+        "citation-4"
+      ]
+    },
+    {
+      "id": "passage-5",
+      "text": "Ansari, Ali -- countries: USA (per Sayari).",
+      "documentId": "urn:a2k:vendor:sayari:doc:NFfT90y8D6LxVX6mhePoMA:profile",
+      "score": 1.0,
+      "citationIds": [
+        "citation-5"
+      ]
+    },
+    {
+      "id": "passage-6",
+      "text": "Ansari, Ali -- sanctioned: False (per Sayari).",
+      "documentId": "urn:a2k:vendor:sayari:doc:NFfT90y8D6LxVX6mhePoMA:profile",
+      "score": 1.0,
+      "citationIds": [
+        "citation-6"
+      ]
+    },
+    {
+      "id": "passage-7",
+      "text": "Ansari, Ali -- pep: False (per Sayari).",
+      "documentId": "urn:a2k:vendor:sayari:doc:NFfT90y8D6LxVX6mhePoMA:profile",
+      "score": 1.0,
+      "citationIds": [
+        "citation-7"
+      ]
+    },
+    {
+      "id": "passage-8",
+      "text": "Ali Ansari -- type: person (per Sayari).",
+      "documentId": "urn:a2k:vendor:sayari:doc:9Ecv5KcN6_BsR7gicQMeYw:profile",
+      "score": 1.0,
+      "citationIds": [
+        "citation-8"
+      ]
+    },
+    {
+      "id": "passage-9",
+      "text": "Ali Ansari -- closed: False (per Sayari).",
+      "documentId": "urn:a2k:vendor:sayari:doc:9Ecv5KcN6_BsR7gicQMeYw:profile",
+      "score": 1.0,
+      "citationIds": [
+        "citation-9"
+      ]
+    },
+    {
+      "id": "passage-10",
+      "text": "Ali Ansari -- names: علی انصاری, Aliakbar Ansari, Ali Akbar ANSARI, Ali Aliakbar ANSARI, علی انصاری دارای کدملی (per Sayari).",
+      "documentId": "urn:a2k:vendor:sayari:doc:9Ecv5KcN6_BsR7gicQMeYw:profile",
+      "score": 1.0,
+      "citationIds": [
+        "citation-10"
+      ]
+    }
+  ],
+  "claims": [],
+  "citations": [
+    {
+      "id": "citation-1",
+      "claimIds": [],
+      "documentId": "urn:a2k:vendor:sayari:doc:NFfT90y8D6LxVX6mhePoMA:profile",
+      "title": "Ansari, Ali (Sayari)",
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Ansari, Ali -- type: person (per Sayari).",
+        "prefix": null,
+        "suffix": null
+      },
+      "sourceHash": "sha256:66447e6463fdd422f6f5ff73ac14387db7a0a9b2e37fc88e31f57cc404a5245e",
+      "sourceUrl": "https://graph.sayari.com/resource/entity/NFfT90y8D6LxVX6mhePoMA",
+      "retrievedAt": "2026-08-26T12:01:29Z",
+      "sourceLastUpdated": null,
+      "classification": "public",
+      "dataLineage": []
+    },
+    {
+      "id": "citation-2",
+      "claimIds": [],
+      "documentId": "urn:a2k:vendor:sayari:doc:NFfT90y8D6LxVX6mhePoMA:profile",
+      "title": "Ansari, Ali (Sayari)",
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Ansari, Ali -- closed: False (per Sayari).",
+        "prefix": null,
+        "suffix": null
+      },
+      "sourceHash": "sha256:3e41c0216cdbcc7caffb1e1aaf55bb73d80f7b70806b0903ef2dce7959583713",
+      "sourceUrl": "https://graph.sayari.com/resource/entity/NFfT90y8D6LxVX6mhePoMA",
+      "retrievedAt": "2026-08-26T12:01:29Z",
+      "sourceLastUpdated": null,
+      "classification": "public",
+      "dataLineage": []
+    },
+    {
+      "id": "citation-3",
+      "claimIds": [],
+      "documentId": "urn:a2k:vendor:sayari:doc:NFfT90y8D6LxVX6mhePoMA:profile",
+      "title": "Ansari, Ali (Sayari)",
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Ansari, Ali -- names: Ansari, Ali (per Sayari).",
+        "prefix": null,
+        "suffix": null
+      },
+      "sourceHash": "sha256:c1f825b02e1bd12f3b52ed2227334c742d28ea684cc71b7142fe01b4c9299dd0",
+      "sourceUrl": "https://graph.sayari.com/resource/entity/NFfT90y8D6LxVX6mhePoMA",
+      "retrievedAt": "2026-08-26T12:01:29Z",
+      "sourceLastUpdated": null,
+      "classification": "public",
+      "dataLineage": []
+    },
+    {
+      "id": "citation-4",
+      "claimIds": [],
+      "documentId": "urn:a2k:vendor:sayari:doc:NFfT90y8D6LxVX6mhePoMA:profile",
+      "title": "Ansari, Ali (Sayari)",
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Ansari, Ali -- addresses: PO BOX 571937, HOUSTON, TX 77257, UNITED STATES, 1207 KENNEY STREET, BROOKSHIRE, TX 77423, UNITED STATES (per Sayari).",
+        "prefix": null,
+        "suffix": null
+      },
+      "sourceHash": "sha256:f3d642cc4be61837f56529eb36bd4361938daf6b31b59f69a57c28484fb592f7",
+      "sourceUrl": "https://graph.sayari.com/resource/entity/NFfT90y8D6LxVX6mhePoMA",
+      "retrievedAt": "2026-08-26T12:01:29Z",
+      "sourceLastUpdated": null,
+      "classification": "public",
+      "dataLineage": []
+    },
+    {
+      "id": "citation-5",
+      "claimIds": [],
+      "documentId": "urn:a2k:vendor:sayari:doc:NFfT90y8D6LxVX6mhePoMA:profile",
+      "title": "Ansari, Ali (Sayari)",
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Ansari, Ali -- countries: USA (per Sayari).",
+        "prefix": null,
+        "suffix": null
+      },
+      "sourceHash": "sha256:ab4c9593b62d38b7ef6c8ef76e334828feb49713e9b03dd58d9e8a5e8a8e7c83",
+      "sourceUrl": "https://graph.sayari.com/resource/entity/NFfT90y8D6LxVX6mhePoMA",
+      "retrievedAt": "2026-08-26T12:01:29Z",
+      "sourceLastUpdated": null,
+      "classification": "public",
+      "dataLineage": []
+    },
+    {
+      "id": "citation-6",
+      "claimIds": [],
+      "documentId": "urn:a2k:vendor:sayari:doc:NFfT90y8D6LxVX6mhePoMA:profile",
+      "title": "Ansari, Ali (Sayari)",
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Ansari, Ali -- sanctioned: False (per Sayari).",
+        "prefix": null,
+        "suffix": null
+      },
+      "sourceHash": "sha256:4c4f9a686092ce72edbd61592691c612947682e7edeb8b3d9f1f2106dadf0d94",
+      "sourceUrl": "https://graph.sayari.com/resource/entity/NFfT90y8D6LxVX6mhePoMA",
+      "retrievedAt": "2026-08-26T12:01:29Z",
+      "sourceLastUpdated": null,
+      "classification": "public",
+      "dataLineage": []
+    },
+    {
+      "id": "citation-7",
+      "claimIds": [],
+      "documentId": "urn:a2k:vendor:sayari:doc:NFfT90y8D6LxVX6mhePoMA:profile",
+      "title": "Ansari, Ali (Sayari)",
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Ansari, Ali -- pep: False (per Sayari).",
+        "prefix": null,
+        "suffix": null
+      },
+      "sourceHash": "sha256:210db50eb6b0668644174fe75b79c9f61bad972e3fb4df48ca59375900583068",
+      "sourceUrl": "https://graph.sayari.com/resource/entity/NFfT90y8D6LxVX6mhePoMA",
+      "retrievedAt": "2026-08-26T12:01:29Z",
+      "sourceLastUpdated": null,
+      "classification": "public",
+      "dataLineage": []
+    },
+    {
+      "id": "citation-8",
+      "claimIds": [],
+      "documentId": "urn:a2k:vendor:sayari:doc:9Ecv5KcN6_BsR7gicQMeYw:profile",
+      "title": "Ali Ansari (Sayari)",
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Ali Ansari -- type: person (per Sayari).",
+        "prefix": null,
+        "suffix": null
+      },
+      "sourceHash": "sha256:2ea675ba147992f807bde300ea757caf5255c67b76508b15490d0d0350713d8d",
+      "sourceUrl": "https://graph.sayari.com/resource/entity/9Ecv5KcN6_BsR7gicQMeYw",
+      "retrievedAt": "2026-08-26T12:01:30Z",
+      "sourceLastUpdated": null,
+      "classification": "public",
+      "dataLineage": []
+    },
+    {
+      "id": "citation-9",
+      "claimIds": [],
+      "documentId": "urn:a2k:vendor:sayari:doc:9Ecv5KcN6_BsR7gicQMeYw:profile",
+      "title": "Ali Ansari (Sayari)",
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Ali Ansari -- closed: False (per Sayari).",
+        "prefix": null,
+        "suffix": null
+      },
+      "sourceHash": "sha256:9584ba08b8670e9755ab0f3ef956b87c434f5d6c10563cd61cc860de56362c81",
+      "sourceUrl": "https://graph.sayari.com/resource/entity/9Ecv5KcN6_BsR7gicQMeYw",
+      "retrievedAt": "2026-08-26T12:01:30Z",
+      "sourceLastUpdated": null,
+      "classification": "public",
+      "dataLineage": []
+    },
+    {
+      "id": "citation-10",
+      "claimIds": [],
+      "documentId": "urn:a2k:vendor:sayari:doc:9Ecv5KcN6_BsR7gicQMeYw:profile",
+      "title": "Ali Ansari (Sayari)",
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Ali Ansari -- names: علی انصاری, Aliakbar Ansari, Ali Akbar ANSARI, Ali Aliakbar ANSARI, علی انصاری دارای کدملی (per Sayari).",
+        "prefix": null,
+        "suffix": null
+      },
+      "sourceHash": "sha256:e382852b18cfd756af3668380284e75f704933cba30ce9ebdb4ff0b3f6caa124",
+      "sourceUrl": "https://graph.sayari.com/resource/entity/9Ecv5KcN6_BsR7gicQMeYw",
+      "retrievedAt": "2026-08-26T12:01:30Z",
+      "sourceLastUpdated": null,
+      "classification": "public",
+      "dataLineage": []
+    }
+  ],
+  "grounding": null,
+  "freshness": {
+    "sourceLastUpdated": null,
+    "reviewedAt": null,
+    "nextReviewDue": null,
+    "retrievedAt": "2026-08-26T12:01:30Z",
+    "stale": false,
+    "validAsOf": "2026-08-26",
+    "validUntil": null
+  },
+  "accessDecision": {
+    "decision": "allowed",
+    "reason": "Vendor commercial/public data (tier S0, A2K-KBCard-Schema section 4.4.1); no OBO assertion required at this tier.",
+    "appliedScopes": [],
+    "dataClassification": "public",
+    "policyEngine": "a2k-box-gateway",
+    "decisionId": "31d741d1-6912-4c63-aa88-e8035adb132c",
+    "oboValidated": null
+  },
+  "audit": {
+    "requestId": "a6bde260-e7e1-4fb7-9b48-978c67b4b0ad",
+    "sessionId": null,
+    "traceId": null,
+    "agentId": null,
+    "agentInstanceId": null,
+    "userId": null,
+    "sourceKbId": "urn:a2k:vendor:sayari",
+    "sourceKbVersion": "live",
+    "kbCardVersion": null,
+    "operation": "search",
+    "policyDecision": "allowed",
+    "decisionReason": null,
+    "citationIds": [
+      "citation-1",
+      "citation-2",
+      "citation-3",
+      "citation-4",
+      "citation-5",
+      "citation-6",
+      "citation-7",
+      "citation-8",
+      "citation-9",
+      "citation-10"
+    ],
+    "logged": true,
+    "loggedAt": "2026-08-26T12:01:30Z",
+    "logTarget": "local-jsonl",
+    "immutableLogRequired": false,
+    "logRef": "a9960042-a768-4722-a81c-28eb44086cb0"
+  },
+  "conflicts": [],
+  "referrals": [],
+  "usage": {
+    "latencyMs": 22212,
+    "retrievalCount": 10
+  },
+  "pageInfo": {
+    "nextCursor": null,
+    "hasMore": false,
+    "pageLimit": 10
+  },
+  "responseSignature": null,
+  "error": null,
+  "conflictReport": null
+}
+
+=== a2k.ask (Sayari facts, synthesized into claims) ===
+{
+  "a2kVersion": "0.6-baseline",
+  "ok": true,
+  "operation": "ask",
+  "sourceKbId": "urn:a2k:vendor:sayari",
+  "answer": "Ansari, Ali -- type: person (per Sayari).\n\nAnsari, Ali -- closed: False (per Sayari).\n\nAnsari, Ali -- names: Ansari, Ali (per Sayari).\n\nAnsari, Ali -- addresses: PO BOX 571937, HOUSTON, TX 77257, UNITED STATES, 1207 KENNEY STREET, BROOKSHIRE, TX 77423, UNITED STATES (per Sayari).\n\nAnsari, Ali -- countries: USA (per Sayari).\n\nAnsari, Ali -- sanctioned: False (per Sayari).\n\nAnsari, Ali -- pep: False (per Sayari).\n\nAli Ansari -- type: person (per Sayari).\n\nAli Ansari -- closed: False (per Sayari).\n\nAli Ansari -- names: علی انصاری, Aliakbar Ansari, Ali Akbar ANSARI, Ali Aliakbar ANSARI, علی انصاری دارای کدملی (per Sayari).\n\nAli Ansari -- addresses: Dubai, United Arab Emirates, Iran, London, Vereinigtes Königreich, GB, Villa Mdb Base 2, 394 Emirates  Hills Third PO Box 120058, Dubai, AE, Teheran, IR (per Sayari).\n\nAli Ansari -- identifiers: {'type': 'irn_national_id', 'value': '4320705718'}, {'type': 'unknown_passport', 'value': 'B65348454'}, {'type': 'unknown_passport', 'value': 'L00017629'}, {'type': 'unknown_passport', 'value': 'P41219058'}, {'type': 'unknown_passport', 'value': 'RE003666'} (per Sayari).\n\nAli Ansari -- countries: ARE, CYP, IRN, LUX, GBR (per Sayari).\n\nAli Ansari -- sanctioned: True (per Sayari).\n\nAli Ansari -- pep: False (per Sayari).\n\nMOHSIN ALI ANSARI -- type: company (per Sayari).\n\nMOHSIN ALI ANSARI -- closed: False (per Sayari).\n\nMOHSIN ALI ANSARI -- names: RAHIK ART AND CRAFT, RAHIK ART AND CRAFT, MOHSIN ALI ANSARI (per Sayari).\n\nMOHSIN ALI ANSARI -- addresses: P.NO.B-14, KABIR NAGAR, TEMPO STAND SOOR SAGAR JODHPUR PIN-342001, 18 A ROAD NO 1 OPP DIESEL SHED BEHIND NEW POWER HOUSE ROAD JODHPUR INDIA, PLOT NO. 212 LIGH SCHEME, CHEERGHAR CHOPASNI ROAD, Rajasthan, Jodhpur, 342001, IN (per Sayari).\n\nMOHSIN ALI ANSARI -- identifiers: {'type': 'unknown', 'value': '1313022209'}, {'type': 'lei', 'value': '648815M06G2ZYT6GO810'}, {'type': 'unknown', 'value': '08AMFPA7824D1ZD'} (per Sayari).\n\nMOHSIN ALI ANSARI -- countries: IND (per Sayari).\n\nMOHSIN ALI ANSARI -- sanctioned: False (per Sayari).\n\nMOHSIN ALI ANSARI -- pep: False (per Sayari).",
+  "passages": [],
+  "claims": [
+    {
+      "id": "claim-1",
+      "text": "Ansari, Ali -- type: person (per Sayari).",
+      "type": "factual",
+      "status": "SUPPORTED",
+      "citationIds": [
+        "citation-1"
+      ],
+      "conflictsWith": []
+    },
+    {
+      "id": "claim-2",
+      "text": "Ansari, Ali -- closed: False (per Sayari).",
+      "type": "factual",
+      "status": "SUPPORTED",
+      "citationIds": [
+        "citation-2"
+      ],
+      "conflictsWith": []
+    },
+    {
+      "id": "claim-3",
+      "text": "Ansari, Ali -- names: Ansari, Ali (per Sayari).",
+      "type": "factual",
+      "status": "SUPPORTED",
+      "citationIds": [
+        "citation-3"
+      ],
+      "conflictsWith": []
+    },
+    {
+      "id": "claim-4",
+      "text": "Ansari, Ali -- addresses: PO BOX 571937, HOUSTON, TX 77257, UNITED STATES, 1207 KENNEY STREET, BROOKSHIRE, TX 77423, UNITED STATES (per Sayari).",
+      "type": "factual",
+      "status": "SUPPORTED",
+      "citationIds": [
+        "citation-4"
+      ],
+      "conflictsWith": []
+    },
+    {
+      "id": "claim-5",
+      "text": "Ansari, Ali -- countries: USA (per Sayari).",
+      "type": "factual",
+      "status": "SUPPORTED",
+      "citationIds": [
+        "citation-5"
+      ],
+      "conflictsWith": []
+    },
+    {
+      "id": "claim-6",
+      "text": "Ansari, Ali -- sanctioned: False (per Sayari).",
+      "type": "factual",
+      "status": "SUPPORTED",
+      "citationIds": [
+        "citation-6"
+      ],
+      "conflictsWith": []
+    },
+    {
+      "id": "claim-7",
+      "text": "Ansari, Ali -- pep: False (per Sayari).",
+      "type": "factual",
+      "status": "SUPPORTED",
+      "citationIds": [
+        "citation-7"
+      ],
+      "conflictsWith": []
+    },
+    {
+      "id": "claim-8",
+      "text": "Ali Ansari -- type: person (per Sayari).",
+      "type": "factual",
+      "status": "SUPPORTED",
+      "citationIds": [
+        "citation-8"
+      ],
+      "conflictsWith": []
+    },
+    {
+      "id": "claim-9",
+      "text": "Ali Ansari -- closed: False (per Sayari).",
+      "type": "factual",
+      "status": "SUPPORTED",
+      "citationIds": [
+        "citation-9"
+      ],
+      "conflictsWith": []
+    },
+    {
+      "id": "claim-10",
+      "text": "Ali Ansari -- names: علی انصاری, Aliakbar Ansari, Ali Akbar ANSARI, Ali Aliakbar ANSARI, علی انصاری دارای کدملی (per Sayari).",
+      "type": "factual",
+      "status": "SUPPORTED",
+      "citationIds": [
+        "citation-10"
+      ],
+      "conflictsWith": []
+    },
+    {
+      "id": "claim-11",
+      "text": "Ali Ansari -- addresses: Dubai, United Arab Emirates, Iran, London, Vereinigtes Königreich, GB, Villa Mdb Base 2, 394 Emirates  Hills Third PO Box 120058, Dubai, AE, Teheran, IR (per Sayari).",
+      "type": "factual",
+      "status": "SUPPORTED",
+      "citationIds": [
+        "citation-11"
+      ],
+      "conflictsWith": []
+    },
+    {
+      "id": "claim-12",
+      "text": "Ali Ansari -- identifiers: {'type': 'irn_national_id', 'value': '4320705718'}, {'type': 'unknown_passport', 'value': 'B65348454'}, {'type': 'unknown_passport', 'value': 'L00017629'}, {'type': 'unknown_passport', 'value': 'P41219058'}, {'type': 'unknown_passport', 'value': 'RE003666'} (per Sayari).",
+      "type": "factual",
+      "status": "SUPPORTED",
+      "citationIds": [
+        "citation-12"
+      ],
+      "conflictsWith": []
+    },
+    {
+      "id": "claim-13",
+      "text": "Ali Ansari -- countries: ARE, CYP, IRN, LUX, GBR (per Sayari).",
+      "type": "factual",
+      "status": "SUPPORTED",
+      "citationIds": [
+        "citation-13"
+      ],
+      "conflictsWith": []
+    },
+    {
+      "id": "claim-14",
+      "text": "Ali Ansari -- sanctioned: True (per Sayari).",
+      "type": "factual",
+      "status": "SUPPORTED",
+      "citationIds": [
+        "citation-14"
+      ],
+      "conflictsWith": []
+    },
+    {
+      "id": "claim-15",
+      "text": "Ali Ansari -- pep: False (per Sayari).",
+      "type": "factual",
+      "status": "SUPPORTED",
+      "citationIds": [
+        "citation-15"
+      ],
+      "conflictsWith": []
+    },
+    {
+      "id": "claim-16",
+      "text": "MOHSIN ALI ANSARI -- type: company (per Sayari).",
+      "type": "factual",
+      "status": "SUPPORTED",
+      "citationIds": [
+        "citation-16"
+      ],
+      "conflictsWith": []
+    },
+    {
+      "id": "claim-17",
+      "text": "MOHSIN ALI ANSARI -- closed: False (per Sayari).",
+      "type": "factual",
+      "status": "SUPPORTED",
+      "citationIds": [
+        "citation-17"
+      ],
+      "conflictsWith": []
+    },
+    {
+      "id": "claim-18",
+      "text": "MOHSIN ALI ANSARI -- names: RAHIK ART AND CRAFT, RAHIK ART AND CRAFT, MOHSIN ALI ANSARI (per Sayari).",
+      "type": "factual",
+      "status": "SUPPORTED",
+      "citationIds": [
+        "citation-18"
+      ],
+      "conflictsWith": []
+    },
+    {
+      "id": "claim-19",
+      "text": "MOHSIN ALI ANSARI -- addresses: P.NO.B-14, KABIR NAGAR, TEMPO STAND SOOR SAGAR JODHPUR PIN-342001, 18 A ROAD NO 1 OPP DIESEL SHED BEHIND NEW POWER HOUSE ROAD JODHPUR INDIA, PLOT NO. 212 LIGH SCHEME, CHEERGHAR CHOPASNI ROAD, Rajasthan, Jodhpur, 342001, IN (per Sayari).",
+      "type": "factual",
+      "status": "SUPPORTED",
+      "citationIds": [
+        "citation-19"
+      ],
+      "conflictsWith": []
+    },
+    {
+      "id": "claim-20",
+      "text": "MOHSIN ALI ANSARI -- identifiers: {'type': 'unknown', 'value': '1313022209'}, {'type': 'lei', 'value': '648815M06G2ZYT6GO810'}, {'type': 'unknown', 'value': '08AMFPA7824D1ZD'} (per Sayari).",
+      "type": "factual",
+      "status": "SUPPORTED",
+      "citationIds": [
+        "citation-20"
+      ],
+      "conflictsWith": []
+    },
+    {
+      "id": "claim-21",
+      "text": "MOHSIN ALI ANSARI -- countries: IND (per Sayari).",
+      "type": "factual",
+      "status": "SUPPORTED",
+      "citationIds": [
+        "citation-21"
+      ],
+      "conflictsWith": []
+    },
+    {
+      "id": "claim-22",
+      "text": "MOHSIN ALI ANSARI -- sanctioned: False (per Sayari).",
+      "type": "factual",
+      "status": "SUPPORTED",
+      "citationIds": [
+        "citation-22"
+      ],
+      "conflictsWith": []
+    },
+    {
+      "id": "claim-23",
+      "text": "MOHSIN ALI ANSARI -- pep: False (per Sayari).",
+      "type": "factual",
+      "status": "SUPPORTED",
+      "citationIds": [
+        "citation-23"
+      ],
+      "conflictsWith": []
+    }
+  ],
+  "citations": [
+    {
+      "id": "citation-1",
+      "claimIds": [
+        "claim-1"
+      ],
+      "documentId": "urn:a2k:vendor:sayari:doc:NFfT90y8D6LxVX6mhePoMA:profile",
+      "title": "Ansari, Ali (Sayari)",
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Ansari, Ali -- type: person (per Sayari).",
+        "prefix": null,
+        "suffix": null
+      },
+      "sourceHash": "sha256:66447e6463fdd422f6f5ff73ac14387db7a0a9b2e37fc88e31f57cc404a5245e",
+      "sourceUrl": "https://graph.sayari.com/resource/entity/NFfT90y8D6LxVX6mhePoMA",
+      "retrievedAt": "2026-08-26T12:01:54Z",
+      "sourceLastUpdated": null,
+      "classification": "public",
+      "dataLineage": []
+    },
+    {
+      "id": "citation-2",
+      "claimIds": [
+        "claim-2"
+      ],
+      "documentId": "urn:a2k:vendor:sayari:doc:NFfT90y8D6LxVX6mhePoMA:profile",
+      "title": "Ansari, Ali (Sayari)",
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Ansari, Ali -- closed: False (per Sayari).",
+        "prefix": null,
+        "suffix": null
+      },
+      "sourceHash": "sha256:3e41c0216cdbcc7caffb1e1aaf55bb73d80f7b70806b0903ef2dce7959583713",
+      "sourceUrl": "https://graph.sayari.com/resource/entity/NFfT90y8D6LxVX6mhePoMA",
+      "retrievedAt": "2026-08-26T12:01:54Z",
+      "sourceLastUpdated": null,
+      "classification": "public",
+      "dataLineage": []
+    },
+    {
+      "id": "citation-3",
+      "claimIds": [
+        "claim-3"
+      ],
+      "documentId": "urn:a2k:vendor:sayari:doc:NFfT90y8D6LxVX6mhePoMA:profile",
+      "title": "Ansari, Ali (Sayari)",
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Ansari, Ali -- names: Ansari, Ali (per Sayari).",
+        "prefix": null,
+        "suffix": null
+      },
+      "sourceHash": "sha256:c1f825b02e1bd12f3b52ed2227334c742d28ea684cc71b7142fe01b4c9299dd0",
+      "sourceUrl": "https://graph.sayari.com/resource/entity/NFfT90y8D6LxVX6mhePoMA",
+      "retrievedAt": "2026-08-26T12:01:54Z",
+      "sourceLastUpdated": null,
+      "classification": "public",
+      "dataLineage": []
+    },
+    {
+      "id": "citation-4",
+      "claimIds": [
+        "claim-4"
+      ],
+      "documentId": "urn:a2k:vendor:sayari:doc:NFfT90y8D6LxVX6mhePoMA:profile",
+      "title": "Ansari, Ali (Sayari)",
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Ansari, Ali -- addresses: PO BOX 571937, HOUSTON, TX 77257, UNITED STATES, 1207 KENNEY STREET, BROOKSHIRE, TX 77423, UNITED STATES (per Sayari).",
+        "prefix": null,
+        "suffix": null
+      },
+      "sourceHash": "sha256:f3d642cc4be61837f56529eb36bd4361938daf6b31b59f69a57c28484fb592f7",
+      "sourceUrl": "https://graph.sayari.com/resource/entity/NFfT90y8D6LxVX6mhePoMA",
+      "retrievedAt": "2026-08-26T12:01:54Z",
+      "sourceLastUpdated": null,
+      "classification": "public",
+      "dataLineage": []
+    },
+    {
+      "id": "citation-5",
+      "claimIds": [
+        "claim-5"
+      ],
+      "documentId": "urn:a2k:vendor:sayari:doc:NFfT90y8D6LxVX6mhePoMA:profile",
+      "title": "Ansari, Ali (Sayari)",
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Ansari, Ali -- countries: USA (per Sayari).",
+        "prefix": null,
+        "suffix": null
+      },
+      "sourceHash": "sha256:ab4c9593b62d38b7ef6c8ef76e334828feb49713e9b03dd58d9e8a5e8a8e7c83",
+      "sourceUrl": "https://graph.sayari.com/resource/entity/NFfT90y8D6LxVX6mhePoMA",
+      "retrievedAt": "2026-08-26T12:01:54Z",
+      "sourceLastUpdated": null,
+      "classification": "public",
+      "dataLineage": []
+    },
+    {
+      "id": "citation-6",
+      "claimIds": [
+        "claim-6"
+      ],
+      "documentId": "urn:a2k:vendor:sayari:doc:NFfT90y8D6LxVX6mhePoMA:profile",
+      "title": "Ansari, Ali (Sayari)",
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Ansari, Ali -- sanctioned: False (per Sayari).",
+        "prefix": null,
+        "suffix": null
+      },
+      "sourceHash": "sha256:4c4f9a686092ce72edbd61592691c612947682e7edeb8b3d9f1f2106dadf0d94",
+      "sourceUrl": "https://graph.sayari.com/resource/entity/NFfT90y8D6LxVX6mhePoMA",
+      "retrievedAt": "2026-08-26T12:01:54Z",
+      "sourceLastUpdated": null,
+      "classification": "public",
+      "dataLineage": []
+    },
+    {
+      "id": "citation-7",
+      "claimIds": [
+        "claim-7"
+      ],
+      "documentId": "urn:a2k:vendor:sayari:doc:NFfT90y8D6LxVX6mhePoMA:profile",
+      "title": "Ansari, Ali (Sayari)",
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Ansari, Ali -- pep: False (per Sayari).",
+        "prefix": null,
+        "suffix": null
+      },
+      "sourceHash": "sha256:210db50eb6b0668644174fe75b79c9f61bad972e3fb4df48ca59375900583068",
+      "sourceUrl": "https://graph.sayari.com/resource/entity/NFfT90y8D6LxVX6mhePoMA",
+      "retrievedAt": "2026-08-26T12:01:54Z",
+      "sourceLastUpdated": null,
+      "classification": "public",
+      "dataLineage": []
+    },
+    {
+      "id": "citation-8",
+      "claimIds": [
+        "claim-8"
+      ],
+      "documentId": "urn:a2k:vendor:sayari:doc:9Ecv5KcN6_BsR7gicQMeYw:profile",
+      "title": "Ali Ansari (Sayari)",
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Ali Ansari -- type: person (per Sayari).",
+        "prefix": null,
+        "suffix": null
+      },
+      "sourceHash": "sha256:2ea675ba147992f807bde300ea757caf5255c67b76508b15490d0d0350713d8d",
+      "sourceUrl": "https://graph.sayari.com/resource/entity/9Ecv5KcN6_BsR7gicQMeYw",
+      "retrievedAt": "2026-08-26T12:01:55Z",
+      "sourceLastUpdated": null,
+      "classification": "public",
+      "dataLineage": []
+    },
+    {
+      "id": "citation-9",
+      "claimIds": [
+        "claim-9"
+      ],
+      "documentId": "urn:a2k:vendor:sayari:doc:9Ecv5KcN6_BsR7gicQMeYw:profile",
+      "title": "Ali Ansari (Sayari)",
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Ali Ansari -- closed: False (per Sayari).",
+        "prefix": null,
+        "suffix": null
+      },
+      "sourceHash": "sha256:9584ba08b8670e9755ab0f3ef956b87c434f5d6c10563cd61cc860de56362c81",
+      "sourceUrl": "https://graph.sayari.com/resource/entity/9Ecv5KcN6_BsR7gicQMeYw",
+      "retrievedAt": "2026-08-26T12:01:55Z",
+      "sourceLastUpdated": null,
+      "classification": "public",
+      "dataLineage": []
+    },
+    {
+      "id": "citation-10",
+      "claimIds": [
+        "claim-10"
+      ],
+      "documentId": "urn:a2k:vendor:sayari:doc:9Ecv5KcN6_BsR7gicQMeYw:profile",
+      "title": "Ali Ansari (Sayari)",
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Ali Ansari -- names: علی انصاری, Aliakbar Ansari, Ali Akbar ANSARI, Ali Aliakbar ANSARI, علی انصاری دارای کدملی (per Sayari).",
+        "prefix": null,
+        "suffix": null
+      },
+      "sourceHash": "sha256:e382852b18cfd756af3668380284e75f704933cba30ce9ebdb4ff0b3f6caa124",
+      "sourceUrl": "https://graph.sayari.com/resource/entity/9Ecv5KcN6_BsR7gicQMeYw",
+      "retrievedAt": "2026-08-26T12:01:55Z",
+      "sourceLastUpdated": null,
+      "classification": "public",
+      "dataLineage": []
+    },
+    {
+      "id": "citation-11",
+      "claimIds": [
+        "claim-11"
+      ],
+      "documentId": "urn:a2k:vendor:sayari:doc:9Ecv5KcN6_BsR7gicQMeYw:profile",
+      "title": "Ali Ansari (Sayari)",
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Ali Ansari -- addresses: Dubai, United Arab Emirates, Iran, London, Vereinigtes Königreich, GB, Villa Mdb Base 2, 394 Emirates  Hills Third PO Box 120058, Dubai, AE, Teheran, IR (per Sayari).",
+        "prefix": null,
+        "suffix": null
+      },
+      "sourceHash": "sha256:8609abd35042ef287ce2bc6711990d623653be8ab062b7e01f1a4327ce4b52ee",
+      "sourceUrl": "https://graph.sayari.com/resource/entity/9Ecv5KcN6_BsR7gicQMeYw",
+      "retrievedAt": "2026-08-26T12:01:55Z",
+      "sourceLastUpdated": null,
+      "classification": "public",
+      "dataLineage": []
+    },
+    {
+      "id": "citation-12",
+      "claimIds": [
+        "claim-12"
+      ],
+      "documentId": "urn:a2k:vendor:sayari:doc:9Ecv5KcN6_BsR7gicQMeYw:profile",
+      "title": "Ali Ansari (Sayari)",
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Ali Ansari -- identifiers: {'type': 'irn_national_id', 'value': '4320705718'}, {'type': 'unknown_passport', 'value': 'B65348454'}, {'type': 'unknown_passport', 'value': 'L00017629'}, {'type': 'unknown_passport', 'value': 'P41219058'}, {'type': 'unknown_passport', 'value': 'RE003666'} (per Sayari).",
+        "prefix": null,
+        "suffix": null
+      },
+      "sourceHash": "sha256:bf92e71d57d0c4552ca6f730167955fcef1d73c401299ead197c7b643e438c9a",
+      "sourceUrl": "https://graph.sayari.com/resource/entity/9Ecv5KcN6_BsR7gicQMeYw",
+      "retrievedAt": "2026-08-26T12:01:55Z",
+      "sourceLastUpdated": null,
+      "classification": "public",
+      "dataLineage": []
+    },
+    {
+      "id": "citation-13",
+      "claimIds": [
+        "claim-13"
+      ],
+      "documentId": "urn:a2k:vendor:sayari:doc:9Ecv5KcN6_BsR7gicQMeYw:profile",
+      "title": "Ali Ansari (Sayari)",
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Ali Ansari -- countries: ARE, CYP, IRN, LUX, GBR (per Sayari).",
+        "prefix": null,
+        "suffix": null
+      },
+      "sourceHash": "sha256:0f6dc8d526f4adb677e34e5b23aa21fe05eb4f1d5b0e6d1c8bd8f6e345c3cf33",
+      "sourceUrl": "https://graph.sayari.com/resource/entity/9Ecv5KcN6_BsR7gicQMeYw",
+      "retrievedAt": "2026-08-26T12:01:55Z",
+      "sourceLastUpdated": null,
+      "classification": "public",
+      "dataLineage": []
+    },
+    {
+      "id": "citation-14",
+      "claimIds": [
+        "claim-14"
+      ],
+      "documentId": "urn:a2k:vendor:sayari:doc:9Ecv5KcN6_BsR7gicQMeYw:profile",
+      "title": "Ali Ansari (Sayari)",
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Ali Ansari -- sanctioned: True (per Sayari).",
+        "prefix": null,
+        "suffix": null
+      },
+      "sourceHash": "sha256:3f2035402cf2e937a895cbe01cf0f62f254fc01c8298066185416efcaf3b3230",
+      "sourceUrl": "https://graph.sayari.com/resource/entity/9Ecv5KcN6_BsR7gicQMeYw",
+      "retrievedAt": "2026-08-26T12:01:55Z",
+      "sourceLastUpdated": null,
+      "classification": "public",
+      "dataLineage": []
+    },
+    {
+      "id": "citation-15",
+      "claimIds": [
+        "claim-15"
+      ],
+      "documentId": "urn:a2k:vendor:sayari:doc:9Ecv5KcN6_BsR7gicQMeYw:profile",
+      "title": "Ali Ansari (Sayari)",
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "Ali Ansari -- pep: False (per Sayari).",
+        "prefix": null,
+        "suffix": null
+      },
+      "sourceHash": "sha256:0939e90c85ab010a9500263cb210da463cf1ea032615070c536286ddf14f7bff",
+      "sourceUrl": "https://graph.sayari.com/resource/entity/9Ecv5KcN6_BsR7gicQMeYw",
+      "retrievedAt": "2026-08-26T12:01:55Z",
+      "sourceLastUpdated": null,
+      "classification": "public",
+      "dataLineage": []
+    },
+    {
+      "id": "citation-16",
+      "claimIds": [
+        "claim-16"
+      ],
+      "documentId": "urn:a2k:vendor:sayari:doc:_6J_QMFQcBKBl-_b7HIvOw:profile",
+      "title": "MOHSIN ALI ANSARI (Sayari)",
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "MOHSIN ALI ANSARI -- type: company (per Sayari).",
+        "prefix": null,
+        "suffix": null
+      },
+      "sourceHash": "sha256:991c353ecd6d22ec7879d30e4a0889208c6bb15b85e698b980c5aa2c6c7c9d95",
+      "sourceUrl": "https://graph.sayari.com/resource/entity/_6J_QMFQcBKBl-_b7HIvOw",
+      "retrievedAt": "2026-08-26T12:01:55Z",
+      "sourceLastUpdated": null,
+      "classification": "public",
+      "dataLineage": []
+    },
+    {
+      "id": "citation-17",
+      "claimIds": [
+        "claim-17"
+      ],
+      "documentId": "urn:a2k:vendor:sayari:doc:_6J_QMFQcBKBl-_b7HIvOw:profile",
+      "title": "MOHSIN ALI ANSARI (Sayari)",
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "MOHSIN ALI ANSARI -- closed: False (per Sayari).",
+        "prefix": null,
+        "suffix": null
+      },
+      "sourceHash": "sha256:e6a24400dd539fb7b9269c123e6cf0a8140743dccb9f7158874fea2e2e0e2a66",
+      "sourceUrl": "https://graph.sayari.com/resource/entity/_6J_QMFQcBKBl-_b7HIvOw",
+      "retrievedAt": "2026-08-26T12:01:55Z",
+      "sourceLastUpdated": null,
+      "classification": "public",
+      "dataLineage": []
+    },
+    {
+      "id": "citation-18",
+      "claimIds": [
+        "claim-18"
+      ],
+      "documentId": "urn:a2k:vendor:sayari:doc:_6J_QMFQcBKBl-_b7HIvOw:profile",
+      "title": "MOHSIN ALI ANSARI (Sayari)",
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "MOHSIN ALI ANSARI -- names: RAHIK ART AND CRAFT, RAHIK ART AND CRAFT, MOHSIN ALI ANSARI (per Sayari).",
+        "prefix": null,
+        "suffix": null
+      },
+      "sourceHash": "sha256:f0d99adb67ba389e7257e104586e432339ba9019ef0f0a95f651b0cf26e5bbed",
+      "sourceUrl": "https://graph.sayari.com/resource/entity/_6J_QMFQcBKBl-_b7HIvOw",
+      "retrievedAt": "2026-08-26T12:01:55Z",
+      "sourceLastUpdated": null,
+      "classification": "public",
+      "dataLineage": []
+    },
+    {
+      "id": "citation-19",
+      "claimIds": [
+        "claim-19"
+      ],
+      "documentId": "urn:a2k:vendor:sayari:doc:_6J_QMFQcBKBl-_b7HIvOw:profile",
+      "title": "MOHSIN ALI ANSARI (Sayari)",
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "MOHSIN ALI ANSARI -- addresses: P.NO.B-14, KABIR NAGAR, TEMPO STAND SOOR SAGAR JODHPUR PIN-342001, 18 A ROAD NO 1 OPP DIESEL SHED BEHIND NEW POWER HOUSE ROAD JODHPUR INDIA, PLOT NO. 212 LIGH SCHEME, CHEERGHAR CHOPASNI ROAD, Rajasthan, Jodhpur, 342001, IN (per Sayari).",
+        "prefix": null,
+        "suffix": null
+      },
+      "sourceHash": "sha256:f3d676c69b9314788dc1327e1546eed6bd493620d5d86a283a3abad16bf91825",
+      "sourceUrl": "https://graph.sayari.com/resource/entity/_6J_QMFQcBKBl-_b7HIvOw",
+      "retrievedAt": "2026-08-26T12:01:55Z",
+      "sourceLastUpdated": null,
+      "classification": "public",
+      "dataLineage": []
+    },
+    {
+      "id": "citation-20",
+      "claimIds": [
+        "claim-20"
+      ],
+      "documentId": "urn:a2k:vendor:sayari:doc:_6J_QMFQcBKBl-_b7HIvOw:profile",
+      "title": "MOHSIN ALI ANSARI (Sayari)",
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "MOHSIN ALI ANSARI -- identifiers: {'type': 'unknown', 'value': '1313022209'}, {'type': 'lei', 'value': '648815M06G2ZYT6GO810'}, {'type': 'unknown', 'value': '08AMFPA7824D1ZD'} (per Sayari).",
+        "prefix": null,
+        "suffix": null
+      },
+      "sourceHash": "sha256:dff7b4d58f1ec427ab957f3d8b80c86e58ab7a2302fa407fa6f660721a704d4e",
+      "sourceUrl": "https://graph.sayari.com/resource/entity/_6J_QMFQcBKBl-_b7HIvOw",
+      "retrievedAt": "2026-08-26T12:01:55Z",
+      "sourceLastUpdated": null,
+      "classification": "public",
+      "dataLineage": []
+    },
+    {
+      "id": "citation-21",
+      "claimIds": [
+        "claim-21"
+      ],
+      "documentId": "urn:a2k:vendor:sayari:doc:_6J_QMFQcBKBl-_b7HIvOw:profile",
+      "title": "MOHSIN ALI ANSARI (Sayari)",
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "MOHSIN ALI ANSARI -- countries: IND (per Sayari).",
+        "prefix": null,
+        "suffix": null
+      },
+      "sourceHash": "sha256:f3d6fda655ba5dcc4afd6ac2381c6709236826263e6548259cf000e1fc6b7ca6",
+      "sourceUrl": "https://graph.sayari.com/resource/entity/_6J_QMFQcBKBl-_b7HIvOw",
+      "retrievedAt": "2026-08-26T12:01:55Z",
+      "sourceLastUpdated": null,
+      "classification": "public",
+      "dataLineage": []
+    },
+    {
+      "id": "citation-22",
+      "claimIds": [
+        "claim-22"
+      ],
+      "documentId": "urn:a2k:vendor:sayari:doc:_6J_QMFQcBKBl-_b7HIvOw:profile",
+      "title": "MOHSIN ALI ANSARI (Sayari)",
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "MOHSIN ALI ANSARI -- sanctioned: False (per Sayari).",
+        "prefix": null,
+        "suffix": null
+      },
+      "sourceHash": "sha256:6e068c01013b233d98b10e3b4a9fe9ec2e54c4957dadffd8083473886ed81f02",
+      "sourceUrl": "https://graph.sayari.com/resource/entity/_6J_QMFQcBKBl-_b7HIvOw",
+      "retrievedAt": "2026-08-26T12:01:55Z",
+      "sourceLastUpdated": null,
+      "classification": "public",
+      "dataLineage": []
+    },
+    {
+      "id": "citation-23",
+      "claimIds": [
+        "claim-23"
+      ],
+      "documentId": "urn:a2k:vendor:sayari:doc:_6J_QMFQcBKBl-_b7HIvOw:profile",
+      "title": "MOHSIN ALI ANSARI (Sayari)",
+      "selector": {
+        "type": "TextQuoteSelector",
+        "exact": "MOHSIN ALI ANSARI -- pep: False (per Sayari).",
+        "prefix": null,
+        "suffix": null
+      },
+      "sourceHash": "sha256:bdfdad65f4c001227a94c3cbe6c135370fc8cae138b937ab0ec693c89380ad85",
+      "sourceUrl": "https://graph.sayari.com/resource/entity/_6J_QMFQcBKBl-_b7HIvOw",
+      "retrievedAt": "2026-08-26T12:01:55Z",
+      "sourceLastUpdated": null,
+      "classification": "public",
+      "dataLineage": []
+    }
+  ],
+  "grounding": {
+    "groundedRatio": 1.0,
+    "ungroundedSpans": [],
+    "confidence": null,
+    "confidenceMethod": null,
+    "strictGroundingSatisfied": true
+  },
+  "freshness": {
+    "sourceLastUpdated": null,
+    "reviewedAt": null,
+    "nextReviewDue": null,
+    "retrievedAt": "2026-08-26T12:01:55Z",
+    "stale": false,
+    "validAsOf": "2026-08-26",
+    "validUntil": null
+  },
+  "accessDecision": {
+    "decision": "allowed",
+    "reason": "Vendor commercial/public data (tier S0, A2K-KBCard-Schema section 4.4.1); no OBO assertion required at this tier.",
+    "appliedScopes": [],
+    "dataClassification": "public",
+    "policyEngine": "a2k-box-gateway",
+    "decisionId": "ff4b2d87-9847-4230-b21d-bdc1f346de7a",
+    "oboValidated": null
+  },
+  "audit": {
+    "requestId": "c031bbc5-ff7c-4dd6-94a1-7f41132af3e6",
+    "sessionId": null,
+    "traceId": null,
+    "agentId": null,
+    "agentInstanceId": null,
+    "userId": null,
+    "sourceKbId": "urn:a2k:vendor:sayari",
+    "sourceKbVersion": "live",
+    "kbCardVersion": null,
+    "operation": "ask",
+    "policyDecision": "allowed",
+    "decisionReason": null,
+    "citationIds": [
+      "citation-1",
+      "citation-2",
+      "citation-3",
+      "citation-4",
+      "citation-5",
+      "citation-6",
+      "citation-7",
+      "citation-8",
+      "citation-9",
+      "citation-10",
+      "citation-11",
+      "citation-12",
+      "citation-13",
+      "citation-14",
+      "citation-15",
+      "citation-16",
+      "citation-17",
+      "citation-18",
+      "citation-19",
+      "citation-20",
+      "citation-21",
+      "citation-22",
+      "citation-23"
+    ],
+    "logged": true,
+    "loggedAt": "2026-08-26T12:01:55Z",
+    "logTarget": "local-jsonl",
+    "immutableLogRequired": false,
+    "logRef": "cbc8e0e6-9c9e-42da-b896-b72a99c31a3d"
+  },
+  "conflicts": [],
+  "referrals": [],
+  "usage": {
+    "latencyMs": 21529,
+    "retrievalCount": 23
+  },
+  "pageInfo": null,
+  "responseSignature": null,
+  "error": null,
+  "conflictReport": null
+}

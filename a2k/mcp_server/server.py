@@ -121,7 +121,10 @@ async def _cala_raw_response_if_enabled(query: str, sources: list[str] | None) -
 
 @mcp.tool(name="a2k.search")
 async def a2k_search(query: str, sources: list[str] | None = None, limit: int = 10) -> dict:
-    """Retrieve relevant passages with citations from Cala and/or Sayari. No synthesized answer -- use a2k.ask for that."""
+    """Retrieve relevant passages with citations from Cala and/or Sayari. No synthesized answer -- use a2k.ask for that.
+
+    `query` should be the company/entity name itself, not a full sentence or
+    question -- see a2k.ask's docstring for why."""
     raw = await _cala_raw_response_if_enabled(query, sources)
     if raw is not None:
         return raw
@@ -137,6 +140,21 @@ async def a2k_ask(
     reportConflicts: bool = True,
 ) -> dict:
     """Ask a question about a company; returns a cited, synthesized answer.
+
+    `query` -- prefer just the company/entity name (e.g. "Allwyn Investments
+    Cyprus") over a full sentence or question about it (e.g. "Allwyn
+    Investments Cyprus detailed information" or "What do we know about
+    Allwyn Investments Cyprus?"). This matters differently per vendor:
+    Cala tolerates a fuller natural-language query fine -- if a strict name
+    match finds nothing, it automatically falls back to a semantic
+    knowledge-search tool that does handle full questions. Sayari has no
+    such fallback: its search is a name/text matcher only, and a query
+    padded with extra words routinely returns zero matches even when the
+    entity itself exists in Sayari's data -- there's no second attempt.
+    So: if `sources` includes "sayari" (or is omitted, fanning out to both),
+    use just the entity name -- that also works fine for Cala. Only lean on
+    a fuller natural-language `query` when calling `sources=["cala"]`
+    specifically and the request genuinely isn't a single-entity lookup.
 
     `sources` optionally restricts to one provider, e.g. ["cala"] or
     ["sayari"]; omit it to fan out to both (default). If `conflicts` in the

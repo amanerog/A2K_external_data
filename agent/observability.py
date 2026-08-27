@@ -89,9 +89,12 @@ class ToolCallLogger:
     at zero for each query anyway.
     """
 
-    def __init__(self, *, session_id: str | None, internal_client: str | None) -> None:
+    def __init__(
+        self, *, session_id: str | None, internal_client: str | None, verbose: bool = False
+    ) -> None:
         self._session_id = session_id
         self._internal_client = internal_client
+        self._verbose = verbose
         self._start_times: dict[str, str] = {}  # toolUseId -> ISO timestamp captured in _before
         self.invocation_count = 0
         self.error_count = 0
@@ -102,6 +105,15 @@ class ToolCallLogger:
 
     def _before(self, event: BeforeToolCallEvent) -> None:
         self._start_times[event.tool_use["toolUseId"]] = _now_iso()
+        if self._verbose:
+            # This is what gets sent to *our* MCP (a2k-box, through the Gateway) --
+            # not Sayari's/Cala's own MCP underneath it. a2k-box's Runtime is a
+            # separate process (remote, on AgentCore), so what *it* then sends to
+            # Sayari/Cala isn't observable from here -- see adapters/sayari_mcp.py's
+            # `_call_tool` tracing (A2K_TRACE_CALLS, CloudWatch) or
+            # test_sayari_probe.py (runs the adapter locally) for that side.
+            print(f">> [our MCP] tool called: {event.tool_use.get('name')}")
+            print(f"   arguments:  {json.dumps(event.tool_use.get('input'), ensure_ascii=False)}")
 
     def _after(self, event: AfterToolCallEvent) -> None:
         tool_use_id = event.tool_use["toolUseId"]
@@ -133,6 +145,12 @@ class ToolCallLogger:
             error_type = type(event.exception).__name__
         elif errored:
             error_type = "ToolError"
+
+        if self._verbose:
+            if event.exception is not None:
+                print(f"<< [our MCP] raised: {error_type}: {event.exception}")
+            else:
+                print(f"<< [our MCP] result:  {json.dumps(result, ensure_ascii=False)}")
 
         _emit(
             {

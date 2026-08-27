@@ -313,6 +313,7 @@ def ask(
     silent: bool = False,
     session_id: str | None = None,
     internal_client: str | None = None,
+    debug: bool = False,
 ) -> str:
     """Run one question through the router agent and return the final answer text.
 
@@ -324,9 +325,19 @@ def ask(
     they identify this call in the `agent.tool_call` log lines and the QueryCount/
     ErrorCount/Latency/InvocationCount/ClientCount EMF metrics emitted below, and are
     never sent to the model or to a2k-box/Cala/Sayari.
+
+    `debug=True` prints every tool call's full name+arguments and its raw
+    result/exception as it happens (`ToolCallLogger`'s verbose mode) -- this is
+    what gets sent to *our* MCP (a2k-box, through the Gateway), the only MCP
+    hop this process itself makes. It says nothing about what a2k-box's Runtime
+    then sends on to Sayari's/Cala's own MCP servers underneath -- that's a
+    separate remote process; see adapters/sayari_mcp.py's `_call_tool` tracing
+    (A2K_TRACE_CALLS, CloudWatch) or test_sayari_probe.py for that side.
     """
     query_start = time.monotonic()
-    tool_logger = observability.ToolCallLogger(session_id=session_id, internal_client=internal_client)
+    tool_logger = observability.ToolCallLogger(
+        session_id=session_id, internal_client=internal_client, verbose=debug
+    )
 
     model = BedrockModel(model_id=model_id, region_name=region)
     tools, catalogue_text = _get_tools_and_catalogue(gateway_url, client_id, client_secret)

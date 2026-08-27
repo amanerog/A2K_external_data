@@ -1,0 +1,1430 @@
+
+=== Sayari MCP -- 20 tools, full inputSchema ===
+
+--- get_entity_profile ---
+Get the full profile of a Sayari entity including all attributes (names, addresses, identifiers, status, financials), relationships (shareholders, directors, officers, subsidiaries, trade partners), and risk factors (sanctions, PEP, Basel AML index, CPI score). Requires a Sayari entity_id. Use after resolving or searching for an entity. Treat the profile as evidence, not infallible ground truth: confirm that names, identifiers, countries, entity type, and relationships all fit the same legal entity. If the node appears conflated or carries critical risk flags, explain the ambiguity instead of silently normalizing it.
+{
+  "properties": {
+    "entity_id": {
+      "title": "Entity Id",
+      "type": "string"
+    },
+    "relationships_limit": {
+      "default": 50,
+      "title": "Relationships Limit",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "entity_id"
+  ],
+  "title": "get_entity_profileArguments",
+  "type": "object"
+}
+
+--- get_entity_summary ---
+Get a condensed profile of a Sayari entity with attributes and risk factors but WITHOUT relationships. Faster and cheaper than get_entity_profile. Use when you only need to check an entity's basic info, risk status, or identifiers without exploring its network. Treat the summary as evidence, not infallible ground truth: confirm that names, identifiers, countries, and entity type all fit the same legal entity before relying on it.
+{
+  "properties": {
+    "entity_id": {
+      "title": "Entity Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "entity_id"
+  ],
+  "title": "get_entity_summaryArguments",
+  "type": "object"
+}
+
+--- lookup_risk_factors ---
+Look up Sayari risk factor definitions, categories, and scoring methodology. Use this when you encounter risk flags (e.g. basel_aml_index, cpi_score, forced_labor_index, regulatory_action) in entity profiles, search results, or traversal outputs and need to understand what they mean, how they are scored, or how to interpret their levels. Broad lookups stay compact; filter by specific risk factor IDs when you need the richest available scoring detail. Call this early in an investigation to understand the risk landscape before interpreting results.
+{
+  "properties": {
+    "ids": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Ids"
+    }
+  },
+  "title": "lookup_risk_factorsArguments",
+  "type": "object"
+}
+
+--- lookup_ontology ---
+Look up Sayari reference data by category: entity types, relationship types, countries, identifiers, attributes, currencies, languages, regions, enums, or source types. Use when you need to understand valid values for API filters, interpret enum fields in results, or explain data model concepts to the user.
+{
+  "$defs": {
+    "OntologyCategory": {
+      "enum": [
+        "entity_types",
+        "relationships",
+        "countries",
+        "identifiers",
+        "attributes",
+        "currencies",
+        "languages",
+        "regions",
+        "enums",
+        "source_types"
+      ],
+      "title": "OntologyCategory",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "category": {
+      "$ref": "#/$defs/OntologyCategory"
+    },
+    "ids": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Ids"
+    }
+  },
+  "required": [
+    "category"
+  ],
+  "title": "lookup_ontologyArguments",
+  "type": "object"
+}
+
+--- lookup_data_sources ---
+Look up Sayari's data source catalog to understand what public record sources Sayari ingests and where they come from. Optionally filter by country or source type. Use to answer questions about data coverage, provenance, or to explain where specific data came from.
+{
+  "properties": {
+    "country": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Country"
+    },
+    "source_type": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Type"
+    }
+  },
+  "title": "lookup_data_sourcesArguments",
+  "type": "object"
+}
+
+--- lookup_hs_codes ---
+Look up Harmonized System (HS) commodity codes used in international trade. Use when analyzing trade/shipment data, filtering by product type, or when the user asks about HS codes. Optionally filter by specific codes to get descriptions.
+{
+  "properties": {
+    "codes": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Codes"
+    }
+  },
+  "title": "lookup_hs_codesArguments",
+  "type": "object"
+}
+
+--- get_record ---
+Retrieve the original source record from Sayari's database. Use when the user wants to verify the source of a specific data point, needs a document URL for evidence, or asks 'where does this information come from?'. Requires a record_id, which appears in entity profiles and traversal results.
+{
+  "properties": {
+    "record_id": {
+      "title": "Record Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "record_id"
+  ],
+  "title": "get_recordArguments",
+  "type": "object"
+}
+
+--- search_entities ---
+Search Sayari's knowledge graph for entities matching a query string. Use for broad or investigative searches where you have partial information, want to explore multiple potential matches, or need to filter by entity type, country, or risk factors. Treat candidate selection as a same legal entity question, not same-name matching: compare identifiers, countries, source quality, relationships, and risk flags before choosing a record. If results look conflated across jurisdictions or entity types, surface the ambiguity instead of guessing. Supports elasticsearch simple query string syntax. Uses the shared response_mode contract. `response_mode=auto` is the default, uses the smaller AUTO_RESPONSE_SIZE working budget, and may ignore strict `limit` semantics to fill the response budget for the agent. Leave `response_mode` unset unless you have a clear reason to override it. Do not force `response_mode=full` on broad search/list tools just because it exists; use `full` only when the working set is already very small or the user explicitly asks for richer detail. If the question is still broad, do aggregate analysis with the facet tools first instead of forcing `full` on a row-returning tool. Read `items` as the working set, use row `next_action` for drill-down, inspect `quality_flags` for ambiguity or data gaps, and use structured `continue` only when you truly need more breadth. In `full`, `_guidance` contains only `selection_rule`, `ambiguity_rule`, and `verification_rule`.
+{
+  "$defs": {
+    "ResponseMode": {
+      "description": "Supported response modes for heavy read tools.",
+      "enum": [
+        "auto",
+        "full",
+        "compact",
+        "export"
+      ],
+      "title": "ResponseMode",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "query": {
+      "title": "Query",
+      "type": "string"
+    },
+    "limit": {
+      "default": 25,
+      "title": "Limit",
+      "type": "integer"
+    },
+    "offset": {
+      "default": 0,
+      "title": "Offset",
+      "type": "integer"
+    },
+    "response_mode": {
+      "$ref": "#/$defs/ResponseMode",
+      "default": "auto"
+    },
+    "page_token": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Page Token"
+    }
+  },
+  "required": [
+    "query"
+  ],
+  "title": "search_entitiesArguments",
+  "type": "object"
+}
+
+--- search_entity_facets ---
+Return entity search facet counts for aggregate analysis without spending the response budget on result rows. Use this when you need to understand the shape of a broad entity query before drilling into specific records. This tool is best for comparing countries, entity types, and other facet buckets across the search results at an aggregate level; then use those buckets to rewrite a narrower `search_entities` query or move directly to the relevant entity tool once you know what slice of the result set matters.
+{
+  "properties": {
+    "query": {
+      "title": "Query",
+      "type": "string"
+    },
+    "bucket_limit": {
+      "default": 10,
+      "title": "Bucket Limit",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "query"
+  ],
+  "title": "search_entity_facetsArguments",
+  "type": "object"
+}
+
+--- get_upstream_supply_chain ---
+Trace the upstream supply chain of an entity — find its suppliers, their suppliers, and so on, based on trade data. Use when the user asks about supply chain risk, supplier mapping, 'who does this company buy from?', 'where do their materials come from?', or 'show me the supply chain'. Can filter by product (HS code), risk factors, countries, and date range. Requires a Sayari entity_id. NOTE: This tool traces upstream only (sourcing/suppliers). For downstream questions like 'who do they sell to?', 'who do they ship to?', or 'who are their customers?', use search_shipments or search_buyers instead. Uses the shared response_mode contract. `response_mode=auto` is the default, uses the smaller AUTO_RESPONSE_SIZE working budget, and may ignore strict `limit` semantics to fill the response budget for the agent. Leave `response_mode` unset unless you have a clear reason to override it. Do not force `response_mode=full` on broad search/list tools just because it exists; use `full` only when the working set is already very small or the user explicitly asks for richer detail. If the question is still broad, do aggregate analysis with the facet tools first instead of forcing `full` on a row-returning tool. Read `items` as the working set, use row `next_action` for drill-down, inspect `quality_flags` for ambiguity or data gaps, and use structured `continue` only when you truly need more breadth. In `full`, `_guidance` contains only `selection_rule`, `ambiguity_rule`, and `verification_rule`.
+{
+  "$defs": {
+    "ResponseMode": {
+      "description": "Supported response modes for heavy read tools.",
+      "enum": [
+        "auto",
+        "full",
+        "compact",
+        "export"
+      ],
+      "title": "ResponseMode",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "entity_id": {
+      "title": "Entity Id",
+      "type": "string"
+    },
+    "product": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Product"
+    },
+    "risk": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Risk"
+    },
+    "countries": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Countries"
+    },
+    "component": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Component"
+    },
+    "min_date": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Min Date"
+    },
+    "max_date": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Max Date"
+    },
+    "max_depth": {
+      "default": 4,
+      "title": "Max Depth",
+      "type": "integer"
+    },
+    "limit": {
+      "default": 25,
+      "title": "Limit",
+      "type": "integer"
+    },
+    "response_mode": {
+      "$ref": "#/$defs/ResponseMode",
+      "default": "auto"
+    }
+  },
+  "required": [
+    "entity_id"
+  ],
+  "title": "get_upstream_supply_chainArguments",
+  "type": "object"
+}
+
+--- search_shipments ---
+Search Sayari's global trade database for shipments matching criteria like shipper name, receiver name, HS codes, departure/arrival countries, date ranges, and product descriptions. Use when the user asks about trade activity, imports, exports, shipment history, or supply chain flows and you already have a narrowed corridor, counterparty, HS, or date window. For corridor concentration or counterparty rollups, prefer search_suppliers, search_buyers, or traverse_network filtered to ships_to/receives_from first. Returns shipment details including parties, goods, dates, and risk flags; compact/export organize each pair into monthly shipment buckets with deduped HS+description aggregates. Uses the shared response_mode contract. `response_mode=auto` is the default, uses the smaller AUTO_RESPONSE_SIZE working budget, and may ignore strict `limit` semantics to fill the response budget for the agent. Leave `response_mode` unset unless you have a clear reason to override it. Do not force `response_mode=full` on broad search/list tools just because it exists; use `full` only when the working set is already very small or the user explicitly asks for richer detail. If the question is still broad, do aggregate analysis with the facet tools first instead of forcing `full` on a row-returning tool. Read `items` as the working set, use row `next_action` for drill-down, inspect `quality_flags` for ambiguity or data gaps, and use structured `continue` only when you truly need more breadth. In `full`, `_guidance` contains only `selection_rule`, `ambiguity_rule`, and `verification_rule`.
+{
+  "$defs": {
+    "ResponseMode": {
+      "description": "Supported response modes for heavy read tools.",
+      "enum": [
+        "auto",
+        "full",
+        "compact",
+        "export"
+      ],
+      "title": "ResponseMode",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "query": {
+      "title": "Query",
+      "type": "string"
+    },
+    "shipper_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Shipper Name"
+    },
+    "receiver_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Receiver Name"
+    },
+    "departure_country": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Departure Country"
+    },
+    "arrival_country": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Arrival Country"
+    },
+    "hs_code": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Hs Code"
+    },
+    "date_from": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Date From"
+    },
+    "date_to": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Date To"
+    },
+    "limit": {
+      "default": 25,
+      "title": "Limit",
+      "type": "integer"
+    },
+    "offset": {
+      "default": 0,
+      "title": "Offset",
+      "type": "integer"
+    },
+    "response_mode": {
+      "$ref": "#/$defs/ResponseMode",
+      "default": "auto"
+    },
+    "page_token": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Page Token"
+    }
+  },
+  "required": [
+    "query"
+  ],
+  "title": "search_shipmentsArguments",
+  "type": "object"
+}
+
+--- search_suppliers ---
+Search for suppliers (shippers/exporters) in Sayari's trade database. Use when the user asks 'who supplies X?', 'find exporters of [product] from [country]', wants corridor concentration signals, or needs exporter rollups before drilling into specific shipments. Returns aggregated supplier profiles with trade activity summaries. Uses the shared response_mode contract. `response_mode=auto` is the default, uses the smaller AUTO_RESPONSE_SIZE working budget, and may ignore strict `limit` semantics to fill the response budget for the agent. Leave `response_mode` unset unless you have a clear reason to override it. Do not force `response_mode=full` on broad search/list tools just because it exists; use `full` only when the working set is already very small or the user explicitly asks for richer detail. If the question is still broad, do aggregate analysis with the facet tools first instead of forcing `full` on a row-returning tool. Read `items` as the working set, use row `next_action` for drill-down, inspect `quality_flags` for ambiguity or data gaps, and use structured `continue` only when you truly need more breadth. In `full`, `_guidance` contains only `selection_rule`, `ambiguity_rule`, and `verification_rule`.
+{
+  "$defs": {
+    "ResponseMode": {
+      "description": "Supported response modes for heavy read tools.",
+      "enum": [
+        "auto",
+        "full",
+        "compact",
+        "export"
+      ],
+      "title": "ResponseMode",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "query": {
+      "title": "Query",
+      "type": "string"
+    },
+    "shipper_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Shipper Name"
+    },
+    "receiver_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Receiver Name"
+    },
+    "departure_country": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Departure Country"
+    },
+    "arrival_country": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Arrival Country"
+    },
+    "hs_code": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Hs Code"
+    },
+    "date_from": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Date From"
+    },
+    "date_to": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Date To"
+    },
+    "limit": {
+      "default": 25,
+      "title": "Limit",
+      "type": "integer"
+    },
+    "offset": {
+      "default": 0,
+      "title": "Offset",
+      "type": "integer"
+    },
+    "response_mode": {
+      "$ref": "#/$defs/ResponseMode",
+      "default": "auto"
+    },
+    "page_token": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Page Token"
+    }
+  },
+  "required": [
+    "query"
+  ],
+  "title": "search_suppliersArguments",
+  "type": "object"
+}
+
+--- search_buyers ---
+Search for buyers (receivers/importers) in Sayari's trade database. Use when the user asks 'who buys from X?', 'find importers of [product] in [country]', wants corridor concentration signals, or needs importer rollups before drilling into specific shipments. Uses the shared response_mode contract. `response_mode=auto` is the default, uses the smaller AUTO_RESPONSE_SIZE working budget, and may ignore strict `limit` semantics to fill the response budget for the agent. Leave `response_mode` unset unless you have a clear reason to override it. Do not force `response_mode=full` on broad search/list tools just because it exists; use `full` only when the working set is already very small or the user explicitly asks for richer detail. If the question is still broad, do aggregate analysis with the facet tools first instead of forcing `full` on a row-returning tool. Read `items` as the working set, use row `next_action` for drill-down, inspect `quality_flags` for ambiguity or data gaps, and use structured `continue` only when you truly need more breadth. In `full`, `_guidance` contains only `selection_rule`, `ambiguity_rule`, and `verification_rule`.
+{
+  "$defs": {
+    "ResponseMode": {
+      "description": "Supported response modes for heavy read tools.",
+      "enum": [
+        "auto",
+        "full",
+        "compact",
+        "export"
+      ],
+      "title": "ResponseMode",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "query": {
+      "title": "Query",
+      "type": "string"
+    },
+    "shipper_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Shipper Name"
+    },
+    "receiver_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Receiver Name"
+    },
+    "departure_country": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Departure Country"
+    },
+    "arrival_country": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Arrival Country"
+    },
+    "hs_code": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Hs Code"
+    },
+    "date_from": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Date From"
+    },
+    "date_to": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Date To"
+    },
+    "limit": {
+      "default": 25,
+      "title": "Limit",
+      "type": "integer"
+    },
+    "offset": {
+      "default": 0,
+      "title": "Offset",
+      "type": "integer"
+    },
+    "response_mode": {
+      "$ref": "#/$defs/ResponseMode",
+      "default": "auto"
+    },
+    "page_token": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Page Token"
+    }
+  },
+  "required": [
+    "query"
+  ],
+  "title": "search_buyersArguments",
+  "type": "object"
+}
+
+--- search_trade_facets ---
+Return trade search facet counts for aggregate analysis without spending the response budget on shipment or counterparty rows. Use this when a trade query is broad and you need to understand the dominant countries, counterparties, HS codes, or other buckets before choosing a targeted follow-up search. Prefer supplier/buyer scopes for concentration work and shipment scope for narrowed shipment confirmation. Buckets include explicit `follow_up` calls when the facet can be translated into a concrete trade search filter.
+{
+  "$defs": {
+    "TradeFacetScope": {
+      "enum": [
+        "shipments",
+        "suppliers",
+        "buyers"
+      ],
+      "title": "TradeFacetScope",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "scope": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TradeFacetScope"
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "title": "Scope"
+    },
+    "query": {
+      "title": "Query",
+      "type": "string"
+    },
+    "shipper_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Shipper Name"
+    },
+    "receiver_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Receiver Name"
+    },
+    "departure_country": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Departure Country"
+    },
+    "arrival_country": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Arrival Country"
+    },
+    "hs_code": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Hs Code"
+    },
+    "date_from": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Date From"
+    },
+    "date_to": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Date To"
+    },
+    "bucket_limit": {
+      "default": 10,
+      "title": "Bucket Limit",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "scope",
+    "query"
+  ],
+  "title": "search_trade_facetsArguments",
+  "type": "object"
+}
+
+--- get_investigation_guidance ---
+Get analyst tradecraft and investigation guidance relevant to your current task. Call this BEFORE beginning an investigation in an unfamiliar jurisdiction, when you need help disambiguating over-resolved, fragmented, or misclassified entity data, when you need to reason about noisy names or identifiers, when you need to know what Sayari can and cannot tell you about a topic, when you want investigation methodology advice (e.g., how to trace beneficial owners, how to screen for sanctions), or when you need to know what red flags to look for. Describe what you are investigating and optionally filter by country (ISO alpha-2 or alpha-3 codes accepted), entity type, investigation type, or category. This tool does not call the Sayari API — it retrieves pre-built analyst knowledge.
+{
+  "$defs": {
+    "GuidanceCategory": {
+      "description": "Valid category filters for tradecraft guidance.",
+      "enum": [
+        "capability",
+        "jurisdiction",
+        "methodology",
+        "red_flag"
+      ],
+      "title": "GuidanceCategory",
+      "type": "string"
+    },
+    "InvestigationType": {
+      "description": "Valid investigation type filters for tradecraft guidance.",
+      "enum": [
+        "corporate_structure",
+        "entity_resolution",
+        "pep_investigation",
+        "sanctions_screening",
+        "shell_company_detection",
+        "supply_chain",
+        "trade_analysis",
+        "ubo_tracing"
+      ],
+      "title": "InvestigationType",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "query": {
+      "title": "Query",
+      "type": "string"
+    },
+    "countries": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Countries"
+    },
+    "entity_types": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Entity Types"
+    },
+    "investigation_type": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/InvestigationType"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "category": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GuidanceCategory"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "limit": {
+      "default": 5,
+      "title": "Limit",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "query"
+  ],
+  "title": "get_investigation_guidanceArguments",
+  "type": "object"
+}
+
+--- find_beneficial_owners ---
+Trace the ownership chain of a company upstream to find its ultimate beneficial owners — the people or entities that ultimately own or control it. Use when the user asks 'who owns this company?', 'who controls this?', 'what's the ownership structure?', or 'who are the beneficial owners?'. Returns ownership paths with percentages where available. Requires a Sayari entity_id. Uses the shared response_mode contract. `response_mode=auto` is the default, uses the smaller AUTO_RESPONSE_SIZE working budget, and may ignore strict `limit` semantics to fill the response budget for the agent. Leave `response_mode` unset unless you have a clear reason to override it. Do not force `response_mode=full` on broad search/list tools just because it exists; use `full` only when the working set is already very small or the user explicitly asks for richer detail. If the question is still broad, do aggregate analysis with the facet tools first instead of forcing `full` on a row-returning tool. Read `items` as the working set, use row `next_action` for drill-down, inspect `quality_flags` for ambiguity or data gaps, and use structured `continue` only when you truly need more breadth. In `full`, `_guidance` contains only `selection_rule`, `ambiguity_rule`, and `verification_rule`.
+{
+  "$defs": {
+    "ResponseMode": {
+      "description": "Supported response modes for heavy read tools.",
+      "enum": [
+        "auto",
+        "full",
+        "compact",
+        "export"
+      ],
+      "title": "ResponseMode",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "entity_id": {
+      "title": "Entity Id",
+      "type": "string"
+    },
+    "limit": {
+      "default": 25,
+      "title": "Limit",
+      "type": "integer"
+    },
+    "min_depth": {
+      "default": 1,
+      "title": "Min Depth",
+      "type": "integer"
+    },
+    "max_depth": {
+      "default": 4,
+      "title": "Max Depth",
+      "type": "integer"
+    },
+    "countries": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Countries"
+    },
+    "entity_types": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Entity Types"
+    },
+    "response_mode": {
+      "$ref": "#/$defs/ResponseMode",
+      "default": "auto"
+    }
+  },
+  "required": [
+    "entity_id"
+  ],
+  "title": "find_beneficial_ownersArguments",
+  "type": "object"
+}
+
+--- find_downstream_entities ---
+Find entities that are directly or indirectly owned or controlled by a target entity — its subsidiaries, sub-subsidiaries, and downstream holdings. Use when the user asks 'what does this company own?', 'show me their subsidiaries', or 'what's their corporate structure?'. Requires a Sayari entity_id. Uses the shared response_mode contract. `response_mode=auto` is the default, uses the smaller AUTO_RESPONSE_SIZE working budget, and may ignore strict `limit` semantics to fill the response budget for the agent. Leave `response_mode` unset unless you have a clear reason to override it. Do not force `response_mode=full` on broad search/list tools just because it exists; use `full` only when the working set is already very small or the user explicitly asks for richer detail. If the question is still broad, do aggregate analysis with the facet tools first instead of forcing `full` on a row-returning tool. Read `items` as the working set, use row `next_action` for drill-down, inspect `quality_flags` for ambiguity or data gaps, and use structured `continue` only when you truly need more breadth. In `full`, `_guidance` contains only `selection_rule`, `ambiguity_rule`, and `verification_rule`.
+{
+  "$defs": {
+    "ResponseMode": {
+      "description": "Supported response modes for heavy read tools.",
+      "enum": [
+        "auto",
+        "full",
+        "compact",
+        "export"
+      ],
+      "title": "ResponseMode",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "entity_id": {
+      "title": "Entity Id",
+      "type": "string"
+    },
+    "limit": {
+      "default": 25,
+      "title": "Limit",
+      "type": "integer"
+    },
+    "offset": {
+      "default": 0,
+      "title": "Offset",
+      "type": "integer"
+    },
+    "min_depth": {
+      "default": 1,
+      "title": "Min Depth",
+      "type": "integer"
+    },
+    "max_depth": {
+      "default": 4,
+      "title": "Max Depth",
+      "type": "integer"
+    },
+    "countries": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Countries"
+    },
+    "entity_types": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Entity Types"
+    },
+    "response_mode": {
+      "$ref": "#/$defs/ResponseMode",
+      "default": "auto"
+    }
+  },
+  "required": [
+    "entity_id"
+  ],
+  "title": "find_downstream_entitiesArguments",
+  "type": "object"
+}
+
+--- check_watchlist ---
+Screen an entity for connections to sanctioned parties, politically exposed persons (PEPs), or entities with regulatory actions. Use when the user asks about sanctions exposure, compliance risk, PEP connections, or wants to screen a third party. Returns paths showing HOW the entity is connected to flagged parties. Requires a Sayari entity_id. Uses the shared response_mode contract. `response_mode=auto` is the default, uses the smaller AUTO_RESPONSE_SIZE working budget, and may ignore strict `limit` semantics to fill the response budget for the agent. Leave `response_mode` unset unless you have a clear reason to override it. Do not force `response_mode=full` on broad search/list tools just because it exists; use `full` only when the working set is already very small or the user explicitly asks for richer detail. If the question is still broad, do aggregate analysis with the facet tools first instead of forcing `full` on a row-returning tool. Read `items` as the working set, use row `next_action` for drill-down, inspect `quality_flags` for ambiguity or data gaps, and use structured `continue` only when you truly need more breadth. In `full`, `_guidance` contains only `selection_rule`, `ambiguity_rule`, and `verification_rule`.
+{
+  "$defs": {
+    "ResponseMode": {
+      "description": "Supported response modes for heavy read tools.",
+      "enum": [
+        "auto",
+        "full",
+        "compact",
+        "export"
+      ],
+      "title": "ResponseMode",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "entity_id": {
+      "title": "Entity Id",
+      "type": "string"
+    },
+    "limit": {
+      "default": 25,
+      "title": "Limit",
+      "type": "integer"
+    },
+    "min_depth": {
+      "default": 1,
+      "title": "Min Depth",
+      "type": "integer"
+    },
+    "max_depth": {
+      "default": 4,
+      "title": "Max Depth",
+      "type": "integer"
+    },
+    "sanctioned": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Sanctioned"
+    },
+    "pep": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Pep"
+    },
+    "response_mode": {
+      "$ref": "#/$defs/ResponseMode",
+      "default": "auto"
+    }
+  },
+  "required": [
+    "entity_id"
+  ],
+  "title": "check_watchlistArguments",
+  "type": "object"
+}
+
+--- find_shortest_path ---
+Find the shortest connection path between two entities in Sayari's knowledge graph. Use when the user asks 'how are these two entities connected?', 'is there a relationship between X and Y?', or 'what links these companies?'. Requires two Sayari entity_ids.
+{
+  "properties": {
+    "source_entity_id": {
+      "title": "Source Entity Id",
+      "type": "string"
+    },
+    "target_entity_id": {
+      "title": "Target Entity Id",
+      "type": "string"
+    },
+    "entity_types": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Entity Types"
+    }
+  },
+  "required": [
+    "source_entity_id",
+    "target_entity_id"
+  ],
+  "title": "find_shortest_pathArguments",
+  "type": "object"
+}
+
+--- traverse_network ---
+Explore the network around an entity with configurable depth, relationship type filters, entity type filters, and country filters. Use for advanced investigations when the more specific traversal tools (find_beneficial_owners, check_watchlist, etc.) don't cover the use case. For example: 'show me all trade relationships within 2 hops' or 'find all connected vessels'. Requires a Sayari entity_id. Uses the shared response_mode contract. `response_mode=auto` is the default, uses the smaller AUTO_RESPONSE_SIZE working budget, and may ignore strict `limit` semantics to fill the response budget for the agent. Leave `response_mode` unset unless you have a clear reason to override it. Do not force `response_mode=full` on broad search/list tools just because it exists; use `full` only when the working set is already very small or the user explicitly asks for richer detail. If the question is still broad, do aggregate analysis with the facet tools first instead of forcing `full` on a row-returning tool. Read `items` as the working set, use row `next_action` for drill-down, inspect `quality_flags` for ambiguity or data gaps, and use structured `continue` only when you truly need more breadth. In `full`, `_guidance` contains only `selection_rule`, `ambiguity_rule`, and `verification_rule`.
+{
+  "$defs": {
+    "ResponseMode": {
+      "description": "Supported response modes for heavy read tools.",
+      "enum": [
+        "auto",
+        "full",
+        "compact",
+        "export"
+      ],
+      "title": "ResponseMode",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "entity_id": {
+      "title": "Entity Id",
+      "type": "string"
+    },
+    "limit": {
+      "default": 25,
+      "title": "Limit",
+      "type": "integer"
+    },
+    "offset": {
+      "default": 0,
+      "title": "Offset",
+      "type": "integer"
+    },
+    "min_depth": {
+      "default": 1,
+      "title": "Min Depth",
+      "type": "integer"
+    },
+    "max_depth": {
+      "default": 4,
+      "title": "Max Depth",
+      "type": "integer"
+    },
+    "relationships": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Relationships"
+    },
+    "entity_types": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Entity Types"
+    },
+    "countries": {
+      "anyOf": [
+        {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Countries"
+    },
+    "sanctioned": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Sanctioned"
+    },
+    "pep": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Pep"
+    },
+    "response_mode": {
+      "$ref": "#/$defs/ResponseMode",
+      "default": "auto"
+    }
+  },
+  "required": [
+    "entity_id"
+  ],
+  "title": "traverse_networkArguments",
+  "type": "object"
+}
