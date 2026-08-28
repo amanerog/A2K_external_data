@@ -210,6 +210,24 @@ class KBCard(BaseModel):
     # preferred. Added 2026-08-18 at the routing agent's request; not yet
     # consulted by any routing logic -- see a2k.listVendors in mcp_server/server.py.
     priority: int | None = None
+    # Local extension, same conformance rationale as `priority` above. Tells the
+    # calling agent how to build a2k.ask/a2k.search's `query` for *this* vendor:
+    # "entity" -- the vendor's search is a name/text matcher with no semantic
+    #   fallback (confirmed live for Sayari's search_entities -- a query padded
+    #   with extra words routinely returns zero matches, see adapters/sayari_mcp.py
+    #   and mcp_server/server.py's a2k.ask docstring) -- the caller must extract
+    #   just the entity name before querying.
+    # "natural_language_query" -- the vendor tolerates (or expects) a fuller
+    #   question, e.g. because it falls back to a semantic search tool when a
+    #   strict name match finds nothing (confirmed for Cala -- entity_search ->
+    #   knowledge_query -> knowledge_search, see adapters/cala_mcp.py).
+    # Deliberately `str | None`, not a Literal/enum: a caller reading this is
+    # expected to treat any missing/unrecognized value as "natural_language_query"
+    # (the safer default -- send the question unmodified rather than guess at
+    # entity extraction) rather than have card loading itself fail on a new value
+    # a future vendor might need. Not yet consulted by any routing logic in this
+    # codebase itself -- see a2k.listVendors in mcp_server/server.py.
+    queryType: str | None = None
     operations: list[OperationDeclaration]
     auth: Auth
     policies: Policies | None = None

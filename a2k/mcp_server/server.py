@@ -28,18 +28,38 @@ from ..models.request import A2KRequest, ExplainRequest, GetDocumentRequest, Req
 
 mcp = FastMCP(
     name="a2k-box",
+    # Read by any MCP client at `initialize` -- this is the closest thing this
+    # contract has to a "system prompt" that ships with the protocol itself,
+    # rather than living in one particular caller's own prompt engineering.
+    # Written for an agent with *no* prior context about this gateway (not
+    # just K2): before this was tightened, our own router agent's system
+    # prompt carried this same guidance separately (agent/core.py), which an
+    # external MCP client calling a2k-box directly would never see. Anything
+    # a caller needs to use this contract correctly belongs here or in the
+    # individual tool docstrings below, not in any one consumer's prompt.
     instructions=(
         "A2K-KCP gateway fronting Cala (financial/legal/regulatory filings) and "
-        "Sayari (ownership/risk graph) company-intelligence data for the K2 agent. "
-        "Not sure which vendor(s) a query needs? Call a2k.listVendors first to see "
-        "what each one actually covers, then pass the matching sourceId(s) as "
-        "a2k.ask's `sources` param -- omit `sources` to fan out to all vendors "
-        "when coverage genuinely overlaps or stays unclear. Call a2k.search for "
-        "raw cited passages, or a2k.ask for a synthesized, cited answer. If the "
-        "response's `conflicts` array is non-empty, Cala and Sayari disagree on a "
-        "fact -- surface both positions to the user; never silently prefer one "
-        "source. Use a2k.explain(answerRef=<audit.requestId>) to get the evidence "
-        "behind a prior a2k.ask response, and a2k.getDocument to retrieve the full "
+        "Sayari (ownership/risk graph) company-intelligence data. Framework-neutral: "
+        "any MCP client can call these tools directly, not just a specific consumer.\n\n"
+        "ALWAYS call a2k.listVendors before your first a2k.search/a2k.ask in a "
+        "session -- even if you think you already know which vendor fits. It "
+        "returns each vendor's actual current domains/topics/coverage scope and "
+        "status; do not guess from vendor names or from prior knowledge, and do "
+        "not skip this step to save a call. Only vendors with status \"active\" "
+        "are usable. Pass the matching sourceId(s) as a2k.ask/a2k.search's "
+        "`sources` param when exactly one (or a clear subset) of the active "
+        "vendors matches; omit `sources` entirely to fan out to all active "
+        "vendors when coverage genuinely overlaps or stays unclear after "
+        "checking -- omitting it is always safe and never wrong, just "
+        "potentially less precise than a correctly scoped `sources`.\n\n"
+        "Call a2k.search for raw cited passages, or a2k.ask for a synthesized, "
+        "cited answer -- see a2k.ask's own description for how to phrase its "
+        "`query` param (entity name, not a full sentence, especially when "
+        "Sayari is among the sources). If the response's `conflicts` array is "
+        "non-empty, Cala and Sayari disagree on a fact -- surface both "
+        "positions to the user; never silently prefer one source. Use "
+        "a2k.explain(answerRef=<audit.requestId>) to get the evidence behind a "
+        "prior a2k.ask response, and a2k.getDocument to retrieve the full "
         "source record behind any citation's documentId."
     ),
     # AgentCore Runtime hosts MCP servers at 0.0.0.0:8000/mcp (both are
@@ -77,16 +97,31 @@ def sayari_card() -> str:
 @mcp.tool(name="a2k.listVendors")
 async def a2k_list_vendors() -> dict:
     """Lists the vendor knowledge sources behind this gateway and what each one
-    actually covers (domains, topics, human-readable scope, status, priority) --
-    call this before a2k.ask/a2k.search when it isn't already obvious which
-    vendor(s) a query needs, then pass the matching `sourceId` value(s) as
-    a2k.ask's `sources` param. Never select a vendor whose `status` isn't
-    `active`. Omit `sources` entirely (fan out to all active vendors) when
-    coverage genuinely overlaps or stays unclear even after checking this --
-    `priority` (lower = preferred) is available as a tie-breaker if you need
-    one, not a reason to skip fan-out when genuine ambiguity remains. Same
-    domains/topics/scope data as the a2k://card/<vendor> resources, exposed as
-    a callable tool for clients that don't read MCP resources."""
+    actually covers (domains, topics, human-readable scope, status, priority,
+    queryType).
+
+    Call this FIRST, before your first a2k.search/a2k.ask in a session --
+    unconditionally, not just when it isn't obvious which vendor fits. Vendor
+    coverage/status here is the current, authoritative answer; don't rely on
+    a vendor's name, prior knowledge, or an earlier session to guess this
+    instead. It's a cheap local lookup (no external API call), so there's no
+    real cost to always calling it first.
+
+    Then pass the matching `sourceId` value(s) as a2k.ask/a2k.search's
+    `sources` param. Never select a vendor whose `status` isn't `active`.
+    Omit `sources` entirely (fan out to all active vendors) when coverage
+    genuinely overlaps or stays unclear even after checking this -- always a
+    safe fallback, never wrong, just potentially less precise than a
+    correctly scoped `sources`. `priority` (lower = preferred) is available
+    as a tie-breaker if you need one, not a reason to skip fan-out when
+    genuine ambiguity remains. `queryType` (`"entity"` or
+    `"natural_language_query"`, may be null) tells you how to build the
+    `query` you send *that specific vendor* -- see a2k.ask's own docstring
+    for what each value means and why it differs per vendor; treat a null/
+    unrecognized value as `"natural_language_query"` (send the question
+    unmodified) rather than guessing. Same domains/topics/scope data as the
+    a2k://card/<vendor> resources, exposed as a callable tool for clients
+    that don't read MCP resources."""
     vendors = []
     for source_id in ("cala", "sayari"):
         card = load_card(source_id)
@@ -99,6 +134,7 @@ async def a2k_list_vendors() -> dict:
                 "scope": card.knowledgeProfile.coverage.scope,
                 "status": card.enterprise.lifecycle.status,
                 "priority": card.priority,
+                "queryType": card.queryType,
             }
         )
     return {"vendors": vendors}
@@ -123,6 +159,11 @@ async def _cala_raw_response_if_enabled(query: str, sources: list[str] | None) -
 async def a2k_search(query: str, sources: list[str] | None = None, limit: int = 10) -> dict:
     """Retrieve relevant passages with citations from Cala and/or Sayari. No synthesized answer -- use a2k.ask for that.
 
+    Call a2k.listVendors first (unconditionally, once per session) if you
+    haven't already, to know which `sourceId`(s) to pass as `sources` --
+    don't guess from vendor names. Omitting `sources` fans out to all active
+    vendors and is always safe, just potentially less precise.
+
     `query` should be the company/entity name itself, not a full sentence or
     question -- see a2k.ask's docstring for why."""
     raw = await _cala_raw_response_if_enabled(query, sources)
@@ -141,20 +182,34 @@ async def a2k_ask(
 ) -> dict:
     """Ask a question about a company; returns a cited, synthesized answer.
 
-    `query` -- prefer just the company/entity name (e.g. "Allwyn Investments
-    Cyprus") over a full sentence or question about it (e.g. "Allwyn
-    Investments Cyprus detailed information" or "What do we know about
-    Allwyn Investments Cyprus?"). This matters differently per vendor:
-    Cala tolerates a fuller natural-language query fine -- if a strict name
-    match finds nothing, it automatically falls back to a semantic
-    knowledge-search tool that does handle full questions. Sayari has no
-    such fallback: its search is a name/text matcher only, and a query
-    padded with extra words routinely returns zero matches even when the
-    entity itself exists in Sayari's data -- there's no second attempt.
-    So: if `sources` includes "sayari" (or is omitted, fanning out to both),
-    use just the entity name -- that also works fine for Cala. Only lean on
-    a fuller natural-language `query` when calling `sources=["cala"]`
-    specifically and the request genuinely isn't a single-entity lookup.
+    Call a2k.listVendors first (unconditionally, once per session) if you
+    haven't already, to know which `sourceId`(s) to pass as `sources` --
+    don't guess from vendor names. Omitting `sources` fans out to all active
+    vendors and is always safe, just potentially less precise.
+
+    `query` -- build it per vendor using that vendor's `queryType` from
+    a2k.listVendors (`"entity"` or `"natural_language_query"`; treat a null/
+    unrecognized value as `"natural_language_query"`):
+    - `"entity"` -- extract just the company/entity name (e.g. "Allwyn
+      Investments Cyprus") and send *only* that, not a full sentence or
+      question about it (NOT "Allwyn Investments Cyprus detailed
+      information" or "What do we know about Allwyn Investments Cyprus?").
+      Confirmed for Sayari: its search (search_entities) is a name/text
+      matcher only, no semantic fallback -- a query padded with extra words
+      routinely returns zero matches even when the entity itself exists in
+      Sayari's data, and there's no second attempt.
+    - `"natural_language_query"` -- send the question as received, no
+      extraction needed. Confirmed for Cala: if a strict name match finds
+      nothing, it automatically falls back to a semantic knowledge-search
+      tool that handles full questions fine.
+    If `sources` spans vendors with *different* `queryType` values (or is
+    omitted, fanning out to all active vendors), a single shared `query`
+    can't be right for both -- call this tool once per vendor instead, each
+    with a `query` built for that vendor's `queryType`, rather than one call
+    with `sources` omitted. When in doubt or `sources` is omitted without
+    checking per-vendor queryType first, use just the entity name -- it
+    works for `natural_language_query` vendors too, just less richly than a
+    fuller question would.
 
     `sources` optionally restricts to one provider, e.g. ["cala"] or
     ["sayari"]; omit it to fan out to both (default). If `conflicts` in the

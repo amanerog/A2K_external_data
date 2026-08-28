@@ -63,63 +63,142 @@ import observability
 COGNITO_TOKEN_URL = "https://my-domain-f9bf0du3.auth.eu-west-1.amazoncognito.com/oauth2/token"
 SCOPE = "gateway-mcp-sayari-cala/genesis-gateway:invoke"
 
-SYSTEM_PROMPT_TEMPLATE = """You are a company-intelligence assistant, sitting \
-between a caller and one or more vendor knowledge sources behind a single \
-gateway. You reason about which vendor(s) a question needs; you do not need \
-to answer from your own knowledge -- the ask tool returns an already-cited, \
-already-synthesized answer built only from what the vendor(s) actually \
-returned, and your job is to relay that faithfully, not to add facts of \
-your own.
+SYSTEM_PROMPT_TEMPLATE = """# Company-Intelligence Assistant -- System Prompt (v2)
 
-VENDOR SELECTION. The current vendor catalogue (already fetched for you --
-do not look for a tool to re-fetch it, there isn't one; this list is
-current as of this request):
+## Role
+
+You are a company-intelligence assistant, sitting between a caller and one \
+or more vendor knowledge sources behind a single gateway. You reason about \
+which vendor(s) a question needs; you do not need to answer from your own \
+knowledge -- the `ask` tool returns an already-cited, already-synthesized \
+answer built only from what the vendor(s) actually returned, and your job \
+is to relay that faithfully, not to add facts of your own.
+
+## Vendor Catalogue
+
+The current vendor catalogue (already fetched for you -- do not look for a \
+tool to re-fetch it, there isn't one; this list is current as of this \
+request):
 
 {vendor_catalogue}
 
+Each active vendor entry carries a `queryType` field with one of two \
+values: `"natural_language_query"` or `"entity"`. This field -- not the \
+vendor's name -- is what tells you how to build the `query` you send to \
+that vendor. See "Query Construction" below.
+
+## Vendor Selection
+
 1. Only vendors listed above with status "active" are eligible -- never \
-pass an inactive `sourceId` to the ask tool, no matter how well its \
+pass an inactive `sourceId` to the `ask` tool, no matter how well its \
 domains/topics match.
 2. Match the question against the active vendors' domains/topics/scope \
 above -- not against assumptions about the vendors' names.
 3. Exactly one active vendor is a clear match -> pass that one `sourceId` \
-as the ask tool's `sources` param. `priority` (lower = preferred) is \
+as the `ask` tool's `sources` param. `priority` (lower = preferred) is \
 available if you ever need a tie-breaker between two plausible matches, \
 though with only two vendors today their topics rarely overlap enough to \
 need it.
 4. More than one active vendor plausibly matches, or none clearly does -> \
-omit `sources` entirely so the tool fans out to all active vendors. Do not \
-guess a single vendor just to avoid a fan-out call -- an unnecessary second \
-vendor in the answer is a smaller problem than silently dropping a vendor \
-that had the answer.
-5. If the catalogue above is empty or every vendor is inactive, do not call \
-the ask tool at all -- tell the caller no vendor is currently available \
-rather than guessing.
+call each plausible active vendor, following the per-vendor query rules \
+below ("Query Construction"). Do not guess a single vendor just to avoid \
+extra calls -- an unnecessary second vendor in the answer is a smaller \
+problem than silently dropping a vendor that had the answer.
+5. If the catalogue above is empty or every vendor is inactive, do not \
+call the `ask` tool at all -- tell the caller no vendor is currently \
+available rather than guessing.
 
-Call the ask tool at most once per question. Its `sources` param already \
-fans out to multiple vendors when omitted -- do not call it once per \
-vendor, and do not follow up with the search tool just to double-check an \
-ask result that already answered the question. Only make a second tool \
-call if the first response is genuinely insufficient (e.g. explicitly says \
-no data found and a differently-scoped query might help). If the ask tool \
-itself fails, times out, or errors, say so plainly -- never fabricate an \
-answer to cover for a failed tool call.
+## Query Construction (per `queryType`, not per vendor name)
 
-If the tool response's `conflicts` array is non-empty, the vendors disagree \
-on a fact -- surface both positions to the user, never silently prefer one \
-source. Always cite claims back to the tool's citations.
+The `sources` param controls fan-out, but the `query` you send must be \
+built from each selected vendor's own `queryType` tag in the catalogue -- \
+never by recognizing the vendor by name. This is what lets new vendors be \
+added to the catalogue later without requiring any change to this prompt: \
+tag the new vendor with one of the two `queryType` values below and the \
+existing rule already covers it.
 
-Never surface, ask for, or repeat any vendor credential or token -- you \
-never see them; the tools handle that entirely on their own.
+- `queryType: "entity"` -- never send the caller's raw question to a \
+vendor tagged this way. First extract every concrete entity named in the \
+question: company names, organization names, person names, or specific \
+identifiers (registration numbers, tax IDs, etc.). A concrete entity is a \
+specific, named, real-world subject; generic terms, topics, or the \
+question's framing ("who owns", "is there a sanction on", etc.) are not \
+entities and must be stripped out. Call the `ask` tool once per distinct \
+entity found, with `sources` scoped to that vendor's `sourceId` and \
+`query` set to *only* the entity's exact name -- nothing else added (no \
+extra words, no question framing, no surrounding punctuation beyond what \
+belongs to the name itself). De-duplicate: if the same entity is named \
+more than once in the question, call that vendor for it only once. If no \
+concrete entity can be extracted from the question at all, fall back to \
+sending the full natural-language question as a single call to that \
+vendor rather than skipping it.
+- `queryType: "natural_language_query"` -- send the caller's question to \
+that vendor exactly as received. No extraction, no rewriting, no trimming.
+- If several active vendors are selected for the same caller question, \
+query each according to its own `queryType` -- some may get one call per \
+extracted entity, others a single call with the untouched question, in \
+whatever mix the catalogue's tags produce.
+- If an active vendor's catalogue entry is missing `queryType` or carries \
+a value other than the two above, treat it as `"natural_language_query"` \
+(send the question unmodified) rather than blocking the call on it.
 
-If the ask tool's response has a `content` field instead of the normal \
+## Calling the `ask` Tool
+
+- The "at most once per question" cap from v1 no longer holds globally -- \
+it now applies **per vendor per unit of work**: once per extracted entity \
+for a vendor tagged `entity`, once (with the full question) for a vendor \
+tagged `natural_language_query`.
+- Only split calls when a vendor's `queryType` requires distinct `query` \
+values (i.e., `entity`); otherwise let the `sources` param fan out in a \
+single call as before.
+- Do not follow up with the search tool just to double-check an `ask` \
+result that already answered the question.
+- Only make a further tool call if a response is genuinely insufficient \
+(e.g., it explicitly says no data found and a differently-scoped query \
+might help).
+- If the `ask` tool itself fails, times out, or errors, say so plainly -- \
+never fabricate an answer to cover for a failed tool call.
+
+## Conflicts and Citations
+
+If any tool response's `conflicts` array is non-empty, the vendors \
+disagree on a fact -- surface both positions to the user, never silently \
+prefer one source. Always cite claims back to the tool's citations. When \
+multiple calls were made (e.g., one per entity for an `entity`-tagged \
+vendor, plus a single call to a `natural_language_query`-tagged vendor), \
+synthesize all returned answers into one coherent reply to the caller, \
+still citing each claim to its originating source.
+
+## Cala Raw Mode
+
+If a tool response has a `content` field instead of the normal \
 `ok`/`claims`/`citations` envelope, that means Cala's own answer is being \
 returned unprocessed (a test mode, not the normal path). When you see this \
 shape, reply with that `content` text verbatim -- word for word, same \
 language, no paraphrasing, no summarizing, no reformatting, no added \
 commentary before or after it. Do not treat it as a normal tool result to \
 synthesize an answer from.
+
+## Credentials
+
+Never surface, ask for, or repeat any vendor credential or token -- that \
+is handled entirely outside your reasoning; you never see it.
 """
+
+# Deliberately bare -- used by ask(generic=True) instead of the carefully
+# engineered SYSTEM_PROMPT_TEMPLATE above, to test how well the MCP contract
+# itself (a2k/mcp_server/server.py's `instructions` + tool docstrings) holds
+# up for an agent that has none of this file's own accumulated workarounds
+# (no catalogue pre-fetch/injection, no listVendors filtering -- see
+# _get_tools_and_catalogue's `generic` branch). Simulates an external agent
+# that only has the bare contract to go on, not this codebase's own prompt
+# engineering -- see the "expose the MCP externally" discussion this was
+# built for. Not used by the default (non-generic) path at all.
+GENERIC_SYSTEM_PROMPT = (
+    "You are a helpful assistant with access to tools for looking up "
+    "company intelligence. Use the tools available to you to answer the "
+    "user's question."
+)
 
 
 @lru_cache(maxsize=1)
@@ -195,7 +274,8 @@ def _format_vendor_catalogue(catalogue: dict) -> str:
     for v in vendors:
         blocks.append(
             f"- sourceId={v.get('sourceId')!r}  name={v.get('name')!r}  "
-            f"status={v.get('status')!r}  priority={v.get('priority')!r}\n"
+            f"status={v.get('status')!r}  priority={v.get('priority')!r}  "
+            f"queryType={v.get('queryType')!r}\n"
             f"  domains={v.get('domains')!r}\n"
             f"  topics={v.get('topics')!r}\n"
             f"  scope: {v.get('scope')}"
@@ -241,22 +321,29 @@ def _fetch_vendor_catalogue_text(mcp_client: MCPClient, tools: list[MCPAgentTool
 
 
 # Cached (MCPClient, tools handed to the LLM, formatted vendor catalogue text)
-# keyed by (gateway_url, client_id) -- see module docstring "Latency". MCPClient
-# itself is documented as reusable across calls ("allowing reuse of the same
-# connection for multiple tool calls to reduce latency"); we're just holding
-# onto that reuse across `ask()` calls instead of opening/closing a fresh one
-# every time -- the vendor catalogue is fetched once per cache entry for the
-# same reason, not re-fetched on every question (coverage doesn't change that
-# often; bump the cache key or restart the process if it ever does mid-session).
+# keyed by (gateway_url, client_id, generic) -- see module docstring "Latency".
+# MCPClient itself is documented as reusable across calls ("allowing reuse of
+# the same connection for multiple tool calls to reduce latency"); we're just
+# holding onto that reuse across `ask()` calls instead of opening/closing a
+# fresh one every time -- the vendor catalogue is fetched once per cache entry
+# for the same reason, not re-fetched on every question (coverage doesn't
+# change that often; bump the cache key or restart the process if it ever
+# does mid-session).
 # Keyed on client_id too, not just gateway_url, so two different credential
 # sets against the same Gateway (not a real scenario in either deployed
 # Runtime today, both use one fixed credential set, but not guaranteed to
 # stay that way) can't collide and silently reuse each other's connection.
-_mcp_cache: dict[tuple[str, str], tuple[MCPClient, list[MCPAgentTool], str]] = {}
+# Keyed on `generic` too: the generic and non-generic paths hand the model a
+# different tool list (listVendors included or not) and different catalogue
+# text (fetched or not) for the *same* gateway_url/client_id, so they can't
+# share a cache entry without one silently clobbering the other.
+_mcp_cache: dict[tuple[str, str, bool], tuple[MCPClient, list[MCPAgentTool], str]] = {}
 
 
-def _get_tools_and_catalogue(gateway_url: str, client_id: str, client_secret: str) -> tuple[list[MCPAgentTool], str]:
-    cache_key = (gateway_url, client_id)
+def _get_tools_and_catalogue(
+    gateway_url: str, client_id: str, client_secret: str, *, generic: bool = False
+) -> tuple[list[MCPAgentTool], str]:
+    cache_key = (gateway_url, client_id, generic)
     with _cache_lock:
         cached = _mcp_cache.get(cache_key)
         if cached is not None:
@@ -272,29 +359,35 @@ def _get_tools_and_catalogue(gateway_url: str, client_id: str, client_secret: st
     mcp_client = MCPClient(_transport)
     mcp_client.start()
     all_tools = mcp_client.list_tools_sync()
-    catalogue_text = _fetch_vendor_catalogue_text(mcp_client, all_tools)
+    # generic=True: skip the pre-fetch/injection entirely -- the whole point of this
+    # mode is to see whether a2k-box's own MCP contract (server `instructions` +
+    # a2k.listVendors'/a2k.ask's docstrings) is enough on its own, without any of
+    # this file's workarounds propping it up. See GENERIC_SYSTEM_PROMPT's docstring.
+    catalogue_text = "" if generic else _fetch_vendor_catalogue_text(mcp_client, all_tools)
 
     # Bedrock's Converse API restricts tool names to [a-zA-Z0-9_-]+, but a2k-box's own
     # tool names use dots (a2k.ask, a2k.search, ...) and the Gateway namespaces them
     # further as "<target>___a2k.ask" -- both dot-containing and otherwise valid MCP
     # names. Rename for the model only; call_tool_async still uses each tool's original
     # mcp_tool.name to reach the MCP server, so this doesn't touch a2k-box's real interface.
-    # listVendors itself is dropped here -- its result is injected into the system
-    # prompt above instead, so there's nothing left for the model to (redundantly, or
-    # unreliably -- see module docstring "Routing") call it for.
+    # listVendors itself is dropped here in the non-generic path only -- its result is
+    # injected into the system prompt above instead, so there's nothing left for the
+    # model to (redundantly, or unreliably -- see module docstring "Routing") call it
+    # for. generic=True keeps it: the model has to discover and call it on its own,
+    # exactly the behavior this mode exists to test.
     tools = [
         MCPAgentTool(tool.mcp_tool, tool.mcp_client, name_override=tool.tool_name.replace(".", "_"))
         for tool in all_tools
-        if not tool.mcp_tool.name.endswith(_LIST_VENDORS_MCP_NAME)
+        if generic or not tool.mcp_tool.name.endswith(_LIST_VENDORS_MCP_NAME)
     ]
     with _cache_lock:
         _mcp_cache[cache_key] = (mcp_client, tools, catalogue_text)
     return tools, catalogue_text
 
 
-def _evict_mcp_cache(gateway_url: str, client_id: str) -> None:
+def _evict_mcp_cache(gateway_url: str, client_id: str, *, generic: bool = False) -> None:
     with _cache_lock:
-        cached = _mcp_cache.pop((gateway_url, client_id), None)
+        cached = _mcp_cache.pop((gateway_url, client_id, generic), None)
     if cached is not None:
         try:
             cached[0].stop(None, None, None)
@@ -314,6 +407,7 @@ def ask(
     session_id: str | None = None,
     internal_client: str | None = None,
     debug: bool = False,
+    generic: bool = False,
 ) -> str:
     """Run one question through the router agent and return the final answer text.
 
@@ -333,6 +427,13 @@ def ask(
     then sends on to Sayari's/Cala's own MCP servers underneath -- that's a
     separate remote process; see adapters/sayari_mcp.py's `_call_tool` tracing
     (A2K_TRACE_CALLS, CloudWatch) or test_sayari_probe.py for that side.
+
+    `generic=True` swaps SYSTEM_PROMPT_TEMPLATE for GENERIC_SYSTEM_PROMPT (a
+    bare, minimal prompt) and stops filtering/pre-fetching around
+    a2k.listVendors (see `_get_tools_and_catalogue`) -- an experiment to check
+    whether a2k-box's own MCP contract holds up without this file's usual
+    workarounds, simulating an external agent that only has the bare contract
+    to go on. See entrypoint_generic.py, the separate deploy that sets this.
     """
     query_start = time.monotonic()
     tool_logger = observability.ToolCallLogger(
@@ -340,8 +441,8 @@ def ask(
     )
 
     model = BedrockModel(model_id=model_id, region_name=region)
-    tools, catalogue_text = _get_tools_and_catalogue(gateway_url, client_id, client_secret)
-    system_prompt = SYSTEM_PROMPT_TEMPLATE.format(vendor_catalogue=catalogue_text)
+    tools, catalogue_text = _get_tools_and_catalogue(gateway_url, client_id, client_secret, generic=generic)
+    system_prompt = GENERIC_SYSTEM_PROMPT if generic else SYSTEM_PROMPT_TEMPLATE.format(vendor_catalogue=catalogue_text)
 
     agent_kwargs = {"model": model, "tools": tools, "system_prompt": system_prompt, "hooks": [tool_logger]}
     if silent:
@@ -355,7 +456,7 @@ def ask(
         # Cached connection may have gone stale (Gateway-side session timeout, network
         # blip) -- evict so the *next* call rebuilds clean, then re-raise this one as a
         # failure rather than trying to recover a possibly-half-broken session mid-request.
-        _evict_mcp_cache(gateway_url, client_id)
+        _evict_mcp_cache(gateway_url, client_id, generic=generic)
         query_errored = True
         raise
     finally:
