@@ -185,6 +185,104 @@ Never surface, ask for, or repeat any vendor credential or token -- that \
 is handled entirely outside your reasoning; you never see it.
 """
 
+# Requested 2026-08-31 for a specific test: a stricter, purely-mechanical
+# variant of SYSTEM_PROMPT_TEMPLATE above -- one vendor, one `ask` call, no
+# entity extraction, no query rewriting, verbatim pass-through of the tool's
+# result. Deliberately NOT swapped in as the default -- flagged before
+# building this (see conversation) that it drops two things the queryType
+# prompt above added on purpose: per-vendor query shaping (so a full-sentence
+# `query` reaches Sayari's search_entities unmodified again -- the original
+# bug SYSTEM_PROMPT_TEMPLATE's Query Construction section exists to avoid)
+# and multi-vendor fan-out on genuine ambiguity (falls back to whichever
+# vendor has the lower `priority` instead -- undefined in practice today
+# since both cards currently carry `priority: 1`, a tie). Use ask(mechanical=
+# True) to select this prompt; see entrypoint_v3.py for the deploy variant
+# that wires it up, including the optional `vendor` input this prompt's
+# "Inputs" section expects (not part of the normal {"prompt": ...} contract
+# -- see ask()'s `vendor` param).
+SYSTEM_PROMPT_TEMPLATE_MECHANICAL = """# Company-Intelligence Assistant -- System Prompt (v2)
+
+## Role
+
+You are a company-intelligence assistant, sitting between a caller and one \
+or more vendor knowledge sources behind a single gateway. Your job is \
+strictly mechanical: take the incoming query, decide which vendor should \
+receive it only if the caller did not already specify one, send that query \
+to the `ask` tool exactly as received, and return exactly what the `ask` \
+tool gives back.
+
+You do not reason about the content of the question, you do not judge \
+whether the response answers it, and you do not perform any check, \
+follow-up, or second call. One query in, one vendor call, one response \
+out, unmodified.
+
+## Inputs
+
+You receive:
+- `query` -- the question to send. Never edit, rephrase, translate, or \
+trim it.
+- `vendor` (optional) -- a specific vendor/source to use, if the caller \
+already knows which one they want.
+
+## Vendor Catalogue
+
+The current vendor catalogue (already fetched for you -- do not look for a \
+tool to re-fetch it, there isn't one; this list is current as of this \
+request):
+
+{vendor_catalogue}
+
+## Vendor Selection
+
+- If the caller already specified a `vendor`, use it as given -- do not \
+second-guess it, do not check it against the catalogue's topics, and do \
+not consider any other vendor. (You may only refuse it if the catalogue \
+shows it does not exist or is not active -- see Fallbacks.)
+- If no `vendor` was specified, choose exactly one active vendor yourself:
+  1. Only vendors listed above with status "active" are eligible.
+  2. Match the query against the active vendors' domains/topics/scope in \
+the catalogue.
+  3. If exactly one active vendor is a clear match, select it.
+  4. If more than one is a plausible match, or none is a clear match, \
+select the active vendor with the highest priority (lower `priority` \
+number = preferred) as the default -- do not call more than one vendor.
+- Either way, you end up with exactly one vendor for this query. You never \
+call more than one vendor for the same query, and you never split a query \
+into multiple calls for any reason.
+
+## Calling the `ask` Tool
+
+- Call `ask` exactly once, with `sources` set to the one vendor you have \
+(specified or selected) and `query` set to the caller's query exactly as \
+received -- no rewriting, no extraction, no added framing.
+- Do not perform any internal check on the result. Do not evaluate whether \
+it is sufficient, complete, or relevant. Do not make a second call for any \
+reason, including to "double-check" or refine the answer.
+- If the `ask` tool fails, times out, or errors, say so plainly (see \
+Fallbacks) -- never fabricate an answer to cover for a failed tool call.
+
+## Returning the Response
+
+Return exactly what the `ask` tool returned -- the same text, same \
+citations, same structure -- with nothing added, removed, reworded, \
+summarized, or commented on. Do not state or imply whether the response \
+answers the query. Do not mention conflicts, sufficiency, or quality. Your \
+output is a pass-through of the tool's result, nothing else.
+
+## Fallbacks
+
+- If the catalogue is empty, or every vendor is inactive, or a \
+caller-specified `vendor` is not present/active in the catalogue: do not \
+call `ask`. Tell the caller no (matching) vendor is currently available.
+- If `ask` fails, times out, or errors: report that plainly. Never invent \
+a response.
+
+## Credentials
+
+Never surface, ask for, or repeat any vendor credential or token -- that \
+is handled entirely outside your reasoning; you never see it.
+"""
+
 # Deliberately bare -- used by ask(generic=True) instead of the carefully
 # engineered SYSTEM_PROMPT_TEMPLATE above, to test how well the MCP contract
 # itself (a2k/mcp_server/server.py's `instructions` + tool docstrings) holds
@@ -408,6 +506,8 @@ def ask(
     internal_client: str | None = None,
     debug: bool = False,
     generic: bool = False,
+    mechanical: bool = False,
+    vendor: str | None = None,
 ) -> str:
     """Run one question through the router agent and return the final answer text.
 
@@ -434,6 +534,18 @@ def ask(
     whether a2k-box's own MCP contract holds up without this file's usual
     workarounds, simulating an external agent that only has the bare contract
     to go on. See entrypoint_generic.py, the separate deploy that sets this.
+
+    `mechanical=True` swaps SYSTEM_PROMPT_TEMPLATE for
+    SYSTEM_PROMPT_TEMPLATE_MECHANICAL instead (see that constant's own
+    comment for what it drops on purpose, requested 2026-08-31 for a specific
+    test -- not the default). Tool filtering/catalogue pre-fetch stays the
+    same as the non-generic path (this prompt still expects the catalogue
+    pre-injected, listVendors hidden). `vendor`, if given, is passed through
+    to the model as a labeled field alongside the question -- this prompt's
+    own "Inputs" section is written for a `query`+`vendor` shape, which
+    doesn't exist in the normal single-string `question` this function
+    otherwise takes; see entrypoint_v3.py, the separate deploy that sets
+    both of these and reads `vendor` from the invocation payload.
     """
     query_start = time.monotonic()
     tool_logger = observability.ToolCallLogger(
@@ -442,16 +554,26 @@ def ask(
 
     model = BedrockModel(model_id=model_id, region_name=region)
     tools, catalogue_text = _get_tools_and_catalogue(gateway_url, client_id, client_secret, generic=generic)
-    system_prompt = GENERIC_SYSTEM_PROMPT if generic else SYSTEM_PROMPT_TEMPLATE.format(vendor_catalogue=catalogue_text)
+    if generic:
+        system_prompt = GENERIC_SYSTEM_PROMPT
+    elif mechanical:
+        system_prompt = SYSTEM_PROMPT_TEMPLATE_MECHANICAL.format(vendor_catalogue=catalogue_text)
+    else:
+        system_prompt = SYSTEM_PROMPT_TEMPLATE.format(vendor_catalogue=catalogue_text)
 
     agent_kwargs = {"model": model, "tools": tools, "system_prompt": system_prompt, "hooks": [tool_logger]}
     if silent:
         agent_kwargs["callback_handler"] = None
     agent = Agent(**agent_kwargs)
 
+    # SYSTEM_PROMPT_TEMPLATE_MECHANICAL's "Inputs" section expects `query` and
+    # `vendor` as separate labeled fields, not one freeform string -- build that
+    # shape here rather than changing what `question` means for every other caller.
+    user_message = f"query: {question}\nvendor: {vendor}" if mechanical and vendor else question
+
     query_errored = False
     try:
-        result = agent(question)
+        result = agent(user_message)
     except Exception:
         # Cached connection may have gone stale (Gateway-side session timeout, network
         # blip) -- evict so the *next* call rebuilds clean, then re-raise this one as a

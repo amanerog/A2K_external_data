@@ -8,6 +8,10 @@ Usage:
     #   CLIENT_ID, CLIENT_SECRET, GATEWAY_URL, BEDROCK_MODEL_ID
     # A2K_AGENT_DEBUG=false to silence the >>/<< tool-call lines (on by default
     # here -- this is the debugging entrypoint; entrypoint.py leaves debug off)
+    # A2K_AGENT_MECHANICAL=true to test SYSTEM_PROMPT_TEMPLATE_MECHANICAL instead
+    # of the normal prompt (see core.py's comment on that constant), optionally
+    # with A2K_AGENT_VENDOR=<sourceId> to also exercise its caller-specified-
+    # vendor path -- mirrors entrypoint_v3.py's payload shape for local testing.
 """
 
 from __future__ import annotations
@@ -42,6 +46,8 @@ def main() -> None:
         session_id=str(uuid.uuid4()),
         internal_client="local-cli",
         debug=_bool_env("A2K_AGENT_DEBUG", True),
+        mechanical=_bool_env("A2K_AGENT_MECHANICAL", False),
+        vendor=os.environ.get("A2K_AGENT_VENDOR"),
     )
 
 
