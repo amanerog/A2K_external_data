@@ -43,6 +43,10 @@ vendors) if more than one plausibly matches or none clearly does. Inactive
 | `test_cala_raw_mode.py` | Calls `a2k.ask` directly via MCP (not through the LLM) and reports which response shape came back -- `content` (raw mode) vs the normal cited envelope -- to verify `CALA_RAW_KNOWLEDGE_SEARCH` independent of how the agent's own LLM might rephrase either shape. |
 | `test_routing_behavior.py` | Runs the agent loop locally (needed for tool-call visibility -- see its own docstring) against three preset questions (Cala-leaning, Sayari-leaning, ambiguous) and reports the actual `sources` value passed to `ask` each time, plus the injected vendor catalogue. |
 | `test_routing_behavior_deployed.py` | Same three questions against the *deployed* Runtime via a JWT Bearer token -- no tool-call trace available there, so it asks the agent to self-report which vendor(s) it used and prints the raw answers; a plausibility check, not the hard assertion the local version gives. |
+| `direct_agent.py` | The `mcp_to_agent_to_mcp` branch's two-phase logic (vendor decision, then a live vendor-MCP call) -- used only by `entrypoint_a2k.py` below, not by `core.py`'s Gateway-mediated path. See "The direct-discovery agent" below. |
+| `vendor_mcp_client.py` | Direct connection helpers for Cala's/Sayari's own MCP servers (bypasses a2k-box/the Gateway entirely) -- used by `direct_agent.py`. |
+| `entrypoint_a2k.py` | AgentCore Runtime entrypoint for the direct-discovery path -- called by a2k-box's `gateway/engine.py`, not by a human/curl caller. See "The direct-discovery agent" below. |
+| `router-agent-direct-v2.zip` | Prebuilt deploy artifact for `entrypoint_a2k.py` -- see "The direct-discovery agent" below for how to rebuild it (and a gotcha worth reading before you do). |
 
 ## Setup
 
@@ -151,6 +155,79 @@ than the Gateway/Runtime (confirmed live -- an `eu.` profile routed to
 foundation-model ARN needs a region wildcard, not the Runtime's own region.
 If your organization has data-residency constraints, don't just widen this
 to `*` without checking with whoever owns that policy first.
+
+## The direct-discovery agent (`entrypoint_a2k.py`, `mcp_to_agent_to_mcp` branch)
+
+A second, additive entrypoint in this same directory -- **not** called by a
+human/curl the way `entrypoint.py` above is. Its only caller is a2k-box's
+own `gateway/engine.py` (`_call_agent()`), invoked in place of the
+deterministic `adapters/cala_mcp.py`/`adapters/sayari_mcp.py` +
+`gateway/synthesis.py` path. See `direct_agent.py`'s own module docstring
+for the full two-phase design: a cheap tool-less vendor decision first,
+then a live MCP connection straight to whichever vendor(s) were chosen --
+Cala's/Sayari's own MCP servers, bypassing a2k-box's adapters and the
+Gateway entirely (`vendor_mcp_client.py`).
+
+**Files this entrypoint needs in its zip** -- narrower than `entrypoint.py`
+above, but with one easy-to-miss addition:
+
+| File | Why |
+|---|---|
+| `entrypoint_a2k.py` | The entry point itself. |
+| `direct_agent.py` | The two-phase vendor-decision/vendor-call logic. |
+| `vendor_mcp_client.py` | Direct Cala/Sayari MCP connection helpers. |
+| `observability.py` | Same tool-call logs/EMF metrics as `entrypoint.py`'s path (see "Observability" above) -- `direct_agent.py`'s `handle()` wires `session_id` from a2k-box's own `requestId` (threaded through `engine.py`'s `_call_agent()`) and a hardcoded `internal_client="a2k-box"` (this entrypoint has exactly one legitimate caller, unlike `entrypoint.py`/`entrypoint_v3.py` which read it from whoever's actually calling them). |
+| `core.py` | **Easy to forget -- it isn't the entry point and this path never touches the Gateway** -- but `vendor_mcp_client.py` still imports `secret_env` from it (see that file's own docstring, which already said so before this got missed once). Omitting it crashes the container at import time, before it ever binds a port -- AgentCore's proxy then returns a bare `424 Failed Dependency` on *every* invoke, with no traceback visible anywhere obvious (confirmed live 2026-09-07; the endpoint still reports **READY**, so don't rule this out just because the console says the Runtime is healthy -- READY only means the control plane accepted the deploy, not that the container is actually serving). If you hit a 424 here after a redeploy, check this before anything else. |
+
+Build the same way as `entrypoint.py`'s zip (`requirements.txt` is shared,
+no new packages needed):
+
+```bash
+mkdir /tmp/router-agent-direct-build && cd /tmp/router-agent-direct-build
+pip install --platform manylinux2014_aarch64 --python-version 3.13 \
+  --implementation cp --only-binary=:all: --target . \
+  -r /path/to/repo/agent/requirements.txt
+cp /path/to/repo/agent/entrypoint_a2k.py /path/to/repo/agent/direct_agent.py \
+  /path/to/repo/agent/vendor_mcp_client.py /path/to/repo/agent/core.py \
+  /path/to/repo/agent/observability.py .
+find . -type d -name "__pycache__" -exec rm -rf {} +
+zip -r ../router-agent-direct.zip .
+```
+
+Console: **Local Upload** -> the zip above, **Entry point**
+`entrypoint_a2k.py`, **Protocol** HTTP (same as `entrypoint.py` -- this is
+an agent, not an MCP server). Deployed live as its own Runtime, separate
+from `a2k_agent-06B5R9CAuJ` above:
+
+```
+arn:aws:bedrock-agentcore:eu-west-1:396961015428:runtime/hosted_router_agent-cQvidi4ixE
+```
+
+**Inbound auth is JWT/Cognito**, same `a2k-agent-pool` as `entrypoint.py`'s
+Runtime, but a *different* app client -- a machine-to-machine
+(client-credentials) client, not the human-login one "Calling the deployed
+agent" below sets up, since the only caller here is a2k-box itself, not a
+person with a terminal. a2k-box's own `a2k/config.py` holds this side's
+credentials (`agent_pool_client_id`/`agent_pool_client_secret`/
+`agent_pool_token_url`/`agent_pool_scope` -- `AGENT_POOL_*` env vars) and
+`gateway/engine.py`'s `_get_agent_token()` fetches the token the same way
+`core.py`'s `get_bearer_token()` fetches the Gateway one.
+
+**Environment variables** -- `BEDROCK_MODEL_ID`/`AWS_REGION` same as the
+table above, plus the vendor credentials `vendor_mcp_client.py` reads via
+`secret_env()` (plain env var, or the `AGENT_SECRETS_ARN` Secrets Manager
+bundle -- same fallback `CLIENT_ID`/`CLIENT_SECRET` use):
+
+| Var | Used by |
+|---|---|
+| `CALA_API_KEY` | `connect_cala()` -- `X-API-KEY` header, same credential a2k-box's own `adapters/cala_mcp.py` uses. |
+| `AUTH0_CLIENT_ID` / `AUTH0_CLIENT_SECRET` | `connect_sayari()` -- Auth0 client-credentials grant against `sayari.auth0.com`, same credential a2k-box's `adapters/sayari_mcp.py` uses (a *separate* Auth0 grant from Sayari's REST API -- see that adapter's own docstring). |
+
+**Testing it**: no human-facing curl flow for this Runtime (see "Calling
+the deployed agent" below for why that exists for `entrypoint.py` but not
+here). Test the whole chain through a2k-box's own MCP instead --
+`../deploy/agentcore/test_a2k_ask_via_agent.py` calls a2k-box's `a2k.ask`,
+which calls this Runtime underneath.
 
 ## Calling the deployed agent
 

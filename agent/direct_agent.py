@@ -109,12 +109,17 @@ Rules:
 1. Only vendors with status "active" are eligible.
 2. Match the query against each active vendor's domains/topics/scope --
 not against assumptions about vendor names.
-3. Exactly one active vendor is a clear match -> return just that
-sourceId.
-4. More than one is plausible, or none is a clear match -> return every
-plausible active vendor's sourceId (fan out). Do not guess a single
-vendor just to avoid multiple picks -- missing a vendor that had the
-answer is worse than an extra one that didn't.
+3. Prefer returning exactly one sourceId. Each active vendor's scope is
+meant to be distinct (e.g. financial/legal/regulatory filings vs.
+ownership/risk graph) -- a query that's a genuine match for one vendor's
+scope is almost never *also* a genuine match for another's just because
+both vendors happen to cover companies in general. Pick the single
+best-matching vendor whenever one is a reasonable fit.
+4. Only return more than one sourceId when the query itself genuinely
+spans more than one vendor's distinct scope (e.g. it explicitly asks for
+both financial filings AND ownership structure) -- not merely because
+several vendors could theoretically produce tangentially related
+results. This should be rare; when in doubt, pick one.
 5. If no active vendor matches at all, return an empty sourceIds list.
 """
 
