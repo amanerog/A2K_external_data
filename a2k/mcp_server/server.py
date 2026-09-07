@@ -20,7 +20,7 @@ from mcp.server.fastmcp import FastMCP
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
-from ..cards import load_card
+from ..cards import load_card, vendor_catalogue
 from ..config import config
 from ..gateway.engine import engine
 from ..models.envelope import CitedResponseEnvelope
@@ -122,22 +122,7 @@ async def a2k_list_vendors() -> dict:
     unmodified) rather than guessing. Same domains/topics/scope data as the
     a2k://card/<vendor> resources, exposed as a callable tool for clients
     that don't read MCP resources."""
-    vendors = []
-    for source_id in ("cala", "sayari"):
-        card = load_card(source_id)
-        vendors.append(
-            {
-                "sourceId": source_id,
-                "name": card.name,
-                "domains": card.knowledgeProfile.domains,
-                "topics": card.knowledgeProfile.topics,
-                "scope": card.knowledgeProfile.coverage.scope,
-                "status": card.enterprise.lifecycle.status,
-                "priority": card.priority,
-                "queryType": card.queryType,
-            }
-        )
-    return {"vendors": vendors}
+    return {"vendors": vendor_catalogue()}
 
 
 async def _cala_raw_response_if_enabled(query: str, sources: list[str] | None) -> dict | None:

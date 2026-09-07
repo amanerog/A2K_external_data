@@ -11,13 +11,18 @@ import time
 import uuid
 from datetime import datetime, timedelta, timezone
 
+import httpx
+
 from ..adapters.base import Fact, ProviderAdapter
 from ..adapters.cala_mcp import CalaMcpAdapter
 from ..adapters.sayari_mcp import SayariMcpAdapter
+from ..cards import vendor_catalogue
 from ..config import config
 from ..errors import A2KError, ErrorCode
 from ..models.envelope import (
     AccessDecision,
+    AwareConflict,
+    AwareConflictSource,
     Citation,
     CitedResponseEnvelope,
     Claim,
@@ -26,6 +31,7 @@ from ..models.envelope import (
     Freshness,
     GetDocumentResponse,
     Grounding,
+    Passage,
     Usage,
 )
 from ..models.request import A2KRequest, ExplainRequest, GetDocumentRequest
@@ -34,6 +40,24 @@ from . import conflict, synthesis, tracing
 
 GATEWAY_KB_ID = "urn:a2k:gateway:k2-external-intel"
 _CACHE_MAX_SIZE = 500
+
+# ConflictType's allowed values (models/envelope.py) -- the agent's own
+# self-reported `nature` string (direct_agent.py's ConflictOut) isn't
+# guaranteed to land on one of these exactly, so it's validated against this
+# set rather than trusted, falling back to "unknown" (still a valid,
+# documented ConflictType) rather than raising a Pydantic validation error
+# over a field an LLM free-texted.
+_VALID_CONFLICT_TYPES = {
+    "value-conflict",
+    "scope-conflict",
+    "temporal-conflict",
+    "interpretation-conflict",
+    "methodology-conflict",
+    "authority-collision",
+    "freshness-conflict",
+    "access-conditioned-conflict",
+    "unknown",
+}
 
 
 class GatewayEngine:
@@ -44,11 +68,30 @@ class GatewayEngine:
         # exist and work, swap here if you need that transport instead.
         self.adapters: dict[str, ProviderAdapter] = {"cala": CalaMcpAdapter(), "sayari": SayariMcpAdapter()}
         self.gateway_kb_id = GATEWAY_KB_ID
+        # Cognito bearer token for calling the agent's own Runtime directly
+        # (mcp_to_agent_to_mcp branch -- ask()/search() below) -- separate
+        # pool/credential from anything the adapters above use. See
+        # config.py's agent_pool_* fields and _get_agent_token() below.
+        self._agent_token: str | None = None
+        self._agent_token_expires_at: float = 0.0
         self._response_cache: dict[str, CitedResponseEnvelope] = {}
 
     # -- operations -------------------------------------------------------
 
     async def search(self, req: A2KRequest) -> CitedResponseEnvelope:
+        """mcp_to_agent_to_mcp branch: mock mode keeps the original
+        deterministic _gather_facts()/adapters path (_search_deterministic)
+        so the existing test suite -- which only ever runs in mock mode --
+        stays meaningful and green; that path can't be exercised by the new
+        agent-mediated one at all (it needs a real Bedrock+deployed-agent
+        round trip, not something a unit test can reproduce). Live mode uses
+        the new path (_search_via_agent) -- see that method's own docstring
+        (via _call_agent) for the trade-off this branch makes."""
+        if config.is_mock:
+            return await self._search_deterministic(req)
+        return await self._search_via_agent(req)
+
+    async def _search_deterministic(self, req: A2KRequest) -> CitedResponseEnvelope:
         request_id = self._request_id(req)
         sources = req.sources or list(self.adapters)
         source_kb_id = self._source_kb_id(sources)
@@ -100,7 +143,76 @@ class GatewayEngine:
         )
         return envelope
 
+    async def _search_via_agent(self, req: A2KRequest) -> CitedResponseEnvelope:
+        """Live-mode path (mcp_to_agent_to_mcp branch): delegates to the agent
+        (direct vendor-MCP discovery) instead of the deterministic
+        _gather_facts()/adapters path above -- see _call_agent()'s docstring
+        for the full trade-off."""
+        request_id = self._request_id(req)
+        sources = req.sources or list(self.adapters)
+        source_kb_id = self._source_kb_id(sources)
+        limit = req.pagination.limit if req.pagination else 10
+        t0 = time.monotonic()
+        tracing.trace("engine.search.request", requestId=request_id, query=req.query, sources=sources, limit=limit)
+
+        try:
+            content = await self._call_agent("search", req.query, req.sources)
+        except A2KError as err:
+            return self._error_envelope("search", source_kb_id, err, request_id)
+
+        citations = [self._citation_from_agent(i, c) for i, c in enumerate(content.get("citations") or [])]
+        passages = [
+            Passage(
+                id=f"passage-{i + 1}",
+                text=p.get("text", ""),
+                citationIds=self._citation_ids_for(citations, p.get("citationIndexes") or []),
+            )
+            for i, p in enumerate(content.get("passages") or [])
+        ][:limit]
+
+        audit = gw_audit.write_audit(
+            request_id=request_id,
+            session_id=req.requestMetadata.sessionId if req.requestMetadata else None,
+            agent_id=req.agent.agentId if req.agent else None,
+            user_id=req.onBehalfOf.subject if req.onBehalfOf else None,
+            source_kb_id=source_kb_id,
+            operation="search",
+            policy_decision="allowed",
+            decision_reason=None,
+            citation_ids=[c.id for c in citations],
+        )
+
+        envelope = CitedResponseEnvelope(
+            ok=True,
+            operation="search",
+            sourceKbId=source_kb_id,
+            answer=None,
+            passages=passages,
+            citations=citations,
+            freshness=self._agent_freshness(),
+            accessDecision=self._access_decision(),
+            audit=audit,
+            usage=Usage(latencyMs=self._elapsed_ms(t0), retrievalCount=len(passages)),
+            pageInfo={"nextCursor": None, "hasMore": False, "pageLimit": limit},
+        )
+        self._cache(request_id, envelope)
+        tracing.trace(
+            "engine.search.response",
+            requestId=request_id,
+            ok=True,
+            passageCount=len(passages),
+            citationCount=len(citations),
+        )
+        return envelope
+
     async def ask(self, req: A2KRequest) -> CitedResponseEnvelope:
+        """See search()'s own docstring for why this branches on
+        config.is_mock the same way."""
+        if config.is_mock:
+            return await self._ask_deterministic(req)
+        return await self._ask_via_agent(req)
+
+    async def _ask_deterministic(self, req: A2KRequest) -> CitedResponseEnvelope:
         request_id = self._request_id(req)
         sources = req.sources or list(self.adapters)
         source_kb_id = self._source_kb_id(sources)
@@ -180,6 +292,105 @@ class GatewayEngine:
             conflicts=aware_conflicts,
             usage=Usage(latencyMs=self._elapsed_ms(t0), retrievalCount=len(all_facts)),
             conflictReport=conflict_report,
+        )
+        self._cache(request_id, envelope)
+        tracing.trace(
+            "engine.ask.response",
+            requestId=request_id,
+            ok=True,
+            claimCount=len(claims),
+            citationCount=len(citations),
+            groundedRatio=grounded_ratio,
+        )
+        return envelope
+
+    async def _ask_via_agent(self, req: A2KRequest) -> CitedResponseEnvelope:
+        """Live-mode path (mcp_to_agent_to_mcp branch): delegates to the agent
+        (direct vendor-MCP discovery, self-reported grounding/conflicts)
+        instead of the deterministic _gather_facts()/synthesis.py/conflict.py
+        path above -- see _call_agent()'s docstring for the full trade-off.
+        `conflictReport` (the full artifact, as opposed to the terse
+        conflicts[] below) isn't rebuilt on this path -- accurately
+        reconstructing it would need the same per-KB response bookkeeping
+        conflict.py's deterministic comparison already has, which this path
+        doesn't produce."""
+        request_id = self._request_id(req)
+        sources = req.sources or list(self.adapters)
+        source_kb_id = self._source_kb_id(sources)
+        t0 = time.monotonic()
+        tracing.trace("engine.ask.request", requestId=request_id, query=req.query, sources=sources)
+
+        try:
+            content = await self._call_agent("ask", req.query, req.sources)
+        except A2KError as err:
+            return self._error_envelope("ask", source_kb_id, err, request_id)
+
+        citations = [self._citation_from_agent(i, c) for i, c in enumerate(content.get("citations") or [])]
+        claims = [
+            Claim(
+                id=f"claim-{i + 1}",
+                text=c.get("text", ""),
+                type=c.get("type"),
+                status=c.get("status") or "SUPPORTED",
+                citationIds=self._citation_ids_for(citations, c.get("citationIndexes") or []),
+                conflictsWith=[],
+            )
+            for i, c in enumerate(content.get("claims") or [])
+        ]
+
+        if not claims and not content.get("answer"):
+            return self._insufficient_evidence(source_kb_id, request_id, req)
+
+        grounded_ratio = float(content.get("groundedRatio") or 0.0)
+        strict = req.requirements.strictGrounding
+        # "Satisfied" here is the model's own self-report, not a verified
+        # measurement -- gateway/synthesis.py's deterministic path only ever
+        # calls this satisfied at an exact 1.0 (every span traced to a verbatim
+        # citation quote); kept at the same threshold here for consistency,
+        # even though this path can no longer *guarantee* it the same way.
+        strict_satisfied = grounded_ratio >= 1.0
+        if strict and not strict_satisfied:
+            err = A2KError(
+                ErrorCode.GROUNDING_VIOLATION,
+                "Strict grounding was requested but not satisfied (self-reported groundedRatio "
+                f"{grounded_ratio} < 1.0).",
+                details={"groundedRatio": grounded_ratio},
+            )
+            return self._error_envelope("ask", source_kb_id, err, request_id)
+
+        aware_conflicts = self._aware_conflicts_from_agent(content.get("conflicts") or [], claims)
+
+        audit = gw_audit.write_audit(
+            request_id=request_id,
+            session_id=req.requestMetadata.sessionId if req.requestMetadata else None,
+            agent_id=req.agent.agentId if req.agent else None,
+            user_id=req.onBehalfOf.subject if req.onBehalfOf else None,
+            source_kb_id=source_kb_id,
+            operation="ask",
+            policy_decision="allowed",
+            decision_reason=None,
+            citation_ids=[c.id for c in citations],
+        )
+
+        envelope = CitedResponseEnvelope(
+            ok=True,
+            operation="ask",
+            sourceKbId=source_kb_id,
+            answer=content.get("answer"),
+            claims=claims,
+            citations=citations,
+            grounding=Grounding(
+                groundedRatio=grounded_ratio,
+                ungroundedSpans=[],
+                confidence=grounded_ratio,
+                confidenceMethod="llm-self-report",
+                strictGroundingSatisfied=strict_satisfied,
+            ),
+            freshness=self._agent_freshness(),
+            accessDecision=self._access_decision(),
+            audit=audit,
+            conflicts=aware_conflicts,
+            usage=Usage(latencyMs=self._elapsed_ms(t0), retrievalCount=len(claims)),
         )
         self._cache(request_id, envelope)
         tracing.trace(
@@ -297,11 +508,160 @@ class GatewayEngine:
     # -- helpers ------------------------------------------------------------
 
     async def _gather_facts(self, query: str, sources: list[str], *, limit: int) -> dict[str, list[Fact]]:
+        """Mock-mode-only now (see search()/ask()'s config.is_mock dispatch)
+        -- live traffic goes through _call_agent() instead. Kept as-is so the
+        existing mock-mode test suite keeps exercising exactly the same
+        deterministic Fact-gathering it always has."""
+
         async def run(name: str) -> tuple[str, list[Fact]]:
             return name, await self.adapters[name].search(query, limit=limit)
 
         results = await asyncio.gather(*(run(s) for s in sources))
         return dict(results)
+
+    async def _get_agent_token(self) -> str:
+        """Cognito client-credentials token for the agent's own inbound-auth
+        pool -- separate from anything the Cala/Sayari adapters use. Mirrors
+        agent/core.py's get_bearer_token() (same client-credentials shape,
+        different pool/URL) -- see config.py's agent_pool_* fields."""
+        if self._agent_token and time.monotonic() < self._agent_token_expires_at:
+            return self._agent_token
+
+        data = {"grant_type": "client_credentials"}
+        if config.agent_pool_scope:
+            data["scope"] = config.agent_pool_scope
+
+        async with httpx.AsyncClient(timeout=30, verify=config.httpx_verify) as client:
+            try:
+                resp = await client.post(
+                    config.agent_pool_token_url,
+                    auth=(config.agent_pool_client_id, config.agent_pool_client_secret),
+                    headers={"Content-Type": "application/x-www-form-urlencoded"},
+                    data=data,
+                )
+                resp.raise_for_status()
+                payload = resp.json()
+            except httpx.HTTPError as exc:
+                raise A2KError(ErrorCode.UPSTREAM_ERROR, f"Agent pool token request failed: {exc}") from exc
+
+        self._agent_token = payload["access_token"]
+        self._agent_token_expires_at = time.monotonic() + float(payload.get("expires_in", 3600)) - 30
+        return self._agent_token
+
+    async def _call_agent(self, operation: str, query: str, sources: list[str] | None) -> dict:
+        """Invokes the agent's Runtime directly over HTTPS (Cognito Bearer
+        token -- see _get_agent_token()), passing the vendor catalogue this
+        gateway already has loaded (vendor_catalogue()) so the agent doesn't
+        re-fetch it. See agent/entrypoint_a2k.py for the exact payload/
+        response contract this call makes.
+
+        mcp_to_agent_to_mcp branch: this is the deliberate trade this branch
+        makes -- the agent connects directly to Cala's/Sayari's own MCP
+        servers and discovers their tools live (agent/vendor_mcp_client.py,
+        agent/direct_agent.py) instead of this gateway's adapters
+        (adapters/cala_mcp.py, adapters/sayari_mcp.py) calling them through a
+        fixed, hardcoded sequence. What's gained: no per-vendor tool-call
+        logic to maintain here, and the agent adapts if a vendor's own MCP
+        tool set changes without a code change on this side. What's lost:
+        gateway/synthesis.py's exact (not estimated) groundedRatio and
+        gateway/conflict.py's deterministic cross-source comparison -- both
+        become self-reported by the model instead (see ask()'s own comments).
+        """
+        if not config.agent_call_ready:
+            raise A2KError(
+                ErrorCode.UPSTREAM_ERROR,
+                "AGENT_POOL_CLIENT_ID/AGENT_POOL_CLIENT_SECRET/AGENT_POOL_TOKEN_URL/"
+                "AGENT_RUNTIME_URL are not all set -- cannot reach the agent Runtime.",
+                retryable=False,
+            )
+
+        token = await self._get_agent_token()
+        payload = {
+            "operation": operation,
+            "query": query,
+            "sources": sources,
+            "catalogue": vendor_catalogue(),
+        }
+
+        async with httpx.AsyncClient(timeout=120.0, verify=config.httpx_verify) as client:
+            try:
+                resp = await client.post(
+                    config.agent_runtime_url,
+                    json=payload,
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "Content-Type": "application/json",
+                        "Accept": "application/json",
+                    },
+                )
+                resp.raise_for_status()
+                body = resp.json()
+            except httpx.HTTPError as exc:
+                raise A2KError(ErrorCode.UPSTREAM_ERROR, f"Agent Runtime call failed: {exc}") from exc
+
+        if not body.get("ok"):
+            raise A2KError(ErrorCode.UPSTREAM_ERROR, f"Agent reported failure: {body.get('error')}")
+        return body.get("content") or {}
+
+    def _citation_from_agent(self, index: int, citation: dict) -> Citation:
+        """Builds a real Citation from the agent's lightweight CitationOut
+        shape (agent/direct_agent.py) -- `id`/`retrievedAt` are assigned here,
+        not trusted from the model, same division of labor as
+        gateway/synthesis.py's Fact -> Citation conversion on the
+        Gateway-mediated path. No sourceHash: unlike that path, nothing here
+        re-fetches the source document to hash it."""
+        return Citation(
+            id=f"citation-{index + 1}",
+            documentId=citation.get("documentId"),
+            title=citation.get("title"),
+            sourceUrl=citation.get("sourceUrl"),
+            retrievedAt=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        )
+
+    def _citation_ids_for(self, citations: list[Citation], indexes: list[int]) -> list[str]:
+        return [citations[i].id for i in indexes if 0 <= i < len(citations)]
+
+    def _agent_freshness(self) -> Freshness:
+        """Unlike _freshness() below (still used by _insufficient_evidence,
+        which has real Facts with source_last_updated to inspect), the agent
+        doesn't report source-level update timestamps -- there's nothing to
+        compute `stale` from, so it's always False here rather than guessed."""
+        now = datetime.now(timezone.utc)
+        return Freshness(
+            sourceLastUpdated=None,
+            reviewedAt=None,
+            retrievedAt=now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            stale=False,
+            validAsOf=now.strftime("%Y-%m-%d"),
+        )
+
+    def _aware_conflicts_from_agent(self, agent_conflicts: list[dict], claims: list[Claim]) -> list[AwareConflict]:
+        """Maps direct_agent.py's self-reported ConflictOut list into real
+        AwareConflict objects. `nature` is validated against ConflictType's
+        allowed values (falling back to "unknown") since it's LLM free text,
+        not a value gateway/conflict.py's deterministic comparison already
+        constrained the way it does on the Gateway-mediated path."""
+        result: list[AwareConflict] = []
+        for i, c in enumerate(agent_conflicts):
+            this_idx, other_idx = c.get("thisClaimIndex"), c.get("otherClaimIndex")
+            if this_idx is None or other_idx is None:
+                continue
+            if not (0 <= this_idx < len(claims) and 0 <= other_idx < len(claims)):
+                continue
+            nature = c.get("nature") if c.get("nature") in _VALID_CONFLICT_TYPES else "unknown"
+            result.append(
+                AwareConflict(
+                    id=f"conflict-{i + 1}",
+                    claimId=claims[this_idx].id,
+                    nature=nature,
+                    thisPosition=claims[this_idx].text,
+                    otherPosition=claims[other_idx].text,
+                    otherSource=AwareConflictSource(kbId=self.gateway_kb_id),
+                    assessment=c.get("assessment") or "",
+                    rationale=c.get("rationale") or "",
+                )
+            )
+        return result
 
     def _source_kb_id(self, sources: list[str]) -> str:
         if len(sources) == 1:

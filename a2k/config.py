@@ -159,6 +159,35 @@ class Config:
         default_factory=lambda: _secret_env("AUTH0_CLIENT_SECRET")
     )
 
+    # -- Direct-discovery agent path (mcp_to_agent_to_mcp branch) -------------
+    # a2k.ask/a2k.search (gateway/engine.py) call out to the agent's own
+    # AgentCore Runtime instead of the deterministic Cala/Sayari adapters --
+    # see agent/README.md "Calling the deployed agent" for why this can't go
+    # through boto3's invoke_agent_runtime (that needs IAM inbound auth; the
+    # agent's Runtime has JWT/Cognito inbound auth instead, switched
+    # 2026-08-19 specifically to disable the IAM path). So this authenticates
+    # against the agent's own Cognito pool via client-credentials -- a new M2M
+    # app client on that pool, distinct from the Gateway's own inbound Cognito
+    # client-credentials pair (agent/core.py's COGNITO_TOKEN_URL/SCOPE) --
+    # and calls the agent's HTTPS /invocations URL directly with the resulting
+    # Bearer token, same shape as agent/README.md's "Plain curl" example.
+    agent_pool_client_id: str | None = field(default_factory=lambda: _secret_env("AGENT_POOL_CLIENT_ID"))
+    agent_pool_client_secret: str | None = field(
+        default_factory=lambda: _secret_env("AGENT_POOL_CLIENT_SECRET")
+    )
+    agent_pool_token_url: str | None = field(
+        default_factory=lambda: os.environ.get("AGENT_POOL_TOKEN_URL")
+    )
+    agent_pool_scope: str | None = field(default_factory=lambda: os.environ.get("AGENT_POOL_SCOPE"))
+    # The agent Runtime's invocation URL, e.g.
+    # "https://bedrock-agentcore.eu-west-1.amazonaws.com/runtimes/<url-encoded-ARN>/invocations?qualifier=DEFAULT"
+    # -- see agent/README.md's "Plain curl" example for how this is built from
+    # the Runtime ARN. Kept as a single pre-built URL rather than an ARN this
+    # module re-encodes, since URL-encoding a colon-and-slash-heavy ARN is
+    # easy to get subtly wrong and there's only ever one agent Runtime to
+    # point at.
+    agent_runtime_url: str | None = field(default_factory=lambda: os.environ.get("AGENT_RUNTIME_URL"))
+
     audit_log_path: Path = field(
         default_factory=lambda: Path(
             os.environ.get("A2K_AUDIT_LOG_PATH", str(REPO_ROOT / "audit.jsonl"))
@@ -201,6 +230,15 @@ class Config:
     @property
     def sayari_mcp_live_ready(self) -> bool:
         return bool(self.sayari_auth0_client_id and self.sayari_auth0_client_secret)
+
+    @property
+    def agent_call_ready(self) -> bool:
+        return bool(
+            self.agent_pool_client_id
+            and self.agent_pool_client_secret
+            and self.agent_pool_token_url
+            and self.agent_runtime_url
+        )
 
     @property
     def httpx_verify(self) -> str | bool:

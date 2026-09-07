@@ -23,3 +23,27 @@ def load_card(name: str) -> KBCard:
         raise KeyError(f"Unknown card: {name!r}. Known: {sorted(_CARD_FILES)}")
     with open(CARDS_DIR / _CARD_FILES[name], encoding="utf-8") as fh:
         return KBCard.model_validate(json.load(fh))
+
+
+def vendor_catalogue() -> list[dict]:
+    """The vendor list shape mcp_server/server.py's a2k.listVendors tool
+    returns, factored out here so gateway/engine.py's direct-discovery-agent
+    path (mcp_to_agent_to_mcp branch) can build the exact same catalogue to
+    pass to the agent, without a2k.listVendors and the agent's phase-1 vendor
+    decision drifting apart over time."""
+    vendors = []
+    for source_id in ("cala", "sayari"):
+        card = load_card(source_id)
+        vendors.append(
+            {
+                "sourceId": source_id,
+                "name": card.name,
+                "domains": card.knowledgeProfile.domains,
+                "topics": card.knowledgeProfile.topics,
+                "scope": card.knowledgeProfile.coverage.scope,
+                "status": card.enterprise.lifecycle.status,
+                "priority": card.priority,
+                "queryType": card.queryType,
+            }
+        )
+    return vendors
