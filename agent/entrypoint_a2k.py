@@ -16,6 +16,13 @@ Invocation payload contract (a2k-box builds this, see gateway/engine.py):
                        "topics": [...], "scope": ..., "queryType": ...}, ... ]
                     # same shape a2k.listVendors already returns -- a2k-box
                     # passes it straight through, no re-fetch needed here.
+      "requestId": "<a2k-box's own gateway/engine.py requestId for this
+                     call, see engine.py's _request_id() -- threaded through
+                     to observability.py as session_id below purely so the
+                     agent.tool_call log lines / EMF metrics this process
+                     emits can be correlated with a2k-box's own audit record
+                     for the same request, same idea as core.py's
+                     session_id param>
     }
 
 Response: `{"ok": true, "content": {...}}` (AskContent's or SearchContent's
@@ -50,6 +57,13 @@ def invoke(payload: dict, context: RequestContext) -> dict:
     query = payload.get("query", "")
     sources = payload.get("sources")
     catalogue = payload.get("catalogue") or []
+    # session_id: a2k-box's own requestId, so agent/observability.py's logs/
+    # metrics for this call can be correlated with a2k-box's audit record for
+    # the same request. internal_client is hardcoded, not read from the
+    # payload -- this entrypoint's only legitimate caller is a2k-box itself
+    # (see module docstring), unlike entrypoint.py/entrypoint_v3.py which
+    # take internal_client from whoever's actually calling them.
+    session_id = payload.get("requestId")
 
     try:
         content = asyncio.run(
@@ -60,6 +74,8 @@ def invoke(payload: dict, context: RequestContext) -> dict:
                 catalogue=catalogue,
                 model_id=os.environ["BEDROCK_MODEL_ID"],
                 region=os.environ.get("AWS_REGION", "eu-west-1"),
+                session_id=session_id,
+                internal_client="a2k-box",
             )
         )
     except Exception as exc:

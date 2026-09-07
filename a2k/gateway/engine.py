@@ -156,7 +156,7 @@ class GatewayEngine:
         tracing.trace("engine.search.request", requestId=request_id, query=req.query, sources=sources, limit=limit)
 
         try:
-            content = await self._call_agent("search", req.query, req.sources)
+            content = await self._call_agent("search", req.query, req.sources, request_id)
         except A2KError as err:
             return self._error_envelope("search", source_kb_id, err, request_id)
 
@@ -321,7 +321,7 @@ class GatewayEngine:
         tracing.trace("engine.ask.request", requestId=request_id, query=req.query, sources=sources)
 
         try:
-            content = await self._call_agent("ask", req.query, req.sources)
+            content = await self._call_agent("ask", req.query, req.sources, request_id)
         except A2KError as err:
             return self._error_envelope("ask", source_kb_id, err, request_id)
 
@@ -548,12 +548,19 @@ class GatewayEngine:
         self._agent_token_expires_at = time.monotonic() + float(payload.get("expires_in", 3600)) - 30
         return self._agent_token
 
-    async def _call_agent(self, operation: str, query: str, sources: list[str] | None) -> dict:
+    async def _call_agent(self, operation: str, query: str, sources: list[str] | None, request_id: str) -> dict:
         """Invokes the agent's Runtime directly over HTTPS (Cognito Bearer
         token -- see _get_agent_token()), passing the vendor catalogue this
         gateway already has loaded (vendor_catalogue()) so the agent doesn't
         re-fetch it. See agent/entrypoint_a2k.py for the exact payload/
         response contract this call makes.
+
+        `request_id` is this gateway's own requestId (see _request_id()) --
+        passed through as `requestId` in the payload so entrypoint_a2k.py can
+        use it as the `session_id` on the agent's own observability.py logs/
+        metrics, correlating them with this gateway's audit records
+        (gw_audit.write_audit) for the same request, same idea as
+        core.py's session_id threading.
 
         mcp_to_agent_to_mcp branch: this is the deliberate trade this branch
         makes -- the agent connects directly to Cala's/Sayari's own MCP
@@ -581,6 +588,7 @@ class GatewayEngine:
             "query": query,
             "sources": sources,
             "catalogue": vendor_catalogue(),
+            "requestId": request_id,
         }
 
         async with httpx.AsyncClient(timeout=120.0, verify=config.httpx_verify) as client:

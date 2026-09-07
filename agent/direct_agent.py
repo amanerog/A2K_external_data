@@ -29,12 +29,14 @@ plan this branch was built from for why that trade was made anyway.
 from __future__ import annotations
 
 import asyncio
+import time
 from typing import Literal
 
 from pydantic import BaseModel, Field
 from strands import Agent
 from strands.models import BedrockModel
 
+import observability
 import vendor_mcp_client
 
 # --- Structured-output shapes ------------------------------------------------
@@ -169,8 +171,28 @@ Query: {query}
 
 
 def _run_vendor_agent_sync(
-    *, operation: str, query: str, source_id: str, model_id: str, region: str
-) -> AskContent | SearchContent:
+    *,
+    operation: str,
+    query: str,
+    source_id: str,
+    model_id: str,
+    region: str,
+    session_id: str | None = None,
+    internal_client: str | None = None,
+) -> tuple[AskContent | SearchContent, int, int]:
+    """Returns (structured_output, invocation_count, error_count) -- the
+    latter two come from the ToolCallLogger hook below, so handle() can sum
+    them across every vendor queried (there can be more than one on fan-out)
+    into a single observability.emit_query_metrics() call for the whole
+    request, same idea as core.py's ask() does for the Gateway-mediated path.
+
+    A fresh ToolCallLogger per call, not shared across vendors: `chosen_vendor`
+    inside its log lines stays None here (Sayari's/Cala's own tool names,
+    unlike core.py's a2k.ask, carry no `sources` argument to read it from --
+    the tool name itself is vendor-specific enough to tell them apart in the
+    logs), but the invocation/error tallying and tool-call log lines are
+    still useful as-is.
+    """
     mcp_client, tools = vendor_mcp_client.connect_vendor(source_id)
     try:
         model = BedrockModel(model_id=model_id, region_name=region)
@@ -180,15 +202,19 @@ def _run_vendor_agent_sync(
         else:
             system_prompt = _SEARCH_SYSTEM_PROMPT.format(vendor_name=source_id, query=query)
             output_model = SearchContent
+        tool_logger = observability.ToolCallLogger(
+            session_id=session_id, internal_client=internal_client, verbose=True
+        )
         agent = Agent(
             model=model,
             tools=tools,
             system_prompt=system_prompt,
             callback_handler=None,
             structured_output_model=output_model,
+            hooks=[tool_logger],
         )
         result = agent(query)
-        return result.structured_output
+        return result.structured_output, tool_logger.invocation_count, tool_logger.error_count
     finally:
         vendor_mcp_client.disconnect(mcp_client)
 
@@ -284,6 +310,8 @@ async def handle(
     catalogue: list[dict],
     model_id: str,
     region: str = "eu-west-1",
+    session_id: str | None = None,
+    internal_client: str | None = None,
 ) -> dict:
     """Top-level entry point -- entrypoint_a2k.py calls this directly.
     Returns a plain JSON-serializable dict matching AskContent's or
@@ -294,25 +322,62 @@ async def handle(
     Runs Strands' (blocking) calls via asyncio.to_thread so that, when
     `sources` spans multiple vendors, each vendor's phase-2 discovery+call
     genuinely runs in parallel rather than one after another.
+
+    `session_id`/`internal_client` are purely for observability.py (see
+    entrypoint_a2k.py, which threads a2k-box's own requestId/label through
+    here) -- one emit_query_metrics() call covers the whole request,
+    summing invocation/error counts across every vendor phase 2 actually
+    queried (there can be more than one on fan-out), same grain as
+    core.py's ask() emits one per Gateway-mediated call.
     """
-    active_ids = {v["sourceId"] for v in catalogue if v.get("status") == "active"}
-    source_ids = [s for s in sources if s in active_ids] if sources else None
-    if source_ids is None:
-        source_ids = await asyncio.to_thread(_decide_vendors_sync, query, catalogue, model_id, region)
-    source_ids = [s for s in source_ids if s in active_ids]
+    query_start = time.monotonic()
+    total_invocation_count = 0
+    total_error_count = 0
+    query_errored = False
+    try:
+        active_ids = {v["sourceId"] for v in catalogue if v.get("status") == "active"}
+        source_ids = [s for s in sources if s in active_ids] if sources else None
+        if source_ids is None:
+            source_ids = await asyncio.to_thread(_decide_vendors_sync, query, catalogue, model_id, region)
+        source_ids = [s for s in source_ids if s in active_ids]
 
-    if not source_ids:
-        if operation == "ask":
-            return {"answer": None, "claims": [], "citations": [], "groundedRatio": 0.0, "conflicts": []}
-        return {"passages": [], "citations": []}
+        if not source_ids:
+            if operation == "ask":
+                return {"answer": None, "claims": [], "citations": [], "groundedRatio": 0.0, "conflicts": []}
+            return {"passages": [], "citations": []}
 
-    contents = await asyncio.gather(
-        *(
-            asyncio.to_thread(_run_vendor_agent_sync, operation=operation, query=query, source_id=sid, model_id=model_id, region=region)
-            for sid in source_ids
+        results = await asyncio.gather(
+            *(
+                asyncio.to_thread(
+                    _run_vendor_agent_sync,
+                    operation=operation,
+                    query=query,
+                    source_id=sid,
+                    model_id=model_id,
+                    region=region,
+                    session_id=session_id,
+                    internal_client=internal_client,
+                )
+                for sid in source_ids
+            )
         )
-    )
+        contents = []
+        for content, invocation_count, error_count in results:
+            contents.append(content)
+            total_invocation_count += invocation_count
+            total_error_count += error_count
 
-    if operation == "ask":
-        return _merge_ask_contents(contents, source_ids, model_id=model_id, region=region)
-    return _merge_search_contents(contents)
+        if operation == "ask":
+            return _merge_ask_contents(contents, source_ids, model_id=model_id, region=region)
+        return _merge_search_contents(contents)
+    except Exception:
+        query_errored = True
+        raise
+    finally:
+        observability.emit_query_metrics(
+            internal_client=internal_client,
+            latency_ms=(time.monotonic() - query_start) * 1000,
+            invocation_count=total_invocation_count,
+            error_count=total_error_count,
+            query_errored=query_errored,
+        )

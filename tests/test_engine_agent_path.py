@@ -29,7 +29,7 @@ def engine():
 
 
 async def test_ask_via_agent_maps_claims_and_citations(engine, monkeypatch):
-    async def fake_call_agent(self, operation, query, sources):
+    async def fake_call_agent(self, operation, query, sources, request_id):
         assert operation == "ask"
         return {
             "answer": "Acme Robotics is active.",
@@ -57,7 +57,7 @@ async def test_ask_via_agent_maps_claims_and_citations(engine, monkeypatch):
 
 
 async def test_ask_via_agent_maps_conflicts(engine, monkeypatch):
-    async def fake_call_agent(self, operation, query, sources):
+    async def fake_call_agent(self, operation, query, sources, request_id):
         return {
             "answer": "Ownership is disputed.",
             "claims": [
@@ -93,7 +93,7 @@ async def test_ask_via_agent_maps_conflicts(engine, monkeypatch):
 
 
 async def test_ask_via_agent_unrecognized_conflict_nature_falls_back_to_unknown(engine, monkeypatch):
-    async def fake_call_agent(self, operation, query, sources):
+    async def fake_call_agent(self, operation, query, sources, request_id):
         return {
             "answer": "x",
             "claims": [
@@ -119,7 +119,7 @@ async def test_ask_via_agent_unrecognized_conflict_nature_falls_back_to_unknown(
 
 
 async def test_ask_via_agent_out_of_range_conflict_index_is_dropped(engine, monkeypatch):
-    async def fake_call_agent(self, operation, query, sources):
+    async def fake_call_agent(self, operation, query, sources, request_id):
         return {
             "answer": "x",
             "claims": [{"text": "a", "status": "SUPPORTED", "citationIndexes": []}],
@@ -136,7 +136,7 @@ async def test_ask_via_agent_out_of_range_conflict_index_is_dropped(engine, monk
 
 
 async def test_ask_via_agent_no_claims_no_answer_is_insufficient_evidence(engine, monkeypatch):
-    async def fake_call_agent(self, operation, query, sources):
+    async def fake_call_agent(self, operation, query, sources, request_id):
         return {"answer": None, "claims": [], "citations": [], "groundedRatio": 0.0, "conflicts": []}
 
     monkeypatch.setattr(GatewayEngine, "_call_agent", fake_call_agent)
@@ -146,7 +146,7 @@ async def test_ask_via_agent_no_claims_no_answer_is_insufficient_evidence(engine
 
 
 async def test_ask_via_agent_strict_grounding_violation_when_ratio_below_one(engine, monkeypatch):
-    async def fake_call_agent(self, operation, query, sources):
+    async def fake_call_agent(self, operation, query, sources, request_id):
         return {
             "answer": "Partial answer.",
             "claims": [{"text": "a", "status": "SUPPORTED", "citationIndexes": []}],
@@ -163,7 +163,7 @@ async def test_ask_via_agent_strict_grounding_violation_when_ratio_below_one(eng
 
 
 async def test_ask_via_agent_strict_grounding_satisfied_at_exactly_one(engine, monkeypatch):
-    async def fake_call_agent(self, operation, query, sources):
+    async def fake_call_agent(self, operation, query, sources, request_id):
         return {
             "answer": "Full answer.",
             "claims": [{"text": "a", "status": "SUPPORTED", "citationIndexes": []}],
@@ -180,7 +180,7 @@ async def test_ask_via_agent_strict_grounding_satisfied_at_exactly_one(engine, m
 
 
 async def test_ask_via_agent_propagates_call_agent_failure_as_error_envelope(engine, monkeypatch):
-    async def fake_call_agent(self, operation, query, sources):
+    async def fake_call_agent(self, operation, query, sources, request_id):
         raise A2KError(ErrorCode.UPSTREAM_ERROR, "boom")
 
     monkeypatch.setattr(GatewayEngine, "_call_agent", fake_call_agent)
@@ -190,7 +190,7 @@ async def test_ask_via_agent_propagates_call_agent_failure_as_error_envelope(eng
 
 
 async def test_search_via_agent_maps_passages_and_citations(engine, monkeypatch):
-    async def fake_call_agent(self, operation, query, sources):
+    async def fake_call_agent(self, operation, query, sources, request_id):
         assert operation == "search"
         return {
             "passages": [{"text": "Acme Robotics filed a 10-K.", "citationIndexes": [0]}],
@@ -207,7 +207,7 @@ async def test_search_via_agent_maps_passages_and_citations(engine, monkeypatch)
 
 
 async def test_search_via_agent_respects_pagination_limit(engine, monkeypatch):
-    async def fake_call_agent(self, operation, query, sources):
+    async def fake_call_agent(self, operation, query, sources, request_id):
         return {"passages": [{"text": f"p{i}", "citationIndexes": []} for i in range(5)], "citations": []}
 
     monkeypatch.setattr(GatewayEngine, "_call_agent", fake_call_agent)
