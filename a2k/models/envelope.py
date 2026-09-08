@@ -281,6 +281,32 @@ class Referral(BaseModel):
 class Usage(BaseModel):
     latencyMs: int | None = None
     retrievalCount: int | None = None
+    # Gateway-level extension (informative, non-normative, not in the KCP spec):
+    # only populated on the mcp_to_agent_to_mcp branch's agent-mediated path
+    # (_ask_via_agent/_search_via_agent) -- summed across every vendor phase 2
+    # actually queried, from direct_agent.py's handle()/observability.py's
+    # accumulated Bedrock usage. None on the deterministic path (no LLM calls
+    # there to meter) and on any error envelope.
+    inputTokens: int | None = None
+    outputTokens: int | None = None
+    totalTokens: int | None = None
+
+
+class ToolCallRecord(BaseModel):
+    """Gateway-level extension (informative, non-normative, not in the KCP
+    spec): one entry per live vendor-MCP tool call the agent actually made
+    on the mcp_to_agent_to_mcp branch's agent-mediated path -- see
+    agent/observability.py's ToolCallLogger.calls, threaded through
+    direct_agent.py's handle() -> gateway/engine.py. Always empty on the
+    deterministic path (adapters/cala_mcp.py, adapters/sayari_mcp.py don't
+    report per-call detail this way)."""
+
+    vendor: str
+    toolName: str
+    input: dict[str, Any] = Field(default_factory=dict)
+    output: Any = None
+    status: str
+    errorType: str | None = None
 
 
 # --- Pagination (KCP section 5.1) --------------------------------------------
@@ -343,6 +369,12 @@ class CitedResponseEnvelope(BaseModel):
     # (if any conflicts were found) travels alongside the envelope so callers
     # get both the terse per-claim conflicts[] and the full artifact.
     conflictReport: ConflictReport | None = None
+
+    # Gateway-level extension (informative, non-normative): per-tool-call
+    # audit detail on the agent-mediated path -- see ToolCallRecord and
+    # Usage's inputTokens/outputTokens/totalTokens above. Empty on the
+    # deterministic path.
+    toolCalls: list[ToolCallRecord] = Field(default_factory=list)
 
 
 # --- getDocument response (KCP section 4.4) -----------------------------------

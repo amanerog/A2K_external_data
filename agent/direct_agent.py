@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from dataclasses import dataclass
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -181,6 +182,15 @@ Query: {query}
 """
 
 
+@dataclass
+class VendorCallResult:
+    content: AskContent | SearchContent
+    invocation_count: int
+    error_count: int
+    usage: dict  # {"inputTokens": int, "outputTokens": int, "totalTokens": int}
+    tool_calls: list[dict]  # [{"vendor", "toolName", "input", "output", "status", "errorType"}, ...]
+
+
 def _run_vendor_agent_sync(
     *,
     operation: str,
@@ -190,7 +200,7 @@ def _run_vendor_agent_sync(
     region: str,
     session_id: str | None = None,
     internal_client: str | None = None,
-) -> tuple[AskContent | SearchContent, int, int]:
+) -> VendorCallResult:
     """Returns (structured_output, invocation_count, error_count) -- the
     latter two come from the ToolCallLogger hook below, so handle() can sum
     them across every vendor queried (there can be more than one on fan-out)
@@ -238,7 +248,24 @@ def _run_vendor_agent_sync(
             hooks=[tool_logger],
         )
         result = agent(query)
-        return result.structured_output, tool_logger.invocation_count, tool_logger.error_count
+        tool_calls = [
+            {
+                "vendor": source_id,
+                "toolName": c["tool_name"],
+                "input": c["input"],
+                "output": c["output"],
+                "status": c["status"],
+                "errorType": c["error_type"],
+            }
+            for c in tool_logger.calls
+        ]
+        return VendorCallResult(
+            content=result.structured_output,
+            invocation_count=tool_logger.invocation_count,
+            error_count=tool_logger.error_count,
+            usage=dict(result.metrics.accumulated_usage),
+            tool_calls=tool_calls,
+        )
     finally:
         vendor_mcp_client.disconnect(mcp_client)
 
@@ -340,8 +367,13 @@ async def handle(
     """Top-level entry point -- entrypoint_a2k.py calls this directly.
     Returns a plain JSON-serializable dict matching AskContent's or
     SearchContent's shape (with `citationIndexes` re-indexed and merged
-    across vendors, and `conflicts` added for `ask`), ready for
-    gateway/engine.py to assemble into the full CitedResponseEnvelope.
+    across vendors, and `conflicts` added for `ask`), plus two audit/
+    instrumentation extras summed across every vendor phase 2 actually
+    queried: `usage` (`inputTokens`/`outputTokens`/`totalTokens`, from
+    Strands' `AgentResult.metrics.accumulated_usage`) and `toolCalls`
+    (one entry per tool call actually made, each tagged with which vendor
+    it went to -- see observability.ToolCallLogger.calls). gateway/engine.py
+    maps both into the response envelope's `usage`/`toolCalls` fields.
 
     Runs Strands' (blocking) calls via asyncio.to_thread so that, when
     `sources` spans multiple vendors, each vendor's phase-2 discovery+call
@@ -366,11 +398,20 @@ async def handle(
         source_ids = [s for s in source_ids if s in active_ids]
 
         if not source_ids:
+            empty_usage = {"inputTokens": 0, "outputTokens": 0, "totalTokens": 0}
             if operation == "ask":
-                return {"answer": None, "claims": [], "citations": [], "groundedRatio": 0.0, "conflicts": []}
-            return {"passages": [], "citations": []}
+                return {
+                    "answer": None,
+                    "claims": [],
+                    "citations": [],
+                    "groundedRatio": 0.0,
+                    "conflicts": [],
+                    "usage": empty_usage,
+                    "toolCalls": [],
+                }
+            return {"passages": [], "citations": [], "usage": empty_usage, "toolCalls": []}
 
-        results = await asyncio.gather(
+        results: list[VendorCallResult] = await asyncio.gather(
             *(
                 asyncio.to_thread(
                     _run_vendor_agent_sync,
@@ -386,14 +427,27 @@ async def handle(
             )
         )
         contents = []
-        for content, invocation_count, error_count in results:
-            contents.append(content)
-            total_invocation_count += invocation_count
-            total_error_count += error_count
+        total_input_tokens = 0
+        total_output_tokens = 0
+        total_all_tokens = 0
+        all_tool_calls: list[dict] = []
+        for r in results:
+            contents.append(r.content)
+            total_invocation_count += r.invocation_count
+            total_error_count += r.error_count
+            total_input_tokens += r.usage.get("inputTokens") or 0
+            total_output_tokens += r.usage.get("outputTokens") or 0
+            total_all_tokens += r.usage.get("totalTokens") or 0
+            all_tool_calls.extend(r.tool_calls)
 
+        usage = {"inputTokens": total_input_tokens, "outputTokens": total_output_tokens, "totalTokens": total_all_tokens}
         if operation == "ask":
-            return _merge_ask_contents(contents, source_ids, model_id=model_id, region=region)
-        return _merge_search_contents(contents)
+            merged = _merge_ask_contents(contents, source_ids, model_id=model_id, region=region)
+        else:
+            merged = _merge_search_contents(contents)
+        merged["usage"] = usage
+        merged["toolCalls"] = all_tool_calls
+        return merged
     except Exception:
         query_errored = True
         raise

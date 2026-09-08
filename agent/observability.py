@@ -98,6 +98,15 @@ class ToolCallLogger:
         self._start_times: dict[str, str] = {}  # toolUseId -> ISO timestamp captured in _before
         self.invocation_count = 0
         self.error_count = 0
+        # Structured per-call record (name/input/output/status), in call order --
+        # unlike the agent.tool_call lines _after() also emits below (one JSON
+        # line per call, for CloudWatch), this is kept in memory so a caller that
+        # already has this logger instance (direct_agent.py's phase 2) can read
+        # every call's actual query/output back out directly, not just count/log
+        # them. See direct_agent.py's handle() -- this is what backs the
+        # response envelope's `toolCalls[]` extension on the mcp_to_agent_to_mcp
+        # branch's audit/instrumentation path.
+        self.calls: list[dict[str, Any]] = []
 
     def register_hooks(self, registry: HookRegistry) -> None:
         registry.add_callback(BeforeToolCallEvent, self._before)
@@ -131,10 +140,11 @@ class ToolCallLogger:
         if errored:
             self.error_count += 1
 
-        chosen_vendor = None
         tool_name = event.tool_use.get("name", "")
+        tool_input = event.tool_use.get("input") or {}
+
+        chosen_vendor = None
         if tool_name.endswith(_ASK_TOOL_SUFFIX):
-            tool_input = event.tool_use.get("input") or {}
             # `sources` omitted/empty means "fan out to all active vendors" (see
             # core.py's system prompt, rule 4) -- logged as None, not "[]", so a
             # dashboard can tell "explicit fan-out" apart from "not an ask call".
@@ -145,6 +155,16 @@ class ToolCallLogger:
             error_type = type(event.exception).__name__
         elif errored:
             error_type = "ToolError"
+
+        self.calls.append(
+            {
+                "tool_name": tool_name,
+                "input": tool_input,
+                "output": result if result is not None else (str(event.exception) if event.exception else None),
+                "status": "error" if errored else "success",
+                "error_type": error_type,
+            }
+        )
 
         if self._verbose:
             if event.exception is not None:

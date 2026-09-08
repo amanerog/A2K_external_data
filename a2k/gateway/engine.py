@@ -32,6 +32,7 @@ from ..models.envelope import (
     GetDocumentResponse,
     Grounding,
     Passage,
+    ToolCallRecord,
     Usage,
 )
 from ..models.request import A2KRequest, ExplainRequest, GetDocumentRequest
@@ -192,7 +193,8 @@ class GatewayEngine:
             freshness=self._agent_freshness(),
             accessDecision=self._access_decision(),
             audit=audit,
-            usage=Usage(latencyMs=self._elapsed_ms(t0), retrievalCount=len(passages)),
+            usage=self._agent_usage(t0, content, retrieval_count=len(passages)),
+            toolCalls=self._agent_tool_calls(content),
             pageInfo={"nextCursor": None, "hasMore": False, "pageLimit": limit},
         )
         self._cache(request_id, envelope)
@@ -390,7 +392,8 @@ class GatewayEngine:
             accessDecision=self._access_decision(),
             audit=audit,
             conflicts=aware_conflicts,
-            usage=Usage(latencyMs=self._elapsed_ms(t0), retrievalCount=len(claims)),
+            usage=self._agent_usage(t0, content, retrieval_count=len(claims)),
+            toolCalls=self._agent_tool_calls(content),
         )
         self._cache(request_id, envelope)
         tracing.trace(
@@ -638,6 +641,33 @@ class GatewayEngine:
 
     def _citation_ids_for(self, citations: list[Citation], indexes: list[int]) -> list[str]:
         return [citations[i].id for i in indexes if 0 <= i < len(citations)]
+
+    def _agent_usage(self, t0: float, content: dict, *, retrieval_count: int) -> Usage:
+        """`content["usage"]` comes from direct_agent.py's handle() (summed
+        across every vendor phase 2 actually queried) -- absent/malformed on
+        anything that monkeypatches _call_agent without it (existing tests),
+        so every lookup here is defensive rather than assuming the shape."""
+        agent_usage = content.get("usage") or {}
+        return Usage(
+            latencyMs=self._elapsed_ms(t0),
+            retrievalCount=retrieval_count,
+            inputTokens=agent_usage.get("inputTokens"),
+            outputTokens=agent_usage.get("outputTokens"),
+            totalTokens=agent_usage.get("totalTokens"),
+        )
+
+    def _agent_tool_calls(self, content: dict) -> list[ToolCallRecord]:
+        return [
+            ToolCallRecord(
+                vendor=tc.get("vendor", ""),
+                toolName=tc.get("toolName", ""),
+                input=tc.get("input") or {},
+                output=tc.get("output"),
+                status=tc.get("status", "success"),
+                errorType=tc.get("errorType"),
+            )
+            for tc in (content.get("toolCalls") or [])
+        ]
 
     def _agent_freshness(self) -> Freshness:
         """Unlike _freshness() below (still used by _insufficient_evidence,
