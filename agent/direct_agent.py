@@ -158,7 +158,13 @@ per distinct source you actually used), and `groundedRatio` (your own \
 honest estimate of how much of `answer` is directly backed by what the \
 tools returned, not general knowledge). Never invent facts the tools didn't \
 return -- if you don't have enough to answer, say so in `answer` and set a \
-low `groundedRatio`.
+low `groundedRatio`. When reporting identifiers (registration/company \
+numbers, LEIs, case references, etc.) or a relationship's direction (who \
+owns/controls/is-a-subsidiary-of whom), copy them exactly as the tool \
+result stated them -- re-read the specific field before writing it down \
+rather than recalling it from memory, since transposing a digit or \
+reversing which party is the parent and which is the subsidiary is a \
+factual error even when everything else in the answer is right.
 
 Query: {query}
 """
@@ -200,7 +206,20 @@ def _run_vendor_agent_sync(
     """
     mcp_client, tools = vendor_mcp_client.connect_vendor(source_id)
     try:
-        model = BedrockModel(model_id=model_id, region_name=region)
+        # temperature=0: ground_truth_v4.csv's live run (2026-09-08) caught a
+        # real hallucination here -- same Sayari entity match (identical
+        # graph node URL) synthesized correctly in one run and, in another
+        # run of the exact same query, came back with a fabricated
+        # registration number and an inverted ownership direction (claimed
+        # the parent owned the subsidiary, backwards). That's a synthesis
+        # error, not a retrieval/routing one -- lower temperature biases
+        # this step toward literal reproduction of what the tools returned
+        # instead of a paraphrase that can quietly transpose a number or
+        # flip a relationship. Phase 1's vendor decision and the conflict
+        # checker are left at the default -- this hallucination was
+        # specifically in reading tool results back out, not in either of
+        # those.
+        model = BedrockModel(model_id=model_id, region_name=region, temperature=0)
         if operation == "ask":
             system_prompt = _ASK_SYSTEM_PROMPT.format(vendor_name=source_id, query=query)
             output_model = AskContent

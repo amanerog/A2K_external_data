@@ -591,7 +591,17 @@ class GatewayEngine:
             "requestId": request_id,
         }
 
-        async with httpx.AsyncClient(timeout=120.0, verify=config.httpx_verify) as client:
+        # 240s, not 120s: ground_truth_v4.csv's live run (2026-09-08) showed 5/12
+        # in-scope (Sayari ownership/sanctions) queries hitting a flat 120s
+        # ceiling with no data back at all -- these are the multi-entity,
+        # multi-registry cross-check questions (e.g. matching a UK company
+        # against Companies House *and* OpenCorporates, resolving several name
+        # variants each) where the agent's phase 2 genuinely needs more than
+        # 120s of live tool-calling against Sayari's own MCP. This is a flat
+        # POST (not the streaming MCP path a2k-box's own callers use), so
+        # nothing here keeps the connection alive the way SSE ping frames do
+        # on that side -- it really is all-or-nothing up to this ceiling.
+        async with httpx.AsyncClient(timeout=240.0, verify=config.httpx_verify) as client:
             try:
                 resp = await client.post(
                     config.agent_runtime_url,

@@ -1,0 +1,1052 @@
+id,query,expected_answer,actual_answer,verdict,rationale,latency_ms,source,error
+41,"What candidate records does the ICIJ Offshore Leaks Database return for “Miguel Ângelo Varela”, born on 9 September 1976, Portuguese national, residing at Avenida do Atlântico 42, 1990-019 Lisboa, Portugal?
+Search using the exact name, the unaccented variant “Miguel Angelo Varela”, and the reordered variant “Varela, Miguel Ângelo”. Return the matched name, node type, node ID, linked entity, role, jurisdiction, status, source dataset, linked countries, addresses, relationships, identity assessment, evidence URL, executed search parameters and search timestamp.","The ICIJ Offshore Leaks Database returned 1 candidate record for “Miguel Ângelo Varela” using the name variants “Miguel Ângelo Varela”, “Miguel Angelo Varela” and “Varela, Miguel Ângelo”.
+
+Matched name: Miguel Angelo Varela
+Classification: INCONCLUSIVE
+Node type: Officer
+Node ID: ICIJ-EX-2001
+Linked entity: Blue Meridian Holdings Ltd.
+Role: Director
+Jurisdiction: British Virgin Islands
+Entity status: Active
+Data source: Panama Papers
+Linked countries: British Virgin Islands; Portugal
+Address recorded by ICIJ: 16 Harbour Road, Road Town, Tortola, British Virgin Islands
+Relationships: Miguel Angelo Varela is listed as a director of Blue Meridian Holdings Ltd.
+
+Identity assessment: The candidate name and Portuguese nationality are compatible with the searched subject. However, the ICIJ record does not provide a date of birth, Portuguese residential address, identification number or another stable attribute that would confirm that the candidate is the same person as Miguel Ângelo Varela, born on 9 September 1976 and residing in Lisboa.
+
+Matching attributes: Full name without accents; nationality.
+Missing or conflicting attributes: Date of birth; Portuguese residential address; personal identifier.
+
+Evidence: https://offshoreleaks.icij.org/nodes/ICIJ-EX-2001
+Search parameters: Exact name, unaccented name and reordered name.
+Searched on: 25 August 2026 at 10:20 WEST.
+
+The candidate must not be treated as a confirmed association without additional corroboration. Presence in the ICIJ Offshore Leaks Database is not, by itself, evidence of unlawful conduct.","The ICIJ Offshore Leaks Database is not available in Sayari's knowledge graph. After reviewing all 733 data sources integrated into Sayari, the ICIJ (International Consortium of Investigative Journalists) Offshore Leaks dataset is not among them.
+
+Therefore, I cannot search for or return candidate records from the ICIJ Offshore Leaks Database for Miguel Ângelo Varela or any other individual. 
+
+Sayari integrates data from company registries, trade records, sanctions lists, court filings, beneficial ownership registers, and many other public record sources across 200+ jurisdictions, but does not include ICIJ's proprietary offshore leaks databases (Panama Papers, Paradise Papers, Pandora Papers, etc.).
+
+To search the ICIJ Offshore Leaks Database, you would need to access it directly through ICIJ's own platform at offshoreleaks.icij.org.",FAIL,"The system claims it cannot access the ICIJ Offshore Leaks Database and returns no search results, while the reference answer shows that a specific candidate record (Miguel Angelo Varela, Node ID: ICIJ-EX-2001) should have been found and returned with detailed information. The system's response directly contradicts the expected availability of data and provides none of the substantive information that was supposed to be retrieved.",60018,ICIJ Offshore Leaks,
+43,"What potentially relevant results are available for “Aurora Verde Logística, Lda.”, NIPC 517845230, headquartered at Rua do Freixo 221, 4300-219 Porto, Portugal?
+
+Search the complete first page of results using:
+
+1. “Aurora Verde Logística, Lda.”
+2. “Aurora Verde Logistica”
+3. “Aurora Verde Logística” “517845230”
+4. “Aurora Verde Logística” fraude OR branqueamento OR corrupção
+5. “Aurora Verde Logística” sanções OR investigação OR processo
+
+For each result, return the executed query, title, publisher, publication date, URL, source type, topic classification, neutral summary, identity assessment, relevance assessment and primary-source reference where available.","The public web search returned 2 potentially relevant results for “Aurora Verde Logística, Lda.” The complete first page of results was reviewed for each executed query.
+
+Result 1
+
+Title: Contrato de prestação de serviços de transporte e logística
+Publisher: Município do Porto
+Publication date: 12 March 2026
+Executed query: “Aurora Verde Logística” “517845230”
+Result URL: https://example.test/municipio-porto/contrato-aurora-verde
+Source type: OFFICIAL
+Topic classification: CORPORATE RELATIONSHIP
+Neutral summary: The public procurement notice identifies Aurora Verde Logística, Lda., NIPC 517845230, as the supplier under a logistics-services contract.
+Identity classification: CONFIRMED
+Matching attributes: Exact legal name; NIPC 517845230; Porto location.
+Relevance assessment: CONTEXTUAL
+Primary source: https://example.test/municipio-porto/contrato-aurora-verde
+Assessment: The result confirms a commercial relationship but does not contain adverse information.
+
+Result 2
+
+Title: Autoridades investigam Aurora Verde Transportes por alegadas irregularidades
+Publisher: Jornal Regional do Sul
+Publication date: 8 February 2026
+Executed query: “Aurora Verde Logística” fraude OR branqueamento OR corrupção
+Result URL: https://example.test/jornal-regional/aurora-verde-transportes
+Source type: REPUTABLE MEDIA
+Topic classification: OFFICIAL PROCEEDING
+Neutral summary: The article reports an investigation involving Aurora Verde Transportes Ltda., registered in Brazil.
+Identity classification: FALSE POSITIVE
+Matching attributes: Partial similarity in the trading name.
+Conflicting attributes: The result concerns Aurora Verde Transportes Ltda., a Brazilian company, and not Aurora Verde Logística, Lda., NIPC 517845230, headquartered in Porto.
+Relevance assessment: NOT RELEVANT TO THE SEARCHED SUBJECT
+Primary source: NOT AVAILABLE
+Assessment: The result must not be attributed to Aurora Verde Logística, Lda.
+
+Overall outcome: NO RELEVANT ADVERSE-MEDIA RESULT.
+
+The official procurement result is classified as contextual corporate information. The Brazilian media result is classified as a false positive. No confirmed sanctions, money-laundering, corruption, investigation or legal-proceeding result was identified for Aurora Verde Logística, Lda. under the executed queries.
+
+Search evidence: WEB-EX-3001.pdf
+Searched on: 25 August 2026 at 10:35 WEST.
+
+This outcome means that no relevant adverse-media result was identified under the executed searches. It does not establish that no relevant information exists elsewhere or may become available later.","## Search Results for Aurora Verde Logística, Lda.
+
+I executed all five requested searches in Sayari's knowledge graph database, but **no results were found** for any of the query variations:
+
+### Queries Executed:
+
+1. **""Aurora Verde Logística, Lda.""** - 0 results
+2. **""Aurora Verde Logistica""** (without accent) - 0 results  
+3. **""Aurora Verde Logística"" ""517845230""** (with NIPC) - 0 results
+4. **""Aurora Verde Logística"" fraude OR branqueamento OR corrupção** (fraud/money laundering/corruption terms) - 0 results
+5. **""Aurora Verde Logística"" sanções OR investigação OR processo** (sanctions/investigation/legal process terms) - 0 results
+
+### Coverage Context:
+
+A check of Sayari's data source catalog indicates that **Portugal (PT) currently has limited or no public record sources indexed** in the database. This means the absence of results does not necessarily indicate the company doesn't exist or has no relevant information - rather, it reflects that:
+
+- Portuguese company registry data may not be available in Sayari's current source catalog
+- NIPC (Número de Identificação de Pessoa Coletiva) records from Portugal's registry may not be ingested
+- News, regulatory, or sanctions databases covering Portuguese entities may not include this specific company
+
+### Implications:
+
+For the entity ""Aurora Verde Logística, Lda."" with NIPC 517845230 at the Porto address you specified, Sayari cannot currently provide:
+- Entity profile information
+- Ownership structure or beneficial owners
+- Trade/shipment records
+- Sanctions screening results
+- Network connections or relationships
+- Risk assessment data
+
+**No results means no information is available in Sayari's database - not that the company has been cleared or flagged for any particular risk.**",FAIL,"The system reports zero results found across all queries, while the reference answer clearly shows 2 potentially relevant results were found (a municipal procurement contract and a Brazilian media article about a different company). The system's claim of no available information directly contradicts the reference's documented findings of specific search results with detailed metadata.",33342,Google / Web Search,
+45,"A public web-search result alleges that “Norte Claro Construções, S.A.”, NIPC 509884321, headquartered at Avenida Central 77, 4710-228 Braga, Portugal, was charged in connection with case 88/25.4TELSB.
+
+What official public records confirm, refute or clarify this result?
+
+Search the official websites of the Public Prosecutor’s Office, DCIAP, Judicial Police, applicable courts and regulators. Return the issuing authority, document title, publication date, case reference, procedural event, procedural status stated by the source, neutral factual summary, identity-match assessment, verification outcome and official URL.","The originating web-search result was checked against the available official public sources.
+
+Originating result: “Construction company charged in Operação Horizonte”
+Originating source: Jornal Económico Regional
+Originating publication date: 18 July 2026
+Originating result reference: WEB-EX-4001
+
+Official record
+
+Issuing authority: DCIAP
+Document title: Operação Horizonte: constituição de arguidos e realização de buscas
+Publication date: 18 July 2026
+Case reference: 88/25.4TELSB
+Procedural event: INVESTIGATION, SEARCHES AND FORMAL IDENTIFICATION OF SUSPECTS
+Procedural status stated by the source: Investigation in progress
+Official record reference: OFF-EX-4001
+Official URL: https://example.test/dciap/operacao-horizonte-18-07-2026
+
+Neutral factual summary: The official communication reports searches and the formal identification of suspects in an investigation concerning alleged procurement and invoicing irregularities. The company named in the official communication is “Norte Clara Engenharia, S.A.”, NIPC 509884312, headquartered at Rua dos Moinhos 14, 4700-000 Braga.
+
+Searched subject: Norte Claro Construções, S.A.
+Searched-subject NIPC: 509884321
+Searched-subject address: Avenida Central 77, 4710-228 Braga
+
+Identity classification: FALSE POSITIVE
+
+Matching attributes:
+- Similar company name
+- Same district
+
+Conflicting attributes:
+- Official record: Norte Clara Engenharia, S.A.
+- Searched subject: Norte Claro Construções, S.A.
+- Official-record NIPC: 509884312
+- Searched-subject NIPC: 509884321
+- Official-record address: Rua dos Moinhos 14, Braga
+- Searched-subject address: Avenida Central 77, Braga
+
+Verification outcome: OFFICIAL SOURCE REFUTES ATTRIBUTION TO THE SEARCHED COMPANY.
+
+The official record concerns a different legal entity. The investigation, searches and procedural status must not be attributed to Norte Claro Construções, S.A.
+
+Official sources checked: DCIAP, Public Prosecutor’s Office and Judicial Police
+Search parameters: Exact company name, unaccented name, NIPC and case reference
+Checked on: 25 August 2026 at 10:50 WEST
+
+The answer reports only the procedural status stated in the official communication. The existence of an investigation, search or formal identification of a suspect does not establish guilt or a final judicial finding.",,FAIL,System returned ok=false -- see error column.,120180,Official Sources: Public Prosecutor / DCIAP / Judicial Police / Courts / Regulators,"{""code"": ""UPSTREAM_ERROR"", ""message"": ""Agent Runtime call failed: "", ""retryable"": false, ""details"": {}}"
+47,"What LinkedIn professional information is available for “Beatriz Leonor Matos”, currently reported as Compliance Manager at Solaris Payments, S.A., in Lisboa, Portugal?
+
+Return the candidate profile reference, listed professional roles, employers, employment dates, professional affiliations, available location, authorized access method, identity-match assessment, matching or conflicting attributes and access timestamp.
+
+Do not access restricted profile content or use automated profile scraping.","The authorized LinkedIn search returned 1 candidate profile for “Beatriz Leonor Matos”.
+
+Candidate profile
+
+Displayed name: Beatriz L. Matos
+Profile reference: https://example.test/linkedin/in/beatriz-l-matos
+Displayed location: Lisbon Metropolitan Area, Portugal
+
+Listed professional experience:
+
+1. Compliance Manager
+   Employer: Solaris Payments, S.A.
+   Employment period: March 2022 to present
+   Location: Lisboa, Portugal
+
+2. Risk Analyst
+   Employer: Tejo Finance, S.A.
+   Employment period: June 2018 to February 2022
+   Location: Lisboa, Portugal
+
+Listed education:
+Postgraduate qualification in Compliance and Financial Regulation, Instituto Atlântico de Gestão, 2018.
+
+Other visible affiliations:
+Member of the Portuguese Compliance Professionals Network.
+
+Identity classification: INCONCLUSIVE
+
+Matching attributes:
+- Full first name and surname
+- Current employer
+- Current professional position
+- Lisboa location
+- Professional history compatible with a compliance role
+
+Missing or conflicting attributes:
+- The profile displays “Beatriz L. Matos” rather than the complete name “Beatriz Leonor Matos”
+- No date of birth is available
+- No personal or professional identifier is available
+- No independent contact detail is available for comparison
+- The current employment relationship has not been corroborated through an official company source or another permitted independent source
+
+Access method: Authorized public search
+Collection method: Controlled manual review
+Access restriction: No restricted profile content was accessed and no automated profile scraping was performed
+Evidence reference: LI-EX-5001
+Accessed on: 25 August 2026 at 11:05 WEST
+
+Assessment:
+
+The candidate profile is compatible with the searched person, but the available LinkedIn attributes are insufficient to confirm that the profile belongs to Beatriz Leonor Matos.
+
+The profile information must be treated as self-reported or profile-derived professional context. LinkedIn information alone does not conclusively establish the employment relationship and does not constitute adverse media.",(no answer -- insufficient evidence),FAIL,"The system provided no answer citing insufficient evidence, but the reference answer shows that substantial LinkedIn information was available through authorized public search, including a matching candidate profile with compatible professional details. The system's failure to return any of this available information contradicts the reference answer's documented findings.",12862,LinkedIn,
+49,"A relevant UK link has been identified for “Northbridge Solar Projects Ltd”, company number 14876543, with registered office at 22 Kingfisher Lane, Manchester M1 4AB, United Kingdom.
+
+What official Companies House records are available for this company?
+
+Return the legal name, company number, company status, company type, incorporation date, registered office, previous company names, current officers, persons with significant control, relevant filings, charges, insolvency information, identity-match assessment, relevant FCC alerts, official evidence references and search timestamp.","Companies House returned 1 company record matching “Northbridge Solar Projects Ltd”.
+
+Company details
+
+Legal name: Northbridge Solar Projects Ltd
+Company number: 14876543
+Company status: ACTIVE
+Company type: Private limited company
+Incorporation date: 20 April 2023
+Registered office: 22 Kingfisher Lane, Manchester M1 4AB, United Kingdom
+Previous company names: NONE RECORDED
+
+Identity classification: CONFIRMED
+
+Matching attributes:
+- Exact legal name
+- Exact company number
+- Exact registered-office address
+- United Kingdom jurisdiction
+
+Current officers
+
+1. Amelia Rose Carter
+   Role: Director
+   Appointment date: 20 April 2023
+   Month and year of birth: September 1981
+   Nationality: British
+   Correspondence address: 22 Kingfisher Lane, Manchester M1 4AB, United Kingdom
+   Officer status: Active
+
+2. Daniel James Mercer
+   Role: Director
+   Appointment date: 14 January 2025
+   Month and year of birth: June 1978
+   Nationality: British
+   Correspondence address: 15 Rivergate Square, Manchester M3 2LF, United Kingdom
+   Officer status: Active
+
+Persons with significant control
+
+1. Amelia Rose Carter
+   PSC status: Active
+   Nature of control:
+   - Ownership of more than 75% of the shares
+   - Ownership of more than 75% of the voting rights
+   - Right to appoint or remove a majority of the board of directors
+   Notification date: 20 April 2023
+
+Relevant filings
+
+1. Incorporation
+   Filing date: 20 April 2023
+   Reference: NEWINC-2023-0420
+
+2. Appointment of Daniel James Mercer as director
+   Filing date: 14 January 2025
+   Reference: AP01-2025-0114
+
+3. Confirmation statement
+   Filing date: 25 April 2026
+   Statement date: 20 April 2026
+   Reference: CS01-2026-0425
+
+Charges
+
+Number of charges: 1
+Charge status: OUTSTANDING
+Charge creation date: 12 January 2025
+Charge holder: Northern Commercial Bank plc
+Charge description: Fixed and floating charge over specified company assets
+Charge reference: CHG-2025-001
+
+Insolvency information: NONE RECORDED
+
+FCC alerts
+
+- OUTSTANDING CHARGE: CONTEXTUAL REVIEW
+- No insolvency record identified
+- No dissolved status
+- No disqualified officer identified in the reviewed evidence
+- No discrepancy identified between the searched company details and the official record
+
+Assessment:
+
+The Companies House record is confirmed as belonging to Northbridge Solar Projects Ltd because the legal name, company number and registered-office address match the supplied company information.
+
+The outstanding charge is a corporate financing and security record. The existence of the charge does not, by itself, establish insolvency, financial difficulty, misconduct or adverse media.
+
+Official company profile: https://example.test/companies-house/company/14876543
+Supporting evidence: CH-EX-6001.pdf
+Search parameters: Legal name and company number 14876543
+Searched on: 25 August 2026 at 11:20 WEST
+Evidence hash: SHA-256: 61a4c9f0…8d2e
+
+Companies House is treated as an official source of corporate and relationship information. The record does not, by itself, constitute adverse media.",,FAIL,System returned ok=false -- see error column.,120174,Companies House,"{""code"": ""UPSTREAM_ERROR"", ""message"": ""Agent Runtime call failed: "", ""retryable"": false, ""details"": {}}"
+52,"What candidate company and officer records does OpenCorporates return for “Atlântico Biotech Ltd” and “Rui Manuel Seabra” across the relevant jurisdictions?
+
+The expected company is registered in Malta and has the following known information:
+
+Company name: Atlântico Biotech Ltd
+Expected jurisdiction: Malta
+Registered address: 14 Marina Street, Valletta VLT 1160, Malta
+Known officer: Rui Manuel Seabra
+Expected role: Director
+
+Search using the company-name variants “Atlântico Biotech Ltd”, “Atlantico Biotech Ltd” and “Atlantico Biotechnology”, together with the officer name “Rui Manuel Seabra”.
+
+For each candidate, return the company name, company number, jurisdiction, status, incorporation or dissolution date, registered address, previous names, officers and roles, available ownership information, source registry, registry URL, provenance, identity classification and official-registry verification status.","OpenCorporates returned 2 candidate company records for “Atlântico Biotech Ltd” using the searched company-name variants.
+
+Candidate 1
+
+Company name: Atlantico Biotech Ltd
+Company number: C 99881
+Jurisdiction: Malta
+Jurisdiction code: mt
+Company status: ACTIVE
+Incorporation date: 17 June 2021
+Dissolution date: NOT APPLICABLE
+Registered address: 14 Marina Street, Valletta VLT 1160, Malta
+Previous company names: NONE RECORDED
+
+Officers and roles:
+
+1. Rui Manuel Seabra
+   Role: Director
+   Appointment date: 17 June 2021
+   Status: Active
+
+2. Helena Maria Costa
+   Role: Company Secretary
+   Appointment date: 17 June 2021
+   Status: Active
+
+Ownership information: NOT AVAILABLE IN THE REVIEWED OPENCORPORATES RECORD
+
+Filings or statements:
+
+1. Incorporation filing dated 17 June 2021
+2. Annual return dated 30 June 2025
+3. Change of registered office dated 12 September 2024
+
+Relationship classification: RELEVANT RELATIONAL MATCH
+
+Matching attributes:
+- Company name matches the unaccented variant
+- Expected Malta jurisdiction
+- Exact registered-office address
+- Exact officer name
+- Expected director role
+
+Missing or conflicting attributes:
+- No personal identifier is available for Rui Manuel Seabra
+- No date of birth is available for the officer
+- Ownership information is not available in the reviewed record
+
+Source registry: Malta Business Registry
+Registry URL: https://example.test/mbr/company/C99881
+OpenCorporates record: https://example.test/opencorporates/mt/C99881
+Provenance: Company and officer information attributed to the Malta Business Registry
+Provenance date: 14 August 2026
+Official-registry verification: NOT YET CONFIRMED
+
+Assessment:
+
+Candidate 1 is classified as a relevant relational match because the company name, jurisdiction, registered address, officer name and officer role are compatible with the supplied information.
+
+The company match has high confidence. The officer relationship is compatible but should be corroborated through the originating official registry where required.
+
+Candidate 2
+
+Company name: Atlantico Biotechnology LLC
+Company number: 7845129
+Jurisdiction: Delaware, United States
+Jurisdiction code: us_de
+Company status: ACTIVE
+Incorporation date: 9 February 2020
+Registered address: 1209 Orange Street, Wilmington, Delaware 19801, United States
+Previous company names: NOT AVAILABLE
+Officers and roles: NOT AVAILABLE
+Ownership information: NOT AVAILABLE
+Source registry: Delaware Division of Corporations
+Registry URL: https://example.test/delaware/entity/7845129
+OpenCorporates record: https://example.test/opencorporates/us_de/7845129
+
+Relationship classification: FALSE POSITIVE
+
+Matching attributes:
+- Partial similarity in the company name
+
+Conflicting attributes:
+- Jurisdiction is Delaware rather than Malta
+- Registered address is incompatible
+- Company number is different
+- Rui Manuel Seabra is not listed as an officer
+- The legal name includes “Biotechnology LLC” rather than “Biotech Ltd”
+
+Assessment:
+
+Candidate 2 must not be attributed to Atlântico Biotech Ltd or to Rui Manuel Seabra.
+
+Overall result:
+
+OpenCorporates returned one relevant relational candidate and one false positive. The relevant candidate is Atlantico Biotech Ltd, company number C 99881, Malta. Ownership information was not available and no conclusion was drawn regarding the company’s shareholders or beneficial owners.
+
+Search parameters: Exact name, unaccented name, partial company-name variant and officer name
+Evidence reference: OC-EX-7001
+Retrieved on: 25 August 2026 at 11:35 WEST
+Evidence hash: SHA-256: 44ad8f21…90e1
+
+OpenCorporates is treated as a complementary corporate-discovery and contextual source. Where available, the originating official registry should be used as the primary verification source.",,FAIL,System returned ok=false -- see error column.,120174,OpenCorporates,"{""code"": ""UPSTREAM_ERROR"", ""message"": ""Agent Runtime call failed: "", ""retryable"": false, ""details"": {}}"
+55,"A relevant UK link has been identified between “Tomás Duarte Correia”, born in March 1984, Portuguese national, and “Cobalt Harbour Trading Ltd”.
+
+What official Companies House records are available for “Cobalt Harbour Trading Ltd”, company number 15240177, and the reported officer “Tomás Duarte Correia”?
+
+Return the company profile, company number, status, incorporation date, registered office, officers, persons with significant control, nature of control, relevant filings, company and relationship identifiers, official evidence reference, retrieval timestamp and evidence hash.
+
+Assess separately whether the company record and the officer or PSC relationship match the supplied information.","Companies House returned 1 company record matching “Cobalt Harbour Trading Ltd”, company number 15240177.
+
+Company profile
+
+Legal name: Cobalt Harbour Trading Ltd
+Company number: 15240177
+Company status: ACTIVE
+Company type: Private limited company
+Incorporation date: 2 November 2023
+Registered office: 8 Dock Street, Liverpool L1 8JQ, United Kingdom
+Jurisdiction: England and Wales
+
+UK link:
+
+The searched subject, Tomás Duarte Correia, is reported as a current director and person with significant control of a UK-registered company.
+
+Company identity classification: CONFIRMED
+
+Company matching attributes:
+- Exact legal name
+- Exact company number
+- Compatible United Kingdom jurisdiction
+- Exact registered-office address
+
+Officers
+
+1. Tomás Duarte Correia
+   Role: Director
+   Appointment date: 2 November 2023
+   Officer status: Active
+   Month and year of birth: March 1984
+   Nationality: Portuguese
+   Country of residence: Portugal
+   Correspondence address: 8 Dock Street, Liverpool L1 8JQ, United Kingdom
+   Officer identifier: OFF-15240177-001
+
+2. Eleanor Grace Mitchell
+   Role: Director
+   Appointment date: 15 January 2025
+   Officer status: Active
+   Month and year of birth: July 1987
+   Nationality: British
+   Country of residence: United Kingdom
+   Correspondence address: 42 Riverside Walk, Liverpool L3 4BN, United Kingdom
+   Officer identifier: OFF-15240177-002
+
+Officer relationship assessment for Tomás Duarte Correia: CONFIRMED
+
+Matching attributes:
+- Exact full name
+- Compatible month and year of birth
+- Portuguese nationality
+- Active directorship of the matched company
+
+Missing attributes:
+- Complete date of birth is not available in the public officer record
+- No personal identification number is available
+
+Persons with significant control
+
+1. Tomás Duarte Correia
+   PSC status: Active
+   Notification date: 2 November 2023
+   Nature of control:
+   - Ownership of more than 50% but not more than 75% of the shares
+   - Ownership of more than 50% but not more than 75% of the voting rights
+   - Right to appoint or remove a majority of the board of directors
+   PSC identifier: PSC-15240177-001
+
+PSC relationship assessment: CONFIRMED
+
+Relevant filings
+
+1. Incorporation
+   Filing date: 2 November 2023
+   Filing reference: NEWINC-2023-1102
+
+2. Appointment of Tomás Duarte Correia as director
+   Filing date: 2 November 2023
+   Filing reference: AP01-2023-1102
+
+3. Initial PSC notification for Tomás Duarte Correia
+   Filing date: 2 November 2023
+   Filing reference: PSC01-2023-1102
+
+4. Confirmation statement
+   Filing date: 4 November 2025
+   Statement date: 2 November 2025
+   Filing reference: CS01-2025-1104
+
+Overall assessment:
+
+The UK company record is confirmed by the exact company number, legal name and registered-office address.
+
+The relationship between Tomás Duarte Correia and Cobalt Harbour Trading Ltd is also confirmed because the officer and PSC records contain a compatible full name, month and year of birth, nationality and company relationship.
+
+Companies House confirms that Tomás Duarte Correia is recorded as a director and PSC. The record does not independently establish that Tomás Duarte Correia is the ultimate beneficial owner under every applicable FCC definition. Any beneficial-ownership conclusion must consider the nature of control, other ownership layers and the remaining process documentation.
+
+Official company profile: https://example.test/companies-house/company/15240177
+API response reference: CH-EX-12001.json
+Supporting registry print: CH-EX-12001.pdf
+Retrieved on: 25 August 2026 at 12:45 WEST
+Evidence hash: SHA-256: 7b2e8a19…4f19",,FAIL,System returned ok=false -- see error column.,120169,Companies House,"{""code"": ""UPSTREAM_ERROR"", ""message"": ""Agent Runtime call failed: "", ""retryable"": false, ""details"": {}}"
+58,"What candidate international company and officer records does OpenCorporates return for “Eclipse Marítima S.A.”, registration number 778899, expected jurisdiction Panama, and the reported officer “Sofia Neves Pires”?
+
+Known information:
+
+Company name: Eclipse Marítima S.A.
+Registration number: 778899
+Expected jurisdiction: Panama
+Expected registered address: Avenida Balboa 120, Torre Pacífico, Panama City, Panama
+Reported officer: Sofia Neves Pires
+Expected role: Director
+Officer nationality: Portuguese
+Officer address supplied in the FCC process: Rua do Carmo 36, 1200-094 Lisboa, Portugal
+
+Search using the company-name variants “Eclipse Marítima S.A.”, “Eclipse Maritima SA” and “Eclipse Maritime”.
+
+Return the company identifiers, jurisdiction, status, registered address, officers and roles, corporate relationships, ownership information where available, registry source, provenance, official-registry URL, OpenCorporates URL, identity-match classification, retrieval timestamp and evidence hash.
+
+Assess the company match and the officer match separately.","OpenCorporates returned 2 candidate records for “Eclipse Marítima S.A.” using the supplied company-name variants and registration number.
+
+Candidate 1
+
+Company details
+
+Legal name: Eclipse Marítima S.A.
+Company number: 778899
+Jurisdiction: Panama
+Jurisdiction code: pa
+Company status: ACTIVE
+Incorporation date: 14 September 2018
+Dissolution date: NOT APPLICABLE
+Registered address: Avenida Balboa 120, Torre Pacífico, Panama City, Panama
+Previous names: NONE RECORDED
+Company type: Sociedad Anónima
+
+Company identity classification: CONFIRMED
+
+Company matching attributes:
+- Exact legal name
+- Exact registration number
+- Expected Panama jurisdiction
+- Exact registered-office address
+
+Officers and roles
+
+1. Sofia Neves Pires
+   Role: Director
+   Appointment date: 14 September 2018
+   Officer status: Active
+   Nationality: NOT AVAILABLE
+   Residential address: NOT AVAILABLE
+   Officer record reference: OFF-PA-778899-01
+
+2. Alejandro Martín Torres
+   Role: Director
+   Appointment date: 14 September 2018
+   Officer status: Active
+   Officer record reference: OFF-PA-778899-02
+
+3. Lucía Fernández Herrera
+   Role: Secretary
+   Appointment date: 14 September 2018
+   Officer status: Active
+   Officer record reference: OFF-PA-778899-03
+
+Officer identity classification for Sofia Neves Pires: INCONCLUSIVE
+
+Officer matching attributes:
+- Exact full name
+- Expected director role
+- Relationship with the confirmed company
+
+Missing or conflicting attributes:
+- No date of birth is available
+- No nationality is available in the reviewed record
+- No residential address is available
+- The Lisboa address supplied in the FCC process cannot be compared with the OpenCorporates record
+- No personal identification number or other stable identifier is available
+
+Corporate relationships:
+- Sofia Neves Pires is recorded as a director of Eclipse Marítima S.A.
+- No parent-company relationship is available in the reviewed record
+- No subsidiary relationship is available in the reviewed record
+
+Ownership information: NOT AVAILABLE
+
+Shareholders: NOT AVAILABLE
+Ownership percentages: NOT AVAILABLE
+Beneficial owners: NOT AVAILABLE
+Ultimate parent: NOT AVAILABLE
+
+Source registry: Registro Público de Panamá
+Official registry URL: https://example.test/registro-publico-panama/company/778899
+OpenCorporates record: https://example.test/opencorporates/pa/778899
+
+Provenance:
+Company and officer information is attributed to the Registro Público de Panamá. The reviewed OpenCorporates record indicates that the source data was last updated on 10 August 2026.
+
+Official-source verification: NOT COMPLETED
+
+Candidate assessment:
+
+The company record is classified as CONFIRMED because the legal name, registration number, jurisdiction and registered-office address match the supplied company information.
+
+The relationship between a person named Sofia Neves Pires and Eclipse Marítima S.A. is recorded by the source. However, the individual identity remains INCONCLUSIVE because no date of birth, nationality, address or personal identifier is available.
+
+The officer record must not be conclusively attributed to the Sofia Neves Pires residing at Rua do Carmo 36, Lisboa, without additional corroboration.
+
+Candidate 2
+
+Legal name: Eclipse Maritime Services Ltd
+Company number: 09441882
+Jurisdiction: United Kingdom
+Jurisdiction code: gb
+Company status: DISSOLVED
+Registered address: 28 Harbour Road, Southampton SO14 3TG, United Kingdom
+Officers: Sofia Pires, former director
+Ownership information: NOT AVAILABLE
+
+Company identity classification: FALSE POSITIVE
+
+Matching attributes:
+- Partial similarity in the company name
+- Officer name partially similar to Sofia Neves Pires
+
+Conflicting attributes:
+- Different legal name
+- Different registration number
+- Different jurisdiction
+- Different registered-office address
+- Company is dissolved
+- Officer name is incomplete
+- No demonstrated relationship with the Panama company
+
+Candidate 2 must not be attributed to Eclipse Marítima S.A. or to the searched Sofia Neves Pires.
+
+Overall result
+
+Confirmed company: Eclipse Marítima S.A., registration number 778899, Panama
+Company classification: CONFIRMED
+Officer relationship: A person named Sofia Neves Pires is recorded as director
+Individual identity classification: INCONCLUSIVE
+Ownership information: NOT AVAILABLE
+Official-registry verification: PENDING
+
+Evidence reference: OC-EX-13001.json
+Controlled record print: OC-EX-13001.pdf
+Retrieved on: 25 August 2026 at 13:00 WEST
+Evidence hash: SHA-256: 44ad20f1…90e1
+
+OpenCorporates is treated as a complementary corporate-discovery and verification source. The originating official registry should be used as the primary verification source where available.
+
+The absence of ownership information does not establish that the company has no shareholders, controlling persons, beneficial owners or parent company.",,FAIL,System returned ok=false -- see error column.,120166,OpenCorporates,"{""code"": ""UPSTREAM_ERROR"", ""message"": ""Agent Runtime call failed: "", ""retryable"": false, ""details"": {}}"
+61,"What official GLEIF data is available for “Aurora Atlantic Finance S.A.”, Portuguese company registration number 517684920, or LEI 549300EXAMPLE000001?
+
+Known entity information:
+
+Legal name: Aurora Atlantic Finance S.A.
+Registration number: 517684920
+Jurisdiction: Portugal
+Legal address: Avenida da Liberdade 155, 5.º, 1250-142 Lisboa, Portugal
+Expected direct parent: Aurora Atlantic Holdings S.A.
+
+Return the LEI reference data, legal and headquarters addresses, entity status, LEI registration status, registration authority and identifier, direct-parent relationship, ultimate-parent relationship, relationship statuses, reporting exceptions, identity-match assessment, source URLs, retrieval timestamp and evidence hash.
+
+Do not interpret direct or ultimate parent information as beneficial-ownership information.","GLEIF returned 1 LEI record matching “Aurora Atlantic Finance S.A.”.
+
+Entity reference data
+
+Legal name: Aurora Atlantic Finance S.A.
+LEI: 549300EXAMPLE000001
+Entity status: ACTIVE
+Entity creation date: 12 March 2018
+Legal jurisdiction: Portugal
+Legal form: Sociedade Anónima
+
+Legal address:
+Avenida da Liberdade 155, 5.º
+1250-142 Lisboa
+Portugal
+
+Headquarters address:
+Avenida da Liberdade 155, 5.º
+1250-142 Lisboa
+Portugal
+
+Registration information
+
+LEI registration status: ISSUED
+Initial LEI registration date: 18 April 2018
+Last update date: 15 April 2026
+Next renewal date: 15 April 2027
+Managing Local Operating Unit: LOU-EX-001
+
+Registration authority: Registo Nacional de Pessoas Coletivas
+Registration authority identifier: RA000000
+Entity registration number: 517684920
+
+Entity identity classification: CONFIRMED
+
+Matching attributes:
+- Exact legal name
+- Exact entity registration number
+- Portugal jurisdiction
+- Exact legal address
+- Active entity status
+
+Missing or conflicting attributes:
+- None identified in the reviewed reference data
+
+Direct-parent relationship
+
+Direct parent legal name: Aurora Atlantic Holdings S.A.
+Direct parent LEI: 549300EXAMPLE000002
+Direct-parent relationship type: IS_DIRECTLY_CONSOLIDATED_BY
+Relationship status: ACTIVE
+Relationship start date: 1 January 2020
+Accounting period start date: 1 January 2025
+Accounting period end date: 31 December 2025
+Validation status: VALIDATED
+
+Direct-parent assessment:
+
+The GLEIF relationship record reports that Aurora Atlantic Finance S.A. is directly consolidated by Aurora Atlantic Holdings S.A.
+
+This relationship is a reported accounting-consolidation relationship. The record does not independently establish the percentage of share ownership, voting rights or beneficial control held by Aurora Atlantic Holdings S.A.
+
+Ultimate-parent relationship
+
+Ultimate parent legal name: NOT DISCLOSED
+Ultimate parent LEI: NOT AVAILABLE
+Ultimate-parent relationship status: NOT REPORTED
+Reporting exception: CONSENT_NOT_OBTAINED
+Exception reference date: 15 April 2026
+
+Ultimate-parent assessment:
+
+GLEIF records a reporting exception for the ultimate-parent relationship because consent to disclose the parent information was not obtained.
+
+The reporting exception must not be interpreted as confirmation that no ultimate parent exists.
+
+Other reported group relationships: NONE AVAILABLE IN THE REVIEWED RESPONSE
+
+Overall assessment
+
+Aurora Atlantic Finance S.A. is confirmed as the entity represented by LEI 549300EXAMPLE000001 because the legal name, registration number, jurisdiction and address match the supplied entity information.
+
+GLEIF reports Aurora Atlantic Holdings S.A., LEI 549300EXAMPLE000002, as the direct accounting-consolidation parent.
+
+The ultimate-parent relationship is not disclosed due to a reporting exception. No conclusion can be drawn regarding the absence or identity of the ultimate parent from the reviewed GLEIF response alone.
+
+The parent information represents relationships reported in the LEI system. It does not constitute a complete shareholding, control or beneficial-ownership analysis.
+
+GLEIF entity record: https://example.test/gleif/lei/549300EXAMPLE000001
+Direct-parent relationship record: https://example.test/gleif/relationship/REL-EX-14001
+Ultimate-parent exception record: https://example.test/gleif/exception/EXC-EX-14001
+
+API response reference: GLEIF-EX-14001.json
+Controlled record print: GLEIF-EX-14001.pdf
+Retrieved on: 25 August 2026 at 13:15 WEST
+Evidence hash: SHA-256: 82f7a139…5c41",(no answer -- insufficient evidence),FAIL,"The system reported no answer due to insufficient evidence, but the reference answer shows that comprehensive GLEIF data was available including LEI record, entity details, addresses, registration information, direct-parent relationship, and ultimate-parent exception. The system failed to retrieve and report any of this available information.",13080,GLEIF / LEI,
+71,Who is Leopoldo Alejandro Betancourt López? What are his corporate affiliations and any known risks or red flags associated with him?,"Leopoldo Alejandro Betancourt López is a Venezuelan businessman also known by the aliases Alejandro Betancourt, Alejandro Betancourt López, Leopoldo Alejandro Betancourt, and the nickname ""Bolichico."" He was born on February 22, 1980, and is a Venezuelan national. His known identifiers include Venezuelan Cédula V-15394369 and Acuris Unique ID I4065110. Addresses associated with him span Venezuela (El Hatillo, Miranda State; Campo Alegre, Caracas), the United States (Olympic Tower, Fifth Avenue, New York; Florida), and Spain (Toledo).
+He holds or has held multiple corporate roles, primarily tied to the Derwick Associates group of companies. He is listed as an officer of Derwick Associates USA, LLC (Florida), and as a board member and shareholder of Derwick, Associates Corporation (Barbados). He is a legal representative, board member, and shareholder of B.G.B. Energy, C.A., and holds similar roles (legal representative, board member, and shareholder) at Inversiones Ameritile, C.A. He is a board member of Listo Shipping Co. 1 and of Energy Cargo 2000, C.A., a legal representative of Centro Tecnológico de Turbinas CTT, C.A., and is recorded as an employee, legal representative, board member, and general linked party of Derwick Associates de Venezuela. He is also directly linked to Francisco Convit Guruceaga, another Venezuelan national (born 1978) who shares similar money-laundering-related risk events in the graph.
+Betancourt López has substantial adverse media and risk event history, mostly relating to financial crime, corruption, and bribery allegations connected to Derwick Associates and Venezuela's state oil company PDVSA. In June 2026, Spain's Audiencia Nacional ordered the reopening of a money-laundering investigation against him (he is noted as the owner of the Hawkers eyewear brand). In September 2025, he was arrested in London on suspicion of corruption and money laundering, at the request of Spanish anti-corruption investigators, in connection with allegations that Derwick Associates bribed Venezuelan officials to secure power-plant construction contracts. In September 2022, Venezuela's Public Ministry issued an arrest warrant against him for alleged fraud committed during his tenure as a PDVSA-related official. Earlier records include a 2013 racketeering and bribery lawsuit filed by former U.S. Deputy Secretary of State Otto Reich, alleging that Derwick Associates (of which Betancourt was CEO/director) received PDVSA energy contracts through bribery, as well as 2019 adverse media reports describing him as one of the ""Bolichicos"" accused of profiting from Venezuela's state resources, including an alleged attempt to extract $1.2 billion from PDVSA, and links to a Miami federal investigation into Nicolás Maduro's stepsons.","## Leopoldo Alejandro Betancourt López
+
+**Identity Overview:**
+
+Leopoldo Alejandro Betancourt López (also known as ""Alejandro Betancourt"" or ""Bolichico"") is a Venezuelan businessman with Venezuelan national ID V-15394369. He is associated with addresses in Venezuela (Caracas and El Hatillo, Miranda State), the United States (Florida and New York), and Spain (Toledo).
+
+---
+
+## Corporate Affiliations
+
+### Current Positions:
+- **Chairman/CEO** of [Derwick Associates USA, LLC](https://graph.sayari.com/resource/entity/4SoccGADKlFZRI1lhPY20w) - a Florida-based limited liability company (now inactive) registered in 2010 for construction of power plants
+
+### Former Positions and Shareholdings:
+
+**Board Member and Shareholder:**
+- [Derwick Associates Corporation](https://graph.sayari.com/resource/entity/sFE3KB0hpN7vjstTizeLxA) (Barbados/Venezuela) - 50% ownership stake
+- [B.G.B. Energy, C.A.](https://graph.sayari.com/resource/entity/VXFmdW37dQ3tiMUX_7xVrw) (Venezuela) - 30% ownership stake
+- [Inversiones Ameritile C.A.](https://graph.sayari.com/resource/entity/-u0czqcSs3OpnKwSDvdTWA) (Venezuela) - 50% ownership stake
+- [Listo Shipping Co. 1](https://graph.sayari.com/resource/entity/RQWiGD1iYW7IzImg2hLVwg) (Venezuela)
+- [Energy Cargo 2000, C.A.](https://graph.sayari.com/resource/entity/-5RJOEBby96HfdzZ2LEqNQ) (Venezuela)
+- [Derwick Associates de Venezuela](https://graph.sayari.com/resource/entity/DmWFST29kDBMaZq3SZ0w5A) (Venezuela)
+
+**Legal Representative:**
+- [Centro Tecnológico de Turbinas CTT, C.A.](https://graph.sayari.com/resource/entity/FzSf8w-Yq_jZFE2vQAQz6w) (Venezuela)
+- Multiple of the above-mentioned companies
+
+### Key Associates:
+- [Francisco Convit Guruceaga](https://graph.sayari.com/resource/entity/TPwvlnRJOYCsPgdy1iZz7Q) - Venezuelan associate who also carries significant risk flags
+
+---
+
+## Risk Flags and Red Flags
+
+### Significant Risk Indicators:
+
+**Law Enforcement and Criminal Activity:**
+- **Law Enforcement Action** - mentioned by official government websites or mass media outlets as wanted, charged, indicted, prosecuted, convicted, or sentenced
+- **Law Enforcement Action (Historic)** - historic law enforcement mentions (>2 years ago)
+- **Financial Crime** - current adverse media mentions related to financial crime
+- **Financial Crime (Breaking)** - breaking adverse media (within last 3 months) related to financial crime
+- **Bribery and Corruption (Historic)** - historic adverse media related to bribery and corruption (>2 years ago)
+- **Other Reputational Risk** - both current and historic adverse media mentions
+
+**Jurisdictional and Procurement Risk:**
+- **Venezuela Contractors Registry** - appears on Venezuela government procurement records, triggering the MEU (Military End Use) list flag
+- **Procurement Activity in High-Risk Jurisdiction** - operates in Venezuela, which is subject to U.S. export controls under §744.21 of the Export Administration Regulations (EAR)
+- **Basel AML Index** - operates in jurisdictions with elevated money laundering and terrorist financing risk
+- **Corruption Perceptions Index** - operates in jurisdictions with high perceived corruption
+- **EU High-Risk Third Countries** (via Derwick Associates Corporation) - operates in countries identified by the European Commission as high risk for AML/CFT deficiencies
+
+### Important Context:
+- **NOT sanctioned** - Betancourt López is not currently on any sanctions lists
+- **NOT a PEP** - Not classified as a Politically Exposed Person
+- However, his associate [Francisco Convit Guruceaga](https://graph.sayari.com/resource/entity/TPwvlnRJOYCsPgdy1iZz7Q) carries even more extensive risk flags including active bribery and corruption mentions
+
+### Corporate Network Risk:
+All of Betancourt López's affiliated companies appear on the Venezuela Contractors Registry and carry the MEU (Military End Use) list flag, indicating procurement activity in a high-risk jurisdiction subject to U.S. export controls.
+
+---
+
+## Summary
+
+Leopoldo Alejandro Betancourt López is a Venezuelan businessman primarily associated with the Derwick Associates corporate network, focused on energy, construction, and power generation in Venezuela. He carries substantial reputational and compliance risk flags including:
+
+1. **Active and historic law enforcement mentions**
+2. **Financial crime allegations (including breaking/recent news)**
+3. **Bribery and corruption allegations (historic)**
+4. **Operations in Venezuela**, a sanctioned and high-risk jurisdiction
+5. **Government contracting in a military end-use restricted country**
+6. **Multiple adverse media references across various categories**
+
+While not personally sanctioned or designated as a PEP, the combination of law enforcement action flags, financial crime allegations, and operations in Venezuela through companies on government contractor registries presents significant due diligence concerns for any business relationship.",PARTIAL,"The system's answer correctly identifies Betancourt López's identity, corporate affiliations with Derwick Associates entities, and general risk categories (law enforcement action, financial crime, bribery/corruption). However, it omits critical specific details from the reference including his birth date (February 22, 1980), the nickname 'Bolichico,' and most importantly, the specific adverse events: the June 2026 Spanish money-laundering investigation reopening, September 2025 London arrest, September 2022 Venezuelan arrest warrant, the 2013 Otto Reich lawsuit, and connections to the Hawkers brand and Maduro investigation.",69232,"Acuris Risk Intelligence - Entities & Relationships (3rd Party Data); Acuris Risk Intelligence - Risk Information and Articles (3rd Party Data); Venezuela Contractors Registry (Government Procurement Records); Venezuela SAREN-IVSS Registry; Venezuela IVSS Registry; USA Florida Corporate Registry; teleceuta.com - ""La Audiencia Nacional ordena reabrir la investigación contra el empresario venezolano dueño de Hawkers"" (https://teleceuta.com/la-audiencia-nacional-ordena-reabrir-la-investigacion-contra-el-empresario-venezolano-dueno-de-hawkers/); tippinpoint.ch - ""Alejandro Betancourt wurde in London verhaftet"" (https://www.tippinpoint.ch/artikel/78305/alejandro_betancourt_wurde_in_london_verhaftet.html); elsiglo.com.ve - ""MP designa fiscales y órdenes de aprehensión"" (https://elsiglo.com.ve/2022/09/01/mp-designa-fiscales-y-ordenes-de-aprehension/); issuu.com - Otto Reich vs Derwick (https://issuu.com/soberania.org/docs/otto_reich_vs_derwick); eltiempolatino.com - ""Alejandro Betancourt: el 'Bolichico' acusado de hacer fortuna a costa de Venezuela"" (http://eltiempolatino.com/news/2019/may/30/alejandro-betancourt-el-bolichico-acusado-de-hacer/); el-carabobeno.com - ""El empresario Alejandro Betancourt implicado en lavado de dinero"" (https://www.el-carabobeno.com/el-empresario-alejandro-betancourt-implicado-en-lavado-de-dinero/); univision.com - ""Ex-subsecretario de Estado denuncia pago de sobornos"" (http://noticias.univision.com/article/1623524/2013-08-01/univision-investiga/ex-subsecretario-de-estado-de); courthousenews.com - ""Ex-Ambassador Accuses 'ChavezKids' of Bribery"" (http://www.courthousenews.com/2013/07/31/59868.htm); petroleumworld.com - ""U.S. Attorney asks Switzerland for Records in Widening PDVSA Investigation"" (http://www.petroleumworld.com/storyt16032502.htm); justice.gov (DOJ) - ""Two Members of Billion-Dollar Venezuelan Money Laundering Scheme Arrested"" (https://www.justice.gov/usao-sdfl/pr/two-members-billion-dollar-venezuelan-money-laundering-scheme-arrested)",
+73,"Who owns and controls Allwyn Investments Cyprus Ltd, and what companies is it connected to?","Allwyn Investments Cyprus Ltd is a Cyprus-registered limited company (Cyprus Registration Number HE 432870), based at Neocleous House, 195 Arch. Makariou III Avenue, Limassol, Cyprus. It was formerly known as Rubidium Holding 2 Ltd and is currently listed as registered/active.
+The company has four recorded directors: Katerina Jagiello Brandysova, Dimitris Rotis (Δημήτρης Ρώτης), and Androulla Papadopoulou (Ανδρούλλα Παπαδοπούλου), a Cypriot national born April 14, 1957, who also holds addresses in Limassol and London and appears with multiple passport and Cyprus ID identifiers across different filings. In addition, the corporate entity Montrago Services Limited (registered in Cyprus, with UK and Malta ties, Cyprus Registration Number HE 52239, status active/registered) is listed as an officer of Allwyn Investments Cyprus Ltd.
+On the ownership side, Allwyn Investments Cyprus Ltd is a shareholder of Kaizen Gaming Holding Ltd., a Malta-registered holding company (Malta Company Registration Number C-104894, registered capital €280,612.50, with two classes of ordinary shares — 550,000 Class A and 11,225 Class B shares). Kaizen Gaming Holding is described as a holding/head-office entity and also has a registered presence in Brazil (Brazil CNPJ 52.810.540/0001-34, active status) and a recorded beneficial ownership filing in Austria.
+No adverse media, litigation, or risk events are recorded for Allwyn Investments Cyprus Ltd or its associated individuals and companies in this data set; all records are standard corporate registry filings.","# Allwyn Investments Cyprus Ltd: Ownership, Control & Connections
+
+## Overview
+**[Allwyn Investments Cyprus Ltd](https://graph.sayari.com/resource/entity/C6rnBrdnhCmQSWVAH1Y67Q)** is a Cyprus-registered company (registration number: HE 375990) that was incorporated on October 23, 2018. The company is currently active and classified as a private limited company.
+
+## Key Identifiers
+- **Cyprus Company Number**: HE 375990
+- **LEI**: 2138009D84WQWDPG5R27
+- **Malta Company Number**: C 104819 (cross-registered)
+- **Address**: KARAOLI DIMITRIOU, 63, AKTIS BUILDING, FLAT/OFFICE 101, CY-6021, LARNACA, CYPRUS
+
+## Ownership Structure
+
+### Direct Shareholder
+**[Kaizen Gaming Holding Ltd](https://graph.sayari.com/resource/entity/tuY3C-EQhO7pb3cfJ3m_Eg)** owns **36.75%** of Allwyn Investments Cyprus Ltd. This makes it the single largest shareholder of the company.
+
+Kaizen Gaming Holding Ltd itself has the following ownership structure:
+- **[Padian Ltd](https://graph.sayari.com/resource/entity/skG-H4tmpdjySL7VAUdwmg)** - 27.44%
+- **[Allwyn Investments Cyprus Ltd](https://graph.sayari.com/resource/entity/C6rnBrdnhCmQSWVAH1Y67Q)** - 36.75% (circular ownership)
+- **[Deep Investments Ltd](https://graph.sayari.com/resource/entity/78-8vovCit8DPWYkJtonuA)** - 27.44%
+- **[Tisarko Ltd](https://graph.sayari.com/resource/entity/FPMLJQjxYnOnDk7RTcMX2g)** - 6.37%
+- **[Skygame Ltd](https://graph.sayari.com/resource/entity/NyrswQ18mF_fzKhnZFYtRQ)** - 1.50%
+- **[Ilavaro Ltd](https://graph.sayari.com/resource/entity/Nyk-L99bLpHLPguvUJcwJA)** - 0.50%
+
+### Ultimate Beneficial Owners
+The beneficial ownership data shows **no direct beneficial owners** were identified in the Sayari dataset for Allwyn Investments Cyprus Ltd. This suggests the ownership structure may be complex, with beneficial ownership potentially obscured through multiple layers of holding companies.
+
+## Control & Management
+
+### Directors
+The company has the following directors:
+1. **[Montrago Services Limited](https://graph.sayari.com/resource/entity/RlxbSSfi7OB5t_UZO3rqlQ)** - Corporate director (Secretary)
+2. **[Δημήτρης Ρώτης (Dimitris Rotis)](https://graph.sayari.com/resource/entity/fmnREtYxuirYkLz4Cm2FVw)** - Individual director (Secretary)
+3. **[Androulla Papadopoulou](https://graph.sayari.com/resource/entity/KGbZphtGAT848c3uY5QC7Q)** - Individual director
+4. **[Katerina Jagiello Brandysova](https://graph.sayari.com/resource/entity/ziPjk9FQOTQeseroWywnEg)** - Individual director
+
+## Connected Companies
+
+### Downstream Holdings (Companies Owned by Allwyn Investments Cyprus Ltd)
+Allwyn Investments Cyprus Ltd owns stakes in **6 companies**, primarily through its shareholding in Kaizen Gaming Holding Ltd:
+
+1. **[Kaizen Gaming Holding Ltd](https://graph.sayari.com/resource/entity/tuY3C-EQhO7pb3cfJ3m_Eg)** (Malta) - 36.75% ownership
+   - This appears to be a circular ownership relationship
+
+2. **[Kaizen Gaming CZ Limited](https://graph.sayari.com/resource/entity/pm96BGVSU7hHDnXhRo4MaA)** (Malta) - indirectly through Kaizen Gaming Holding
+
+3. **[Kaizen Gaming International Limited](https://graph.sayari.com/resource/entity/gqIeobKPg02SvZZ4CzTsmw)** (Malta/Mexico/Australia/UK/Canada) - indirectly owned
+
+4. **[Digify International Limited](https://graph.sayari.com/resource/entity/2RXPFCrAteNjaq7CPvyQXg)** (Malta)
+
+5. **[Kaizen Gaming Brasil Holding Ltda](https://graph.sayari.com/resource/entity/7VZIU3uO_FdZIGPmB9SErA)** (Brazil)
+
+6. **[Kaizen Gaming Brasil Ltda](https://graph.sayari.com/resource/entity/3YgG36mZdKF_1VPJPVViSg)** (Brazil)
+
+### Broader Network
+The network traversal identified **645+ connected entities** within 2 degrees of separation, including numerous Cyprus-based holding companies, gaming/entertainment entities, and international subsidiaries. The extensive network suggests Allwyn Investments Cyprus Ltd is part of a large corporate structure, likely related to the **Kaizen Gaming** group (known for operating betting and gaming platforms like **Betano** and **Stoiximan**).
+
+## Risk Factors
+- **Basel AML Index**: Present
+- **CPI Score**: Present (Cyprus Corruption Perceptions Index consideration)
+- **Controlled by Mass Business Registration**: Risk flag indicating the company shares address/director characteristics with many other entities
+- **Mass Address Usage**: Multiple entities registered at the same address
+- **Owner of Regulatory Action Entity**: Flag indicating connection to entities with regulatory actions
+- **PSA Owner of Regulatory Action Entity**: Similar to above
+
+## Business Purpose
+The stated business purpose is **""Activities of holding companies""**, consistent with its role as an investment/holding vehicle.
+
+## Key Observations
+1. **Complex Ownership**: The circular ownership between Allwyn Investments Cyprus Ltd and Kaizen Gaming Holding Ltd (each owning shares in the other) indicates a sophisticated corporate structure.
+
+2. **Gaming Industry Focus**: The connected entities are predominantly in the online gaming and betting industry, with the Kaizen Gaming group operating major brands.
+
+3. **Multiple Jurisdictions**: While registered in Cyprus, the network extends to Malta, Brazil, Greece, UK, and other jurisdictions.
+
+4. **Limited Transparency**: No clear beneficial owners were identified, and the multi-layered structure obscures ultimate control.
+
+5. **Service Provider Network**: The use of corporate directors and service companies (like Montrago Services Limited) is typical for Cyprus holding structures.",FAIL,"The system's answer contains a critical factual error: it states the Cyprus registration number is HE 375990, while the reference clearly states it is HE 432870. Additionally, the system fundamentally inverts the ownership relationship, claiming Kaizen Gaming Holding Ltd owns 36.75% of Allwyn Investments Cyprus Ltd, whereas the reference states Allwyn Investments Cyprus Ltd is a shareholder of Kaizen Gaming Holding Ltd. These are material contradictions of core facts.",119236,Cyprus Department of Registrar of Companies and Official Receiver (Company Record); Malta Companies Register (Company Record); UK Corporate Registry (Company Record); UK Persons with Significant Control (Company Record); Infocredit Cyprus Company Shareholders Database (3rd Party Data); Brazil Receita Federal (Company Record); Austria Auszug.at Firmenbuch - Active Entities (Company Record); Austria Beneficial Ownership (Company Record),
+75,"Who is Ali Ansari? What sanctions or watchlist designations apply to him, and what companies is he connected to?","Ali Ansari (also recorded as Ali Aliakbar Ansari, Aliakbar Ansari, and علی انصاری) is an Iranian businessman, born December 26, 1968, associated with Iran, the United Arab Emirates (Dubai), Cyprus, the United Kingdom, Saint Kitts and Nevis, Luxembourg, and Germany. He holds multiple passports (Iranian, Cypriot, and one from St Kitts and Nevis) and an Iranian national ID number.
+He is currently sanctioned by several authorities. The U.S. Treasury's OFAC added him to the Specially Designated Nationals (SDN) List under Executive Order 13224 (terrorism), with secondary-sanctions exposure and links to the IRGC and Iran-related programs. The UK Consolidated Sanctions List designates him under the Iran (Sanctions) Regulations 2023, citing support for hostile Iranian government activity via economic resources to the IRGC, with an asset freeze, travel ban, and director disqualification. He also appears on the EU sanctions list (via the Official Journal of the EU / OpenSanctions), France's National Asset Freeze Register, Switzerland's SECO sanctions list, and the U.S. Consolidated Screening List for export controls.
+The stated rationale across these listings is consistent: Ansari is described as the former owner of Bank Ayandeh (Ayandeh Bank) and of the Iran Mall, who used a network of companies and foreign banking channels — funded in part by Iranian oil sales — to move money abroad in support of Iran's military and the IRGC. He is also said to have acquired real estate and other assets in the EU and UK on behalf of individuals connected to Iran's leadership, including Mojtaba Khamenei, who is directly linked to him in the sanctions data.
+His corporate network spans several jurisdictions. In Germany, he is a shareholder of Allsco GmbH (real estate/hospitality-related activities) and a beneficial owner, director, and shareholder of German ETD GmbH (construction-materials wholesale and R&D). In Luxembourg, he is the beneficial owner of Leopard Germany Bero 1 S.à r.l. and Leopard Germany Bero 2 S.à r.l. (holding companies) and of Tidalwave Holdings I S.à r.l. (a financial holding/""Soparfi""). In the UK/Isle of Man, he is the beneficial owner of Birch Ventures Limited, which owns UK real estate per the UK's Overseas Companies Ownership Data register. In the UAE, he is listed as beneficial owner, manager, and shareholder of TAT Building Materials Trading L.L.C. in Dubai. He is also linked to Ziba Leisure Limited (also known as Smart Global Limited), a Saint Kitts and Nevis/UK-registered holding company that is separately OFAC-sanctioned.
+The data also shows a set of former (historical) roles in Iran, including director of and links to Bank Ayandeh, and board membership or links to a group of Iranian ""TAT"" companies and charitable foundations — among them Towse'e Sakhtemani Saman, Ansar Zarandieh Industrial Town Company, Tehran Pipe and Profile Manufacturing Company, Tat Ansar Investment Group, and several Tat-affiliated charitable foundations — reflecting his earlier business network inside Iran before his current sanctioned status.","Based on Sayari's data, there are multiple individuals named ""Ali Ansari"" globally (over 3,800 records). However, I found one specific **Ali Ansari** (also known as Aliakbar Ansari or Ali Akbar Ansari) who is subject to multiple international sanctions and watchlist designations.
+
+## Identity & Sanctions
+
+**[Ali Ansari](https://graph.sayari.com/resource/entity/9Ecv5KcN6_BsR7gicQMeYw)** (also known as Aliakbar Ansari) is a sanctioned individual with the following characteristics:
+
+- **Iranian National ID**: 4320705718
+- **Multiple Passports**: B65348454, L00017629, P41219058, RE003666
+- **Locations**: Dubai (UAE), Qazvin (Iran), and has connections to Luxembourg, UK, St. Kitts & Nevis, and Germany
+- **Address**: Villa Mdb Base 2, 394 Emirates Hills Third, PO Box 120058, Dubai, UAE
+
+### Sanctions & Watchlist Designations
+
+Ali Ansari is designated under the following sanctions regimes:
+
+1. **USA Treasury OFAC SDN List** (Specially Designated Nationals)
+2. **USA OFAC SDGT** (Specially Designated Global Terrorist - related)
+3. **EU Sanctions**
+4. **UK FCDO Sanctions** (Foreign, Commonwealth & Development Office)
+5. **Switzerland SECO Sanctions**
+6. **France DGT MEFIDS Sanctions**
+7. **Export Controls** designations
+
+He also appears on lists flagging him as PEP-adjacent (connected to politically exposed persons).
+
+## Company Connections
+
+Ali Ansari is connected to multiple companies across various jurisdictions:
+
+### Direct Ownership/Control
+
+1. **[GERMAN ETD GMBH](https://graph.sayari.com/resource/entity/te80wsSDijaYzKtC-W-5Qw)** (Germany/Italy)
+   - 100% shareholder and Managing Director
+   - Subject to 50% rule sanctions (EU, OFAC, UK)
+
+2. **[TAT BUILDING MATERIALS TRADING L.L.C](https://graph.sayari.com/resource/entity/OMf0ad_PTuSLxtiD8xE-6A)** (UAE)
+   - 46% shareholder and Manager
+   - Controlled by sanctioned person
+
+3. **[Smart Global Limited](https://graph.sayari.com/resource/entity/ww0vcOmf84WSApPj5i7YEw)** (UK/St. Kitts & Nevis/Australia/South Africa)
+   - Linked as shareholder
+   - **Also sanctioned** by USA OFAC SDN
+
+4. **[Allsco GmbH](https://graph.sayari.com/resource/entity/xdjQD-CrnxCWs0TNtgFBKg)** (Germany)
+   - 5.2% shareholder
+
+### Beneficial Ownership
+
+Ali Ansari is identified as beneficial owner of:
+
+5. **[Leopard Germany Bero 1 S.à r.l.](https://graph.sayari.com/resource/entity/dq02U1hWB3yAKohgjxx1MA)** (Luxembourg)
+   - 55% beneficial ownership
+   - Located at mass registration address
+
+6. **[Tidalwave Holdings I S.à r.l.](https://graph.sayari.com/resource/entity/Pd8hITdRHtGt4G0GAwr4Lw)** (Luxembourg)
+   - 55% beneficial ownership
+   - Located at mass registration address
+
+7. **[Leopard Germany Bero 2 S.à r.l.](https://graph.sayari.com/resource/entity/GeFDExXFxLhwWFUB_JJwhA)** (Luxembourg)
+   - 47% beneficial ownership
+   - Located at mass registration address
+
+8. **[BIRCH VENTURES LIMITED](https://graph.sayari.com/resource/entity/1l1hng9W2NI5X4glgAQ_rg)** (UK/Isle of Man)
+   - Beneficial owner
+   - Located at mass registration address
+
+### Former Directorships
+
+9. **[Ayandeh Bank](https://graph.sayari.com/resource/entity/pErB_CAmpZ-GvK4DoOi8_g)** (بانک آينده) (Iran)
+   - Former Director
+   - **Bank is also sanctioned** by USA OFAC SDN
+   - Has regulatory actions and reputational risk flags
+
+10. Three Iranian companies where he held former board positions
+
+## Key Risk Indicators
+
+- Multiple international sanctions across US, EU, UK, Switzerland, and France
+- Connections to other sanctioned entities (Smart Global Limited, Ayandeh Bank)
+- Use of mass registration addresses in Luxembourg and UK/Isle of Man
+- Complex ownership structures across multiple jurisdictions
+- Export control violations
+- PEP-adjacent connections
+
+**Note**: Because ""Ali Ansari"" is a common name, if you're inquiring about a different individual with this name, please provide additional identifying information (location, date of birth, company affiliations, etc.) to help narrow the search.",PARTIAL,"The system's answer correctly identifies Ali Ansari as a sanctioned Iranian businessman with connections to multiple jurisdictions and companies, and accurately lists most of his corporate network and sanctions designations. However, it omits several key facts from the reference including his date of birth (December 26, 1968), the specific rationale for sanctions (support for IRGC, connections to Mojtaba Khamenei, use of Iranian oil sales proceeds), his former ownership of Iran Mall, and several Iranian TAT-affiliated companies and charitable foundations mentioned in the reference.",87366,Sanction Record from USA Treasury OFAC Specially Designated Nationals (SDN) List; Sanction Record from UK Consolidated Sanctions List; Sanction Record from OpenSanctions - Global Sanctions List (Official Journal of the EU / EU-IRN program); Sanction Record from France National Asset Freeze Register; Sanction Record from Switzerland SECO Sanctions List; Supply Chain Screening Record from USA Consolidated Screening List; Risk Intelligence Record from Acuris Risk Intelligence - Entities & Relationships (3rd Party Data); Adverse Media Record from Acuris Risk Intelligence - Risk Information and Articles (3rd Party Data); Company Record from Germany Validatis Shareholder Lists (3rd Party Data); Company Record from Germany Beneficial Ownership; Company Record from Luxembourg Registry of Beneficial Owners; Company Record from Luxembourg Beneficial Ownership; Luxembourg RESA (Recueil Électronique des Sociétés et Associations) company filings; Company Record from UK Persons with Significant Control; Company Record from UK Corporate Registry; Company Record from Isle of Man Corporate Registry; Land/property Record from UK Land Overseas Company Ownership Data (OCOD); Company Record from Legal Entity Identifier (LEI) Registry (3rd Party Data); Company Record from UAE Cedar Rose Company Database (3rd Party Data); Iranian company gazette filings (آگهی تاسیس/تغییرات) for TAT-group companies and Bank Ayandeh,
