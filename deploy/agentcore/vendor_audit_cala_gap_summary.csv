@@ -1,0 +1,25 @@
+vendor,id,query,ok,input_tokens,output_tokens,total_tokens,latency_ms,tool_call_count,tool_names,error
+cala,5,What is the public market outlook and the sector and competitor signals in financial services per the consultancy's latest report?,True,13424,1481,14905,93649,2,"knowledge_search, AskContent",
+cala,9,What new products and account features does the competitor (N26) offer?,False,,,,100081,0,,RuntimeError: no JSON-RPC response with id=3 in AgentCore response body
+cala,18,What is a peer's (BNP Paribas) leadership org structure and the responsibilities of each member?,True,94864,4590,99454,172499,9,"entity_search, entity_introspection, entity_retrieval, knowledge_search, knowledge_search, knowledge_search, knowledge_search, knowledge_search, AskContent",
+cala,52,"What candidate company and officer records does OpenCorporates return for “Atlântico Biotech Ltd” and “Rui Manuel Seabra” across the relevant jurisdictions?
+
+The expected company is registered in Malta and has the following known information:
+
+Company name: Atlântico Biotech Ltd
+Expected jurisdiction: Malta
+Registered address: 14 Marina Street, Valletta VLT 1160, Malta
+Known officer: Rui Manuel Seabra
+Expected role: Director
+
+Search using the company-name variants “Atlântico Biotech Ltd”, “Atlantico Biotech Ltd” and “Atlantico Biotechnology”, together with the officer name “Rui Manuel Seabra”.
+
+For each candidate, return the company name, company number, jurisdiction, status, incorporation or dissolution date, registered address, previous names, officers and roles, available ownership information, source registry, registry URL, provenance, identity classification and official-registry verification status.",False,,,,240126,0,,"{""code"": ""UPSTREAM_ERROR"", ""message"": ""Agent Runtime call failed: "", ""retryable"": false, ""details"": {}}"
+cala,55,"A relevant UK link has been identified between “Tomás Duarte Correia”, born in March 1984, Portuguese national, and “Cobalt Harbour Trading Ltd”.
+
+What official Companies House records are available for “Cobalt Harbour Trading Ltd”, company number 15240177, and the reported officer “Tomás Duarte Correia”?
+
+Return the company profile, company number, status, incorporation date, registered office, officers, persons with significant control, nature of control, relevant filings, company and relationship identifiers, official evidence reference, retrieval timestamp and evidence hash.
+
+Assess separately whether the company record and the officer or PSC relationship match the supplied information.",True,149864,3986,153850,225565,17,"entity_search, entity_search, knowledge_search, entity_introspection, entity_search, entity_introspection, entity_retrieval, entity_retrieval, knowledge_query, knowledge_search, knowledge_search, knowledge_search, knowledge_query, knowledge_query, knowledge_search, knowledge_query, AskContent",
+cala,71,Who is Leopoldo Alejandro Betancourt López? What are his corporate affiliations and any known risks or red flags associated with him?,False,,,,240128,0,,"{""code"": ""UPSTREAM_ERROR"", ""message"": ""Agent Runtime call failed: "", ""retryable"": false, ""details"": {}}"

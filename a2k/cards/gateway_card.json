@@ -3,8 +3,8 @@
   "profile": "enterprise",
   "id": "urn:a2k:gateway:k2-external-intel",
   "name": "K2 External Intelligence Gateway",
-  "description": "A2K-KCP Gateway (per A2K-Overview's Gateway topology) fanning out to two vendor knowledge sources -- Cala (financial/legal/regulatory filings) and Sayari (ownership/risk graph) -- so the K2 agent can ask one question and receive a single cited-response envelope. When both sources disagree, the gateway surfaces the disagreement via `conflicts`/`conflictReport` rather than silently picking one (A2K-KCP section 12.4). Exposed over both REST (this card) and MCP (resource a2k://card).",
-  "url": "http://localhost:8000",
+  "description": "A2K-KCP Gateway (per A2K-Overview's Gateway topology) fanning out to two vendor knowledge sources -- Cala (financial/legal/regulatory filings) and Sayari (ownership/risk graph) -- so the K2 agent can ask one question and receive a single cited-response envelope. When both sources disagree, the gateway surfaces the disagreement via `conflicts`/`conflictReport` rather than silently picking one (A2K-KCP section 12.4). Exposed over both REST (this card) and MCP (resource a2k://card, tool a2k.getCard). Two answer-generation paths produce this same envelope shape: mock mode (fixture data, deterministic groundedRatio/conflict detection via gateway/synthesis.py and gateway/conflict.py) and live mode, which delegates to an LLM-mediated agent that connects directly to each vendor's own MCP server and discovers its tools live -- that path's grounding and conflict detection are the agent's own self-report (`grounding.confidenceMethod: \"llm-self-report\"`), a materially weaker guarantee than mock mode's deterministic one.",
+  "url": "http://localhost:8080",
   "transport": "https-json",
   "enterprise": {
     "ownership": {
@@ -43,7 +43,7 @@
     "lifecycle": {
       "status": "active",
       "createdAt": "2026-07-14T00:00:00Z",
-      "lastUpdated": "2026-07-14T00:00:00Z",
+      "lastUpdated": "2026-09-09T00:00:00Z",
       "reviewedAt": "2026-07-14T00:00:00Z",
       "reviewBy": "2027-01-14",
       "attestation": {
@@ -162,6 +162,9 @@
       "ask",
       "explain",
       "getDocument",
+      "validateCitation",
+      "reportConflict",
+      "getAuditRecord",
       "citations",
       "freshness",
       "audit",

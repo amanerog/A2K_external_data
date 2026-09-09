@@ -125,6 +125,22 @@ async def a2k_list_vendors() -> dict:
     return {"vendors": vendor_catalogue()}
 
 
+@mcp.tool(name="a2k.getCard")
+async def a2k_get_card() -> dict:
+    """Returns this gateway's own KB Card (federates Cala + Sayari) --
+    the same content as the `a2k://card` MCP resource and REST's
+    `GET /.well-known/a2k-card.json`, exposed as a callable tool for
+    clients that don't read MCP resources -- same reasoning as
+    a2k.listVendors above for the per-vendor a2k://card/<vendor> resources.
+
+    Call this to discover the gateway's own identity/capabilities (kbId,
+    supported operations, security tier, etc. -- see A2K-KBCard-Schema)
+    before your first request in a session, per A2K-KCP's prerequisite
+    that a client holds a resolved KB Card before speaking the protocol
+    (A2K-KCP-Consumption section 1)."""
+    return _dump(load_card("gateway"))
+
+
 async def _cala_raw_response_if_enabled(query: str, sources: list[str] | None) -> dict | None:
     """TEST-ONLY (config.cala_raw_knowledge_search, off by default): if enabled and
     Cala is among the requested sources (or none were specified), returns Cala's own

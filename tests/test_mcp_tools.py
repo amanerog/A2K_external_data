@@ -6,6 +6,7 @@ gateway logic already covered in test_gateway_*.py.
 import json
 from types import SimpleNamespace
 
+from a2k.cards import load_card
 from a2k.mcp_server import server
 from a2k.mcp_server.server import engine, mcp
 
@@ -22,6 +23,7 @@ async def test_tools_and_resources_are_registered():
         "a2k.search",
         "a2k.ask",
         "a2k.listVendors",
+        "a2k.getCard",
         "a2k.explain",
         "a2k.getDocument",
         "a2k.validateCitation",
@@ -97,6 +99,18 @@ async def test_list_vendors_tool_returns_domains_topics_and_scope():
     # the whole point of granularizing the cards: no shared topic strings for
     # the agent to get confused by when picking a `sources` value.
     assert not set(cala["topics"]) & set(sayari["topics"])
+
+
+async def test_get_card_tool_returns_gateway_card():
+    result = await mcp.call_tool("a2k.getCard", {})
+    data = _content_json(result)
+    # Same content as the a2k://card resource (gateway_card() in server.py) and
+    # REST's GET /.well-known/a2k-card.json -- this tool is just a callable
+    # escape hatch onto the same underlying load_card("gateway"), same
+    # reasoning as a2k.listVendors mirroring the per-vendor resources above.
+    assert data == load_card("gateway").model_dump(mode="json")
+    assert data["id"]
+    assert data["transport"] in {"https-json", "mcp", "a2a"}
 
 
 async def test_cala_raw_mode_disabled_by_default(monkeypatch):
