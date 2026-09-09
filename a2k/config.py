@@ -188,6 +188,21 @@ class Config:
     # point at.
     agent_runtime_url: str | None = field(default_factory=lambda: os.environ.get("AGENT_RUNTIME_URL"))
 
+    # Vendor KB Cards (a2k/cards/__init__.py) -- DynamoDB table name, partition
+    # key `sourceId` (string), one attribute `cardJson` per item holding the
+    # full KBCard as a JSON string. Unset (the default) means "no DynamoDB
+    # access configured" -- cards/__init__.py falls back to the local
+    # cala_card.json/sayari_card.json files instead, same as before this
+    # existed, so local dev and the test suite need no AWS access at all.
+    # Deliberately NOT a _secret_env() -- a table name isn't a credential.
+    vendor_cards_table: str | None = field(default_factory=lambda: os.environ.get("VENDOR_CARDS_TABLE"))
+    # How long a DynamoDB Scan's result is trusted before the next call
+    # re-fetches -- see cards/__init__.py's module docstring for why this is
+    # a short lazy-refresh TTL, not a scheduled daily job.
+    vendor_cards_cache_ttl_seconds: int = field(
+        default_factory=lambda: int(os.environ.get("VENDOR_CARDS_CACHE_TTL_SECONDS", "600"))
+    )
+
     audit_log_path: Path = field(
         default_factory=lambda: Path(
             os.environ.get("A2K_AUDIT_LOG_PATH", str(REPO_ROOT / "audit.jsonl"))

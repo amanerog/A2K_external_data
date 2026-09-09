@@ -93,6 +93,69 @@ cp .env.example .env
 mock and live mode (`a2k/adapters/base.py`), so nothing above the
 adapters changes.
 
+### Vendor cards from DynamoDB
+
+Vendor KB Cards (`a2k.listVendors`, `a2k.getCard`'s sibling per-vendor
+resources, and the catalogue `direct_agent.py`'s phase 1 routes against on
+the `mcp_to_agent_to_mcp` branch) can come from DynamoDB instead of the
+local `a2k/cards/cala_card.json`/`sayari_card.json` files -- so adding a
+vendor is a data change (`deploy/seed_vendor_cards.py`), not a code change.
+The gateway's own card (`a2k://card`, `a2k.getCard`) is unaffected -- always
+the local `gateway_card.json`, a single entity with nothing to look up by
+count.
+
+Unset (the default), nothing changes -- local dev and this repo's test
+suite need zero AWS access. Set `VENDOR_CARDS_TABLE` to opt in:
+
+```bash
+# One-off: create the table and migrate the two vendors already shipped
+# as local JSON files into it.
+python deploy/seed_vendor_cards.py --table a2k-vendor-cards --create-table --seed-existing
+
+# .env / Runtime env vars
+VENDOR_CARDS_TABLE=a2k-vendor-cards
+VENDOR_CARDS_CACHE_TTL_SECONDS=600   # optional, default 600 (10 min)
+```
+
+**Schema**: partition key `sourceId` (String), one attribute `cardJson` per
+item holding the full KBCard as a JSON string (same shape as
+`cala_card.json`/`sayari_card.json` today) -- `deploy/seed_vendor_cards.py`
+validates against the same `KBCard` pydantic model the box itself uses
+before writing, so a malformed card fails at seed time, not at MCP-serving
+time.
+
+**Adding a vendor**, once the table exists:
+
+```bash
+python deploy/seed_vendor_cards.py --table a2k-vendor-cards \
+  --card path/to/newvendor_card.json --source-id newvendor
+```
+
+It shows up in `vendor_catalogue()` (and therefore `a2k.listVendors`,
+`a2k.search`/`a2k.ask`'s `sources` param, and the direct-discovery agent's
+routing) on this process's next cache refresh -- no redeploy, no code
+change. **Caveat, deliberately out of scope for this feature**: the vendor's
+own MCP *connection* still needs code either way --
+`agent/vendor_mcp_client.py`'s `connect_cala()`/`connect_sayari()` (live
+mode's direct-discovery path) and `gateway/engine.py`'s hardcoded
+`self.adapters` (mock mode's deterministic path) aren't DB-driven, so a
+genuinely new vendor needs one of those written before it's actually
+queryable -- only the *metadata* (what to tell a routing agent, or list via
+`a2k.listVendors`) is DB-backed today.
+
+**Caching**: reads are cached in-process for `VENDOR_CARDS_CACHE_TTL_SECONDS`
+(default 10 min), lazily refreshed on the next call after expiry -- not a
+scheduled background job, same `(value, expiry_epoch)` pattern this repo
+already uses for the Cognito/Auth0 token caches in `agent/core.py`/
+`agent/vendor_mcp_client.py`. A shorter TTL means faster propagation of a
+status change (e.g. deactivating a vendor) at the cost of more frequent
+Scans; a `PAY_PER_REQUEST` table makes that cost negligible for a catalogue
+this small.
+
+**IAM**: the box's execution role needs `dynamodb:Scan` on the table (and
+`dynamodb:CreateTable`/`PutItem` for whoever runs `seed_vendor_cards.py`,
+typically not the same role).
+
 **`gateway/engine.py` defaults to `adapters/cala_mcp.py` for Cala, not
 `adapters/cala.py`.** Both exist and both work -- `cala_mcp.py` talks to
 Cala's own hosted MCP server (confirmed live 2026-08-10/11, see that
