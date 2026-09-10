@@ -30,7 +30,7 @@ import boto3
 import httpx
 
 REGION = "eu-west-1"
-AGENT_RUNTIME_ARN = "arn:aws:bedrock-agentcore:eu-west-1:396961015428:runtime/a2k_agent-06B5R9CAuJ"
+AGENT_RUNTIME_ARN = "arn:aws:bedrock-agentcore:eu-west-1:<ACCOUNT_ID>:runtime/a2k_agent-06B5R9CAuJ"
 
 
 def _get_bearer_token() -> str:

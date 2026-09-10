@@ -200,7 +200,7 @@ an agent, not an MCP server). Deployed live as its own Runtime, separate
 from `a2k_agent-06B5R9CAuJ` above:
 
 ```
-arn:aws:bedrock-agentcore:eu-west-1:396961015428:runtime/hosted_router_agent-cQvidi4ixE
+arn:aws:bedrock-agentcore:eu-west-1:<ACCOUNT_ID>:runtime/hosted_router_agent-cQvidi4ixE
 ```
 
 **Inbound auth is JWT/Cognito**, same `a2k-agent-pool` as `entrypoint.py`'s
@@ -285,7 +285,7 @@ export TOKEN=$(aws cognito-idp initiate-auth \
   --auth-parameters USERNAME=$USERNAME,PASSWORD="$PASSWORD" \
   --region $REGION | jq -r '.AuthenticationResult.AccessToken')
 
-ARN="arn:aws:bedrock-agentcore:eu-west-1:396961015428:runtime/a2k_agent-06B5R9CAuJ"
+ARN="arn:aws:bedrock-agentcore:eu-west-1:<ACCOUNT_ID>:runtime/a2k_agent-06B5R9CAuJ"
 ENCODED_ARN=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$ARN")
 
 curl -s -X POST \

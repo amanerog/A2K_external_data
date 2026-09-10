@@ -26,7 +26,7 @@ from typing import Optional
 import boto3
 
 REGION = "eu-west-1"
-AGENT_RUNTIME_ARN = "arn:aws:bedrock-agentcore:eu-west-1:396961015428:runtime/hosted_agent_68t65-EjboYy7K9o"
+AGENT_RUNTIME_ARN = "arn:aws:bedrock-agentcore:eu-west-1:<ACCOUNT_ID>:runtime/hosted_agent_68t65-EjboYy7K9o"
 MCP_PROTOCOL_VERSION = "2025-06-18"  # one of the versions AgentCore Runtime supports
 
 

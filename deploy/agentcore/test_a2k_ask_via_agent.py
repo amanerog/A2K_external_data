@@ -20,7 +20,7 @@ from typing import Optional
 import boto3
 
 REGION = "eu-west-1"
-AGENT_RUNTIME_ARN = "arn:aws:bedrock-agentcore:eu-west-1:396961015428:runtime/a2k_external_data_mcp-A3c4F0Cyx7"
+AGENT_RUNTIME_ARN = "arn:aws:bedrock-agentcore:eu-west-1:<ACCOUNT_ID>:runtime/a2k_external_data_mcp-A3c4F0Cyx7"
 MCP_PROTOCOL_VERSION = "2025-06-18"
 
 QUERY = sys.argv[1] if len(sys.argv) > 1 else "Acme Robotics"

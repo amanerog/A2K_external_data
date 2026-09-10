@@ -511,8 +511,8 @@ the two ARNs from 4b):
       "Effect": "Allow",
       "Action": ["bedrock-agentcore:GetWorkloadAccessToken"],
       "Resource": [
-        "arn:aws:bedrock-agentcore:eu-west-1:396961015428:workload-identity-directory/default",
-        "arn:aws:bedrock-agentcore:eu-west-1:396961015428:workload-identity-directory/default/workload-identity/<gateway-name>-*"
+        "arn:aws:bedrock-agentcore:eu-west-1:<ACCOUNT_ID>:workload-identity-directory/default",
+        "arn:aws:bedrock-agentcore:eu-west-1:<ACCOUNT_ID>:workload-identity-directory/default/workload-identity/<gateway-name>-*"
       ]
     },
     {
