@@ -36,6 +36,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 from strands import Agent
 from strands.models import BedrockModel
+from strands.vended_plugins.skills import AgentSkills
 
 import observability
 import vendor_mcp_client
@@ -182,6 +183,16 @@ Query: {query}
 """
 
 
+# TEMPORARY, Cala-only testing (2026-09-10) -- the vendor's own Agent Skill
+# (https://docs.cala.ai/integrations/agent-skill), loaded live via Strands'
+# AgentSkills plugin (strands.vended_plugins.skills -- Skill.from_url() fetches
+# and parses the raw SKILL.md at Agent-construction time, nothing copied into
+# this repo). Sayari has no equivalent yet, and this isn't wired into any
+# config/env-var gate on purpose -- it's meant to be easy to find and revert
+# (see _run_vendor_agent_sync's `plugins=` line below), not a permanent
+# per-vendor mechanism.
+_CALA_SKILL_URL = "https://raw.githubusercontent.com/cala-ai/cala-skill/main/SKILL.md"
+
 
 @dataclass
 class VendorCallResult:
@@ -240,6 +251,9 @@ def _run_vendor_agent_sync(
         tool_logger = observability.ToolCallLogger(
             session_id=session_id, internal_client=internal_client, verbose=True
         )
+        # TEMPORARY -- see _CALA_SKILL_URL above. Revert by deleting this
+        # `if` and passing plugins=None (or dropping the kwarg) unconditionally.
+        plugins = [AgentSkills(skills=_CALA_SKILL_URL)] if source_id == "cala" else None
         agent = Agent(
             model=model,
             tools=tools,
@@ -247,6 +261,7 @@ def _run_vendor_agent_sync(
             callback_handler=None,
             structured_output_model=output_model,
             hooks=[tool_logger],
+            plugins=plugins,
         )
         result = agent(query)
         tool_calls = [
