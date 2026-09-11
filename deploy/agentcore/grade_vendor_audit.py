@@ -43,7 +43,7 @@ from typing import Optional
 
 import boto3
 
-from judge import DEFAULT_JUDGE_MODEL_ID, judge
+from judge import DEFAULT_JUDGE_MODEL_ID, JudgeResult, judge, pending_manual_review
 
 REGION = "eu-west-1"
 
@@ -59,11 +59,17 @@ class AuditRecord:
 
 
 @dataclass
+class GroundTruthEntry:
+    expected_answer: str
+    source: str
+
+
+@dataclass
 class GradeResult:
     record: AuditRecord
     expected_answer: str
-    verdict: str = "ERROR"
-    rationale: str = ""
+    source: str
+    grade: JudgeResult
 
 
 def _load_audit(path: Path, ids: Optional[set[str]], vendors: Optional[set[str]], limit: Optional[int]) -> list[AuditRecord]:
@@ -90,41 +96,61 @@ def _load_audit(path: Path, ids: Optional[set[str]], vendors: Optional[set[str]]
     return records
 
 
-def _load_expected_answers(path: Path) -> dict[str, str]:
+def _load_expected_answers(path: Path) -> dict[str, GroundTruthEntry]:
     with path.open(encoding="utf-8") as f:
-        return {row["id"]: row["expected_answer"] for row in csv.DictReader(f)}
+        return {row["id"]: GroundTruthEntry(expected_answer=row["expected_answer"], source=row.get("source", "")) for row in csv.DictReader(f)}
 
 
-def _grade_one(bedrock_client, model_id: str, record: AuditRecord, expected_answer: str) -> GradeResult:
-    result = GradeResult(record=record, expected_answer=expected_answer)
+def _grade_one(bedrock_client, model_id: str, record: AuditRecord, gt: Optional[GroundTruthEntry]) -> GradeResult:
+    expected_answer = gt.expected_answer if gt else ""
+    source = gt.source if gt else ""
     if not record.ok:
-        result.verdict = "ERROR"
-        result.rationale = f"Call failed, nothing to grade: {record.error}"
-        return result
+        grade = JudgeResult(verdict="ERROR", justification=f"Call failed, nothing to grade: {record.error}")
+        return GradeResult(record=record, expected_answer=expected_answer, source=source, grade=grade)
+    if not expected_answer:
+        return GradeResult(record=record, expected_answer=expected_answer, source=source, grade=pending_manual_review("no ground truth row for this id"))
     actual_answer = record.answer or "(no answer -- insufficient evidence)"
     try:
-        result.verdict, result.rationale = judge(bedrock_client, model_id, record.query, expected_answer, actual_answer)
+        grade = judge(bedrock_client, model_id, record.query, source, expected_answer, actual_answer)
     except Exception as exc:  # noqa: BLE001 -- one bad row must not kill the whole batch
-        result.verdict = "ERROR"
-        result.rationale = f"{type(exc).__name__}: {exc}"
-    return result
+        grade = JudgeResult(verdict="ERROR", justification=f"{type(exc).__name__}: {exc}")
+    return GradeResult(record=record, expected_answer=expected_answer, source=source, grade=grade)
 
 
 def _write_output(path: Path, results: list[GradeResult]) -> None:
     with path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerow(["vendor", "id", "query", "expected_answer", "actual_answer", "ok", "verdict", "rationale"])
+        writer.writerow(
+            [
+                "vendor", "id", "query", "source", "expected_answer", "actual_answer", "ok",
+                "factual_accuracy", "completeness", "traceability", "relevance_clarity", "weighted_score",
+                "critical_omission", "hallucination", "missing_facts", "incorrect_facts", "invented_facts",
+                "verdict", "justification",
+            ]
+        )
         for r in results:
+            g = r.grade
             writer.writerow(
                 [
                     r.record.vendor,
                     r.record.id,
                     r.record.query,
+                    r.source,
                     r.expected_answer,
                     r.record.answer or "",
                     r.record.ok,
-                    r.verdict,
-                    r.rationale,
+                    g.factual_accuracy,
+                    g.completeness,
+                    g.traceability,
+                    g.relevance_clarity,
+                    g.weighted_score,
+                    g.critical_omission,
+                    g.hallucination,
+                    g.missing_facts,
+                    g.incorrect_facts,
+                    g.invented_facts,
+                    g.verdict,
+                    g.justification,
                 ]
             )
 
@@ -135,9 +161,9 @@ def _print_summary(results: list[GradeResult]) -> None:
         vendor_results = [r for r in results if r.record.vendor == vendor]
         counts: dict[str, int] = {}
         for r in vendor_results:
-            counts[r.verdict] = counts.get(r.verdict, 0) + 1
+            counts[r.grade.verdict] = counts.get(r.grade.verdict, 0) + 1
         total = len(vendor_results)
-        parts = "  ".join(f"{v}={counts.get(v, 0)}" for v in ("PASS", "PARTIAL", "FAIL", "ERROR"))
+        parts = "  ".join(f"{v}={counts.get(v, 0)}" for v in ("ACCEPTABLE", "NOT_ACCEPTABLE", "PENDING_MANUAL_REVIEW", "ERROR"))
         print(f"{vendor:8s} {parts}   (total={total})")
 
 
@@ -174,9 +200,9 @@ def main() -> None:
     bedrock_client = boto3.client("bedrock-runtime", region_name=REGION)
 
     def _worker(record: AuditRecord) -> GradeResult:
-        expected = expected_answers.get(record.id, "")
-        result = _grade_one(bedrock_client, args.judge_model, record, expected)
-        print(f"{record.vendor:6s} id={record.id:>3} -> {result.verdict}", flush=True)
+        gt = expected_answers.get(record.id)
+        result = _grade_one(bedrock_client, args.judge_model, record, gt)
+        print(f"{record.vendor:6s} id={record.id:>3} -> {result.grade.verdict}", flush=True)
         return result
 
     results: list[GradeResult] = []

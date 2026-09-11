@@ -48,7 +48,7 @@ from typing import Optional
 
 import boto3
 
-from judge import DEFAULT_JUDGE_MODEL_ID, judge as _judge_call
+from judge import DEFAULT_JUDGE_MODEL_ID, JudgeResult, judge as _judge_call, pending_manual_review
 
 REGION = "eu-west-1"
 AGENT_RUNTIME_ARN = "arn:aws:bedrock-agentcore:eu-west-1:396961015428:runtime/a2k_external_data_mcp-A3c4F0Cyx7"
@@ -68,10 +68,13 @@ class EvalResult:
     row: GroundTruthRow
     ok: bool = False
     actual_answer: Optional[str] = None
-    verdict: str = "ERROR"
-    rationale: str = ""
+    grade: JudgeResult = None
     latency_ms: float = 0.0
     error: str = ""
+
+    def __post_init__(self) -> None:
+        if self.grade is None:
+            self.grade = JudgeResult(verdict="ERROR")
 
 
 def _load_rows(path: Path, ids: Optional[set[str]], limit: Optional[int]) -> list[GroundTruthRow]:
@@ -177,20 +180,20 @@ def _evaluate_row(row: GroundTruthRow, mcp_client, bedrock_client, judge_model_i
         if not envelope.get("ok", False):
             result.actual_answer = None
             result.error = json.dumps(envelope.get("error"))
-            result.verdict = "FAIL"
-            result.rationale = "System returned ok=false -- see error column."
-            result.ok = True  # the call itself succeeded; FAIL is a grading outcome, not a script error
+            result.grade = JudgeResult(verdict="NOT_ACCEPTABLE", justification="System returned ok=false -- see error column.")
+            result.ok = True  # the call itself succeeded; NOT_ACCEPTABLE is a grading outcome, not a script error
             return result
 
         result.actual_answer = envelope.get("answer") or "(no answer -- insufficient evidence)"
-        result.verdict, result.rationale = _judge_call(
-            bedrock_client, judge_model_id, row.query, row.expected_answer, result.actual_answer
-        )
+        if row.expected_answer:
+            result.grade = _judge_call(bedrock_client, judge_model_id, row.query, row.source, row.expected_answer, result.actual_answer)
+        else:
+            result.grade = pending_manual_review("no expected_answer in ground-truth row")
         result.ok = True
     except Exception as exc:  # noqa: BLE001 -- one bad row must not kill the whole batch
         result.latency_ms = (time.monotonic() - t0) * 1000
         result.error = f"{type(exc).__name__}: {exc}"
-        result.verdict = "ERROR"
+        result.grade = JudgeResult(verdict="ERROR")
     return result
 
 
@@ -203,7 +206,7 @@ def _run_sequential(rows: list[GroundTruthRow], judge_model_id: str) -> list[Eva
     for i, row in enumerate(rows, 1):
         print(f"[{i}/{len(rows)}] id={row.id} {row.query[:70]!r}", flush=True)
         result = _evaluate_row(row, mcp_client, bedrock_client, judge_model_id, session_id)
-        print(f"    -> {result.verdict} ({result.latency_ms:.0f}ms)" + (f"  ERROR: {result.error}" if result.error and result.verdict == "ERROR" else ""), flush=True)
+        print(f"    -> {result.grade.verdict} ({result.latency_ms:.0f}ms)" + (f"  ERROR: {result.error}" if result.error and result.grade.verdict == "ERROR" else ""), flush=True)
         results.append(result)
     return results
 
@@ -216,7 +219,7 @@ def _run_parallel(rows: list[GroundTruthRow], judge_model_id: str, workers: int)
         out = []
         for row in chunk:
             result = _evaluate_row(row, mcp_client, bedrock_client, judge_model_id, session_id)
-            print(f"id={row.id} -> {result.verdict} ({result.latency_ms:.0f}ms)", flush=True)
+            print(f"id={row.id} -> {result.grade.verdict} ({result.latency_ms:.0f}ms)", flush=True)
             out.append(result)
         return out
 
@@ -237,19 +240,35 @@ def _write_output(path: Path, results: list[EvalResult]) -> None:
     with path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(
-            ["id", "query", "expected_answer", "actual_answer", "verdict", "rationale", "latency_ms", "source", "error"]
+            [
+                "id", "query", "source", "expected_answer", "actual_answer",
+                "factual_accuracy", "completeness", "traceability", "relevance_clarity", "weighted_score",
+                "critical_omission", "hallucination", "missing_facts", "incorrect_facts", "invented_facts",
+                "verdict", "justification", "latency_ms", "error",
+            ]
         )
         for r in results:
+            g = r.grade
             writer.writerow(
                 [
                     r.row.id,
                     r.row.query,
+                    r.row.source,
                     r.row.expected_answer,
                     r.actual_answer or "",
-                    r.verdict,
-                    r.rationale,
+                    g.factual_accuracy,
+                    g.completeness,
+                    g.traceability,
+                    g.relevance_clarity,
+                    g.weighted_score,
+                    g.critical_omission,
+                    g.hallucination,
+                    g.missing_facts,
+                    g.incorrect_facts,
+                    g.invented_facts,
+                    g.verdict,
+                    g.justification,
                     f"{r.latency_ms:.0f}",
-                    r.row.source,
                     r.error,
                 ]
             )
@@ -258,13 +277,13 @@ def _write_output(path: Path, results: list[EvalResult]) -> None:
 def _print_summary(results: list[EvalResult]) -> None:
     counts: dict[str, int] = {}
     for r in results:
-        counts[r.verdict] = counts.get(r.verdict, 0) + 1
+        counts[r.grade.verdict] = counts.get(r.grade.verdict, 0) + 1
     total = len(results)
     print("\n=== Summary ===")
-    for verdict in ("PASS", "PARTIAL", "FAIL", "ERROR"):
+    for verdict in ("ACCEPTABLE", "NOT_ACCEPTABLE", "PENDING_MANUAL_REVIEW", "ERROR"):
         n = counts.get(verdict, 0)
-        print(f"{verdict:8s} {n:3d}  ({n / total * 100:.0f}%)" if total else f"{verdict:8s} 0")
-    print(f"{'TOTAL':8s} {total:3d}")
+        print(f"{verdict:22s} {n:3d}  ({n / total * 100:.0f}%)" if total else f"{verdict:22s} 0")
+    print(f"{'TOTAL':22s} {total:3d}")
 
 
 def main() -> None:
