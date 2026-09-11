@@ -56,6 +56,28 @@ async def test_ask_via_agent_maps_claims_and_citations(engine, monkeypatch):
     assert envelope.grounding.confidenceMethod == "llm-self-report"
 
 
+async def test_ask_via_agent_accepts_a_vendor_with_no_deterministic_adapter(engine, monkeypatch):
+    """Regression test: adding a vendor (e.g. Linkup) that only exists in the
+    DynamoDB-backed catalogue/vendor_mcp_client.py, not in engine.py's
+    hardcoded self.adapters dict (mock-mode only), used to fail two ways --
+    A2KRequest.sources used to be Literal["cala", "sayari"] (rejected at
+    request-validation time, confirmed live 2026-09-11 adding Linkup), and
+    _source_kb_id() indexed self.adapters[sources[0]] directly (would have
+    KeyError'd next). Both are fixed; this pins the fix."""
+
+    async def fake_call_agent(self, operation, query, sources, request_id):
+        assert sources == ["linkup"]
+        return {"answer": "x", "claims": [], "citations": [], "groundedRatio": 1.0, "conflicts": []}
+
+    monkeypatch.setattr(GatewayEngine, "_call_agent", fake_call_agent)
+
+    req = A2KRequest(operation="ask", query="latest banking news", sources=["linkup"])
+    envelope = await engine._ask_via_agent(req)
+
+    assert envelope.ok is True
+    assert envelope.sourceKbId == "urn:a2k:vendor:linkup"
+
+
 async def test_ask_via_agent_maps_conflicts(engine, monkeypatch):
     async def fake_call_agent(self, operation, query, sources, request_id):
         return {

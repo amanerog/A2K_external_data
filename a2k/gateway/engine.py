@@ -713,7 +713,15 @@ class GatewayEngine:
 
     def _source_kb_id(self, sources: list[str]) -> str:
         if len(sources) == 1:
-            return self.adapters[sources[0]].kb_id
+            adapter = self.adapters.get(sources[0])
+            if adapter is not None:
+                return adapter.kb_id
+            # No deterministic adapter for this vendor (e.g. Linkup -- agent-
+            # mediated only, see vendor_mcp_client.py) -- same "urn:a2k:vendor:
+            # <sourceId>" convention adapters/*.py's own KB_ID constants use
+            # and a2k/cards/*.json's own `id` field already follows, just
+            # computed here instead of round-tripping through a card lookup.
+            return f"urn:a2k:vendor:{sources[0]}"
         return self.gateway_kb_id
 
     def _access_decision(self) -> AccessDecision:

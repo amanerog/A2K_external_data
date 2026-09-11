@@ -66,7 +66,17 @@ class SearchFilters(BaseModel):
     lifecycleStatusAllowed: list[str] = Field(default_factory=list)
 
 
-Source = Literal["cala", "sayari"]
+# Deliberately `str`, not Literal["cala", "sayari"] -- that hardcoded pair
+# predates a2k/cards/__init__.py's DynamoDB-backed vendor catalogue and broke
+# every new vendor at the request-validation layer, before engine.py even got
+# a chance to look one up (confirmed live 2026-09-11, adding Linkup: every
+# a2k.ask call with sources=["linkup"] failed pydantic validation here first).
+# Real vendor-existence/active-status checking already happens downstream --
+# gateway/engine.py's _search_via_agent/_ask_via_agent and direct_agent.py's
+# handle() both filter `sources` against the live catalogue's active
+# sourceIds -- so this only needs to be "a string", not an enum of vendors
+# this module has no business knowing about.
+Source = str
 
 
 class A2KRequest(BaseModel):
