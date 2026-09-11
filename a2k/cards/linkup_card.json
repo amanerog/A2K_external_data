@@ -1,0 +1,170 @@
+{
+  "a2kVersion": "0.6-baseline",
+  "profile": "enterprise",
+  "id": "urn:a2k:vendor:linkup",
+  "name": "Linkup -- Web Search & Research",
+  "description": "Vendor knowledge source backed by the Linkup API (linkup.so): production-grade web search, page extraction, and multi-source research with citations. Fronted by a2k-box's direct-discovery agent (mcp_to_agent_to_mcp branch) -- unlike Cala/Sayari, this is not a structured entity/ownership graph, it's open web search, so treat it as the fallback for market-intelligence/news/general questions those two don't cover.",
+  "url": "http://localhost:8000/a2k/linkup",
+  "transport": "https-json",
+  "enterprise": {
+    "ownership": {
+      "ownerTeam": "K2 External Intelligence Gateway",
+      "businessOwner": {
+        "type": "group",
+        "id": "grp:k2-platform-owners",
+        "identityProvider": "internal",
+        "name": "K2 Platform Owners",
+        "contact": "k2-platform@example.com"
+      },
+      "technicalOwner": {
+        "type": "group",
+        "id": "grp:k2-platform-ops",
+        "identityProvider": "internal",
+        "name": "K2 Platform Operations",
+        "contact": "k2-platform@example.com"
+      },
+      "maintainers": ["k2-platform@example.com"],
+      "supportChannel": "#k2-external-intel",
+      "escalationPolicy": "Contact the K2 Platform Owners for gateway behavior; contact Linkup support for upstream search-result quality issues."
+    },
+    "authority": {
+      "systemOfRecord": "vendor",
+      "sorScope": ["web-search", "open-research"],
+      "authorityScope": "Linkup is not a system of record -- it's a search/retrieval layer over the open web. Authoritative only to the extent each cited page/source itself is.",
+      "relationship": "vendor-data-source",
+      "publisher": "Linkup (linkup.so)",
+      "proof": {
+        "method": "vendor-contract",
+        "approvedBy": "K2 Platform Owners",
+        "approvalReference": "N/A -- internal tool, no external governance workflow yet",
+        "approvedAt": null
+      }
+    },
+    "lifecycle": {
+      "status": "active",
+      "createdAt": "2026-09-11T00:00:00Z",
+      "lastUpdated": "2026-09-11T00:00:00Z",
+      "reviewedAt": "2026-09-11T00:00:00Z",
+      "reviewBy": "2027-03-11",
+      "attestation": {
+        "lastAttested": "2026-09-11T00:00:00Z",
+        "nextAttestationDue": "2027-03-11T00:00:00Z",
+        "attestedBy": "k2-platform@example.com",
+        "actionOnExpiry": "downgrade-to-unverified"
+      },
+      "deprecationDate": null,
+      "supersededBy": null,
+      "replacementKbId": null,
+      "changeLogUrl": null
+    },
+    "access": {
+      "visibility": "internal",
+      "dataClassification": "public",
+      "audiences": ["k2-agent", "employees"],
+      "requiredScopes": [],
+      "allowedDepartments": [],
+      "restrictedDepartments": [],
+      "crossDepartmentUse": true,
+      "externalUseAllowed": false,
+      "requiresUserContext": false,
+      "rowLevelSecurity": false,
+      "ethicalWallSensitive": false
+    }
+  },
+  "knowledgeProfile": {
+    "domains": ["market-intelligence", "news", "research"],
+    "topics": [
+      "web-search",
+      "news-and-press-releases",
+      "market-and-analyst-reports",
+      "competitor-announcements",
+      "open-web-research"
+    ],
+    "coverage": {
+      "scope": "Open web search, page extraction, and multi-source research with citations -- news, press releases, analyst/consultancy reports, competitor announcements, app-store reviews, and any other publicly indexed web content. No structured entity/ownership/filing data -- for company registry records, beneficial ownership, or sanctions screening, Cala or Sayari are the correct source, not this one.",
+      "departments": [],
+      "geography": ["global"],
+      "businessUnits": [],
+      "products": [],
+      "temporalRange": {
+        "from": "2000-01-01",
+        "to": "present"
+      },
+      "completeness": "partial"
+    },
+    "generation": "vendor-provided",
+    "freshness": {
+      "updateCadence": "continuous (live web search, vendor-controlled)",
+      "lastUpdated": "2026-09-11T00:00:00Z",
+      "reviewedAt": "2026-09-11T00:00:00Z",
+      "nextReviewDue": "2026-12-11T00:00:00Z",
+      "stalenessPolicy": "flag stale per request-level maxStalenessHours; the gateway does not impose its own default."
+    },
+    "languages": ["en"],
+    "sourceSystems": ["Linkup API"]
+  },
+  "priority": 2,
+  "queryType": "natural_language_query",
+  "operations": [
+    { "name": "search", "requiredLevel": 1, "inputModes": ["text"], "outputModes": ["cited-response-envelope"] },
+    { "name": "ask", "requiredLevel": 2, "inputModes": ["text"], "outputModes": ["cited-response-envelope"] },
+    { "name": "explain", "requiredLevel": 2, "inputModes": ["answerRef", "claimIds"], "outputModes": ["cited-response-envelope"] },
+    { "name": "getDocument", "requiredLevel": 1, "inputModes": ["documentId"], "outputModes": ["document"] }
+  ],
+  "auth": {
+    "schemes": ["bearer"],
+    "oauth2": null,
+    "delegatedUserRequired": false,
+    "serviceAccountAllowed": true,
+    "oboAssertionRequired": false,
+    "signedRequestRequired": false
+  },
+  "policies": {
+    "allowedUse": ["answering", "summarization", "citation", "internal-search"],
+    "disallowedUse": ["model-training", "bulk-export", "redistribution-outside-org"],
+    "citationPolicy": "required",
+    "redistribution": "internal-citations-only",
+    "queryRetention": "limited",
+    "piiHandling": "minimal-entity-only",
+    "humanReviewRequiredFor": [],
+    "sensitiveDecisionUse": "human-review-required"
+  },
+  "audit": {
+    "loggingRequired": true,
+    "immutableLogRequired": false,
+    "logTarget": "local-jsonl-worm-sim",
+    "logRetention": "7y",
+    "includeUserId": true,
+    "includeAgentId": true,
+    "includeCitationIds": true,
+    "includeProofFooter": false
+  },
+  "regulatedExtension": {
+    "supported": false,
+    "features": [],
+    "regulatedDomains": [],
+    "minimumAuditRetention": "7y",
+    "immutableAuditRequired": false
+  },
+  "conformance": {
+    "level": 2,
+    "profile": "a2k-enterprise-v0.6-baseline",
+    "features": [
+      "kb-card",
+      "ownership",
+      "authority",
+      "lifecycle",
+      "access-policy",
+      "search",
+      "ask",
+      "explain",
+      "getDocument",
+      "citations",
+      "freshness",
+      "audit",
+      "grounding",
+      "conflict-report"
+    ]
+  },
+  "signature": null
+}

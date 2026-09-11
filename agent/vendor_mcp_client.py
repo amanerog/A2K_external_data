@@ -1,9 +1,11 @@
-"""Direct connections to Cala's and Sayari's own hosted MCP servers, opened
-from the agent's own process -- bypasses a2k-box entirely. Part of this
-branch's architecture (mcp_to_agent_to_mcp): the agent discovers each
-vendor's tools live via `tools/list` and lets the model decide what to call,
-rather than going through a2k-box's deterministic adapters
-(a2k/adapters/cala_mcp.py, a2k/adapters/sayari_mcp.py).
+"""Direct connections to Cala's, Sayari's, and Linkup's own hosted MCP
+servers, opened from the agent's own process -- bypasses a2k-box entirely.
+Part of this branch's architecture (mcp_to_agent_to_mcp): the agent
+discovers each vendor's tools live via `tools/list` and lets the model
+decide what to call, rather than going through a2k-box's deterministic
+adapters (a2k/adapters/cala_mcp.py, a2k/adapters/sayari_mcp.py -- Linkup has
+no deterministic adapter at all, agent-mediated only, see
+a2k/cards/linkup_card.json).
 
 Mirrors those adapters' own URLs/auth exactly (same vendor endpoints,
 same credentials) -- duplicated here rather than imported, since the
@@ -36,6 +38,7 @@ from core import secret_env
 
 CALA_MCP_URL = os.environ.get("CALA_MCP_URL", "https://api.cala.ai/mcp/")
 SAYARI_MCP_URL = os.environ.get("SAYARI_MCP_URL", "https://mcp.sayari.com/mcp")
+LINKUP_MCP_URL = os.environ.get("LINKUP_MCP_URL", "https://mcp.linkup.so/mcp")
 
 # Same Auth0 tenant/audience as a2k/adapters/sayari_mcp.py -- Sayari's MCP
 # server uses a *separate* credential/grant from its REST API (confirmed
@@ -130,16 +133,37 @@ def connect_sayari() -> tuple[MCPClient, list[MCPAgentTool]]:
     return mcp_client, _rename_tools_for_model(tools)
 
 
+def connect_linkup() -> tuple[MCPClient, list[MCPAgentTool]]:
+    """Opens a direct connection to Linkup's own MCP server (see
+    https://docs.linkup.so/pages/integrations/mcp/mcp) -- a general web
+    search/research API, not a structured entity graph like Cala/Sayari
+    (see a2k/cards/linkup_card.json's `knowledgeProfile.coverage.scope`).
+    Auth is a plain Bearer API key -- no separate token-fetch call needed,
+    unlike Sayari's OAuth2 client-credentials dance above. Same lifecycle
+    contract as connect_cala()/connect_sayari() above."""
+    api_key = secret_env("LINKUP_API_KEY")
+    headers = {"Authorization": f"Bearer {api_key}"}
+
+    def _transport():
+        return streamablehttp_client(LINKUP_MCP_URL, headers=headers, timeout=120)
+
+    mcp_client = MCPClient(_transport)
+    mcp_client.start()
+    tools = mcp_client.list_tools_sync()
+    return mcp_client, _rename_tools_for_model(tools)
+
+
 VENDOR_CONNECTORS = {
     "cala": connect_cala,
     "sayari": connect_sayari,
+    "linkup": connect_linkup,
 }
 
 
 def connect_vendor(source_id: str) -> tuple[MCPClient, list[MCPAgentTool]]:
-    """Dispatches to connect_cala()/connect_sayari() by KB Card sourceId --
-    the single entry point direct_agent.py's phase 2 uses once phase 1 has
-    already decided which vendor(s) this question needs."""
+    """Dispatches to connect_cala()/connect_sayari()/connect_linkup() by KB
+    Card sourceId -- the single entry point direct_agent.py's phase 2 uses
+    once phase 1 has already decided which vendor(s) this question needs."""
     connector = VENDOR_CONNECTORS.get(source_id)
     if connector is None:
         raise ValueError(f"No direct MCP connector for vendor {source_id!r}")
