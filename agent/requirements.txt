@@ -1,5 +1,13 @@
 # Runtime deps for the Cala/Sayari router agent's AgentCore Runtime deploy.
-# mcp comes in transitively via strands-agents -- not pinned separately here.
 strands-agents>=1.52.0,<2.0
 bedrock-agentcore>=1.21.0,<2.0
 httpx>=0.28.0,<1.0
+# mcp comes in transitively via strands-agents (strands-agents 1.55.1 allows
+# mcp<2.2,>=1.23.0) -- pinned explicitly here after an unpinned rebuild on
+# 2026-09-11 silently resolved mcp 2.1.1 (a major-version jump from the
+# 1.29.1 every previously-working zip was built against) and the redeployed
+# Runtime came back with a bare 424 Failed Dependency on every invoke (see
+# ../README.md's 424 troubleshooting note -- same silent-import-crash
+# symptom, different root cause this time). Bump this deliberately, and
+# smoke-test a redeploy, rather than letting it drift.
+mcp==1.29.1

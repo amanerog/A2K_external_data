@@ -167,7 +167,7 @@ result stated them -- re-read the specific field before writing it down \
 rather than recalling it from memory, since transposing a digit or \
 reversing which party is the parent and which is the subsidiary is a \
 factual error even when everything else in the answer is right.
-
+{tool_priority_guidance}
 Query: {query}
 """
 
@@ -178,7 +178,7 @@ query. Do not synthesize an answer -- return the relevant raw material you \
 found as `passages` (one per distinct fact/excerpt) and `citations` (one \
 per distinct source), citing each passage's supporting citations[] entries \
 by index.
-
+{tool_priority_guidance}
 Query: {query}
 """
 
@@ -192,6 +192,42 @@ Query: {query}
 # (see _run_vendor_agent_sync's `plugins=` line below), not a permanent
 # per-vendor mechanism.
 _CALA_SKILL_URL = "https://raw.githubusercontent.com/cala-ai/cala-skill/main/SKILL.md"
+
+# Linkup's own published Agent Skills (https://docs.linkup.so/pages/integrations/linkup-skill,
+# https://github.com/LinkupPlatform/skills), same Skill.from_url() mechanism as
+# Cala's above -- only the 3 skills matching tools linkup's own MCP server
+# actually exposes to us (confirmed against every toolName seen across
+# vendor_audit_linkup.jsonl's 35-row run: linkup-search, linkup-fetch,
+# linkup-research/linkup-get-research). linkup-extract/linkup-workflow are
+# published too but describe capabilities we've never observed this MCP
+# server offer, so loading them would just add irrelevant context.
+_LINKUP_SKILL_URLS = [
+    "https://raw.githubusercontent.com/LinkupPlatform/skills/main/skills/linkup-search/SKILL.md",
+    "https://raw.githubusercontent.com/LinkupPlatform/skills/main/skills/linkup-research/SKILL.md",
+    "https://raw.githubusercontent.com/LinkupPlatform/skills/main/skills/linkup-fetch/SKILL.md",
+]
+
+# Linkup's own use-case guidance (2026-09-16, their team's mapping of our 35
+# ground-truth queries to the MCP tool they'd use) came back linkup-search
+# for 34/35 -- never linkup-research/linkup-fetch. That matches what
+# vendor_audit_linkup.jsonl's two worst rows (ids 55/58, both graded
+# NOT_ACCEPTABLE with hallucination=True) show: 40-58 tool calls each,
+# looping through linkup-research/linkup-get-research alongside
+# linkup-search/linkup-fetch, for questions linkup-search alone should have
+# answered in a handful of calls. This is prompt-only guidance, not an
+# enforced gate -- a BeforeToolCallEvent hook that hard-blocks
+# research/fetch until search has been tried at least once was considered
+# and deferred; revisit if this alone doesn't hold.
+_LINKUP_TOOL_PRIORITY_GUIDANCE = """
+Tool priority: always try linkup-search first (depth=deep, outputType=\
+sourcedAnswer, unless the query clearly needs a lighter depth -- see the \
+linkup-search skill). Only reach for linkup-research or linkup-fetch if \
+linkup-search's results genuinely aren't enough to answer -- e.g. it found \
+nothing, or the caller explicitly needs an exhaustive multi-source \
+investigation (linkup-research) or the full content of a specific URL \
+linkup-search already surfaced (linkup-fetch). Don't reach for either as a \
+first move.
+"""
 
 
 @dataclass
@@ -242,18 +278,25 @@ def _run_vendor_agent_sync(
         # specifically in reading tool results back out, not in either of
         # those.
         model = BedrockModel(model_id=model_id, region_name=region, temperature=0)
+        tool_priority_guidance = _LINKUP_TOOL_PRIORITY_GUIDANCE if source_id == "linkup" else ""
         if operation == "ask":
-            system_prompt = _ASK_SYSTEM_PROMPT.format(vendor_name=source_id, query=query)
+            system_prompt = _ASK_SYSTEM_PROMPT.format(vendor_name=source_id, query=query, tool_priority_guidance=tool_priority_guidance)
             output_model = AskContent
         else:
-            system_prompt = _SEARCH_SYSTEM_PROMPT.format(vendor_name=source_id, query=query)
+            system_prompt = _SEARCH_SYSTEM_PROMPT.format(vendor_name=source_id, query=query, tool_priority_guidance=tool_priority_guidance)
             output_model = SearchContent
         tool_logger = observability.ToolCallLogger(
             session_id=session_id, internal_client=internal_client, verbose=True
         )
-        # TEMPORARY -- see _CALA_SKILL_URL above. Revert by deleting this
-        # `if` and passing plugins=None (or dropping the kwarg) unconditionally.
-        plugins = [AgentSkills(skills=_CALA_SKILL_URL)] if source_id == "cala" else None
+        # TEMPORARY -- see _CALA_SKILL_URL/_LINKUP_SKILL_URLS above. Revert by
+        # deleting this `if`/`elif` and passing plugins=None (or dropping the
+        # kwarg) unconditionally.
+        if source_id == "cala":
+            plugins = [AgentSkills(skills=_CALA_SKILL_URL)]
+        elif source_id == "linkup":
+            plugins = [AgentSkills(skills=_LINKUP_SKILL_URLS)]
+        else:
+            plugins = None
         agent = Agent(
             model=model,
             tools=tools,
