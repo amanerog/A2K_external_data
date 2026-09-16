@@ -33,7 +33,7 @@ removes that whole class of inconsistency for the parts that are pure math.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 # Same example model used throughout agent/README.md's "Run locally" -- override with
 # --judge-model on either caller script if your account's Bedrock access differs.
@@ -199,7 +199,12 @@ def judge(bedrock_client, model_id: str, query: str, source: str, expected_answe
     response = bedrock_client.converse(
         modelId=model_id,
         messages=[{"role": "user", "content": [{"text": prompt}]}],
-        inferenceConfig={"maxTokens": 800, "temperature": 0},
+        # 1500, not 800 -- confirmed live (id=75, Ali Ansari, a dense
+        # multi-sanction-record dossier) that 800 truncates the JSON mid-string
+        # on a long expected_answer with several critical_omission findings to
+        # enumerate in missing_facts/justification, raising JSONDecodeError
+        # instead of a real grade.
+        inferenceConfig={"maxTokens": 1500, "temperature": 0},
     )
     text = response["output"]["message"]["content"][0]["text"]
     parsed = _parse_json_response(text)
@@ -246,3 +251,167 @@ def pending_manual_review(reason: str = "no ground truth available") -> JudgeRes
     a score (see the source rubric's own constraint on this). No Bedrock
     call made; construct this directly instead of calling judge()."""
     return JudgeResult(verdict="PENDING_MANUAL_REVIEW", justification=f"Not scored: {reason}.")
+
+
+# --- Containment rubric (Judge_System_Prompt_v4(v2).md, added 2026-09-16) ---------
+#
+# A second, independent judge -- NOT a replacement for judge()/JudgeResult above,
+# the two coexist deliberately. judge() scores the final answer alone on four
+# weighted dimensions; this one asks a narrower, binary-ish question ("does
+# text_to_score CONTAIN the substance of expected_answer?") and, critically, is
+# meant to be run TWICE per question -- once against the vendor's raw tool
+# output, once against the consolidated final answer -- so a "consolidation
+# loss" (the vendor's tools found it, the agent's own synthesis step dropped
+# it) shows up as a verdict that got WORSE between the two passes, distinct
+# from a case where the vendor simply never found the data at all (both passes
+# equally bad). vendor_source_agent_system_prompt_v1.md's own CONSOLIDATION
+# section is a direct response to exactly this failure mode.
+
+CONTAINMENT_PROMPT = """You are a quality evaluation judge. Your only task is to compare an answer against an
+expected answer (ground truth) and decide whether the answer contains the substance of what
+the question asked for. You do not evaluate wording, tone, length or style — content only.
+
+INPUTS you will receive for each case:
+- question: the original question text.
+- expected_answer: the reference answer (ground truth).
+- text_to_score: the text you must score (this may be a vendor's raw tool output, or an
+  already-consolidated final answer — you will be told which one it is).
+
+SCALE (use exactly these three labels, verbatim, including capitalization):
+- "Cubierta": the requested information is present in substance in text_to_score.
+- "Parcial": a non-trivial part of what was requested is missing or incomplete.
+- "No cubierta": the requested information is missing, or the data type does not match what
+  was asked.
+(These three labels are kept in Spanish on purpose — they are the canonical values the
+existing scoring pipeline expects. Do not translate them, and do not use any other label.)
+
+CONTAINMENT CRITERION — THE MOST IMPORTANT RULE:
+The question you are answering is whether text_to_score CONTAINS the substance of
+expected_answer — never the other way around. Do not require exact wording, ordering or
+formatting to match. Do not penalize text_to_score for being much longer, more detailed, or
+organized differently than expected_answer — that never counts against it. Do not reward
+length for its own sake either — a long text that does not contain the requested substance is
+still "No cubierta".
+
+EXCEPTION — ANONYMIZED OR CONCRETE VALUES:
+Ignore discrepancies in concrete values that may be anonymized or vary for security or
+test-data reasons (proper names, IDs, exact figures, specific dates), as long as the TYPE of
+data matches. Examples of "same type, different value, do not penalize":
+- Both identify an account holder (even if the name doesn't literally match).
+- Both give an amount (even if the exact figure differs).
+- Both give a date (even if the exact day differs).
+- Both cite an applicable regulation, rate or law (even if the exact article number or
+  percentage differs).
+Only lower the verdict when:
+(a) an ENTIRE category of requested information is missing (not a different value, but the
+    data point is absent altogether),
+(b) a different type of data is given than what was asked for (e.g. the question asks for an
+    amount and only a date is given),
+(c) there is a substantively incorrect claim (not just a different value of the correct type,
+    but a claim that contradicts the underlying facts).
+
+OUT-OF-SCOPE QUESTIONS AND CLARIFYING RESPONSES:
+If text_to_score is an explanation of why the tool cannot answer that question, or a
+clarifying question back to the user, score it exactly like any other text: does it contain
+the substance of expected_answer? The answer is almost always no, so the verdict will be
+"No cubierta" — but this is NOT a judgment on whether that was the right call for the agent to
+make (that is not your job), only on whether the requested content is present.
+
+INDEPENDENCE OF THE TWO PASSES:
+If you are asked to score both the raw tool output and the final answer for the same
+question, score each one independently, without letting one influence the other. It is valid
+and expected for the raw tool output to score differently from the final answer on the same
+question.
+
+Question: {question}
+
+Expected answer (ground truth):
+{expected_answer}
+
+This is the {pass_label}. text_to_score:
+{text_to_score}
+
+OUTPUT FORMAT — respond with ONLY this JSON, no additional text:
+{{
+  "verdict": "Cubierta" | "Parcial" | "No cubierta",
+  "justification": "1-2 sentences citing which specific element of expected_answer is or is
+    not present, and why the anonymized-value exception does (or does not) apply.",
+  "elements_requested": ["short list of the sub-elements the question asked for"],
+  "elements_found": ["from that list, which ones appear in text_to_score"],
+  "elements_missing": ["from that list, which ones do not appear"]
+}}
+"""
+
+_CONTAINMENT_RANK = {"No cubierta": 0, "Parcial": 1, "Cubierta": 2}
+
+
+@dataclass
+class ContainmentResult:
+    verdict: str = "ERROR"
+    justification: str = ""
+    elements_requested: list[str] = field(default_factory=list)
+    elements_found: list[str] = field(default_factory=list)
+    elements_missing: list[str] = field(default_factory=list)
+
+
+@dataclass
+class ConsolidationResult:
+    raw: ContainmentResult
+    final: ContainmentResult
+    # True when the raw tool output's verdict ranks strictly better than the
+    # final answer's -- the vendor found it, the agent's own synthesis lost
+    # it. False (not None) when there was nothing to lose (raw was already
+    # "No cubierta") or nothing lost (final >= raw).
+    consolidation_loss: bool
+
+
+def format_raw_tool_output(tool_calls: list[dict]) -> str:
+    """Builds the "raw tool output" text_to_score for judge_containment's
+    first pass out of every tool call this turn made, in call order -- not
+    just the last one, since a consolidation loss can happen across several
+    calls (vendor_source_agent_system_prompt_v1.md's CONSOLIDATION rule 3:
+    "consolidate across all calls, not just the last one"). Expects the same
+    tool-call dict shape run_vendor_audit.py's .jsonl and a2k.ask's
+    `toolCalls[]` both already use (a `toolName`/`output` pair at minimum)."""
+    if not tool_calls:
+        return "(no tool calls recorded for this turn)"
+    parts = []
+    for i, tc in enumerate(tool_calls, 1):
+        name = tc.get("toolName") or tc.get("tool_name") or "unknown_tool"
+        output = tc.get("output")
+        parts.append(f"--- Tool call {i}: {name} ---\n{output}")
+    return "\n\n".join(parts)
+
+
+def judge_containment(bedrock_client, model_id: str, question: str, expected_answer: str, text_to_score: str, *, pass_label: str) -> ContainmentResult:
+    """One containment pass -- `pass_label` is folded into the prompt only to
+    tell the model which of the two passes this is (e.g. "raw tool output
+    from the vendor's tools" or "final, consolidated answer"); it does not
+    change the scoring criterion itself, which stays identical between
+    passes (see INDEPENDENCE OF THE TWO PASSES in the prompt)."""
+    prompt = CONTAINMENT_PROMPT.format(question=question, expected_answer=expected_answer, text_to_score=text_to_score, pass_label=pass_label)
+    response = bedrock_client.converse(
+        modelId=model_id,
+        messages=[{"role": "user", "content": [{"text": prompt}]}],
+        inferenceConfig={"maxTokens": 1000, "temperature": 0},
+    )
+    text = response["output"]["message"]["content"][0]["text"]
+    parsed = _parse_json_response(text)
+    return ContainmentResult(
+        verdict=parsed["verdict"],
+        justification=parsed.get("justification") or "",
+        elements_requested=parsed.get("elements_requested") or [],
+        elements_found=parsed.get("elements_found") or [],
+        elements_missing=parsed.get("elements_missing") or [],
+    )
+
+
+def judge_consolidation(bedrock_client, model_id: str, question: str, expected_answer: str, raw_tool_output: str, final_answer: str) -> ConsolidationResult:
+    """Runs both containment passes and derives consolidation_loss -- the
+    comparison itself is done here in Python (rank lookup), not asked of the
+    model, same reasoning as judge()'s own weighted_score/verdict: don't ask
+    an LLM to do arithmetic/comparison a few lines of code can do exactly."""
+    raw = judge_containment(bedrock_client, model_id, question, expected_answer, raw_tool_output, pass_label="raw tool output from the vendor's own tools, before any consolidation by the agent")
+    final = judge_containment(bedrock_client, model_id, question, expected_answer, final_answer, pass_label="final, already-consolidated answer the agent produced")
+    loss = _CONTAINMENT_RANK.get(raw.verdict, 0) > _CONTAINMENT_RANK.get(final.verdict, 0)
+    return ConsolidationResult(raw=raw, final=final, consolidation_loss=loss)

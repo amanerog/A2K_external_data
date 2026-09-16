@@ -1,0 +1,83 @@
+vendor,id,query,source,expected_answer,actual_answer,ok,factual_accuracy,completeness,traceability,relevance_clarity,weighted_score,critical_omission,hallucination,missing_facts,incorrect_facts,invented_facts,verdict,justification
+linkup,75,"Who is Ali Ansari? What sanctions or watchlist designations apply to him, and what companies is he connected to?",Sanction Record from USA Treasury OFAC Specially Designated Nationals (SDN) List; Sanction Record from UK Consolidated Sanctions List; Sanction Record from OpenSanctions - Global Sanctions List (Official Journal of the EU / EU-IRN program); Sanction Record from France National Asset Freeze Register; Sanction Record from Switzerland SECO Sanctions List; Supply Chain Screening Record from USA Consolidated Screening List; Risk Intelligence Record from Acuris Risk Intelligence - Entities & Relationships (3rd Party Data); Adverse Media Record from Acuris Risk Intelligence - Risk Information and Articles (3rd Party Data); Company Record from Germany Validatis Shareholder Lists (3rd Party Data); Company Record from Germany Beneficial Ownership; Company Record from Luxembourg Registry of Beneficial Owners; Company Record from Luxembourg Beneficial Ownership; Luxembourg RESA (Recueil Électronique des Sociétés et Associations) company filings; Company Record from UK Persons with Significant Control; Company Record from UK Corporate Registry; Company Record from Isle of Man Corporate Registry; Land/property Record from UK Land Overseas Company Ownership Data (OCOD); Company Record from Legal Entity Identifier (LEI) Registry (3rd Party Data); Company Record from UAE Cedar Rose Company Database (3rd Party Data); Iranian company gazette filings (آگهی تاسیس/تغییرات) for TAT-group companies and Bank Ayandeh,"Ali Ansari (also recorded as Ali Aliakbar Ansari, Aliakbar Ansari, and علی انصاری) is an Iranian businessman, born December 26, 1968, associated with Iran, the United Arab Emirates (Dubai), Cyprus, the United Kingdom, Saint Kitts and Nevis, Luxembourg, and Germany. He holds multiple passports (Iranian, Cypriot, and one from St Kitts and Nevis) and an Iranian national ID number.
+He is currently sanctioned by several authorities. The U.S. Treasury's OFAC added him to the Specially Designated Nationals (SDN) List under Executive Order 13224 (terrorism), with secondary-sanctions exposure and links to the IRGC and Iran-related programs. The UK Consolidated Sanctions List designates him under the Iran (Sanctions) Regulations 2023, citing support for hostile Iranian government activity via economic resources to the IRGC, with an asset freeze, travel ban, and director disqualification. He also appears on the EU sanctions list (via the Official Journal of the EU / OpenSanctions), France's National Asset Freeze Register, Switzerland's SECO sanctions list, and the U.S. Consolidated Screening List for export controls.
+The stated rationale across these listings is consistent: Ansari is described as the former owner of Bank Ayandeh (Ayandeh Bank) and of the Iran Mall, who used a network of companies and foreign banking channels — funded in part by Iranian oil sales — to move money abroad in support of Iran's military and the IRGC. He is also said to have acquired real estate and other assets in the EU and UK on behalf of individuals connected to Iran's leadership, including Mojtaba Khamenei, who is directly linked to him in the sanctions data.
+His corporate network spans several jurisdictions. In Germany, he is a shareholder of Allsco GmbH (real estate/hospitality-related activities) and a beneficial owner, director, and shareholder of German ETD GmbH (construction-materials wholesale and R&D). In Luxembourg, he is the beneficial owner of Leopard Germany Bero 1 S.à r.l. and Leopard Germany Bero 2 S.à r.l. (holding companies) and of Tidalwave Holdings I S.à r.l. (a financial holding/""Soparfi""). In the UK/Isle of Man, he is the beneficial owner of Birch Ventures Limited, which owns UK real estate per the UK's Overseas Companies Ownership Data register. In the UAE, he is listed as beneficial owner, manager, and shareholder of TAT Building Materials Trading L.L.C. in Dubai. He is also linked to Ziba Leisure Limited (also known as Smart Global Limited), a Saint Kitts and Nevis/UK-registered holding company that is separately OFAC-sanctioned.
+The data also shows a set of former (historical) roles in Iran, including director of and links to Bank Ayandeh, and board membership or links to a group of Iranian ""TAT"" companies and charitable foundations — among them Towse'e Sakhtemani Saman, Ansar Zarandieh Industrial Town Company, Tehran Pipe and Profile Manufacturing Company, Tat Ansar Investment Group, and several Tat-affiliated charitable foundations — reflecting his earlier business network inside Iran before his current sanctioned status.","Ali Ansari (also known as Aliakbar Ansari) is a Dubai-based Iranian businessman and financier who has been designated under multiple international sanctions regimes for his alleged role in supporting Iran's regime elites and the Islamic Revolutionary Guard Corps (IRGC).
+
+## Identity and Background
+
+Ali Ansari is a 56-64 year old Iranian national who holds multiple passports, including from Iran, Cyprus, and St. Kitts and Nevis. He is the founder of Ayandeh Bank, one of Iran's largest private banks, which collapsed in October 2025 with losses exceeding $4-5 billion. U.S. authorities describe him as having ""institutionalized embezzlement within the Iranian regime"" and as a ""key financier"" for Iran's Supreme Leader Mojtaba Khamenei and other regime elites.
+
+## Sanctions and Watchlist Designations
+
+**United States (OFAC):**
+- Designated on July 10, 2026, by the U.S. Treasury's Office of Foreign Assets Control (OFAC)
+- Sanctioned under Executive Order 13876 (targeting the Supreme Leader of Iran and affiliates), Executive Order 13902 (targeting Iran's financial and petroleum sectors), and Executive Order 13224 as amended (counterterrorism authority)
+- Subject to asset freeze and prohibition on transactions with U.S. persons
+- Ayandeh Bank was previously sanctioned by the U.S. in 2018
+
+**United Kingdom:**
+- Sanctioned on October 30, 2025, under the UK's Iran sanctions regime
+- Designated for ""financially supporting the activities of the IRGC""
+- Subject to UK asset freeze and travel ban
+- UK authorities froze assets worth over £150 million
+
+**European Union:**
+- Added to the EU's Regulation (EU) 267/2012 Iran sanctions list on July 30, 2026
+- EU designation states he ""provides support to the Government of Iran"" through acquiring substantial assets including real estate in the EU and UK on behalf of persons connected to Iranian leadership
+
+**France:**
+- Listed on the French National Asset Freezing System as of July 30, 2026
+
+Ansari has initiated legal proceedings to challenge the UK sanctions, claiming they are politically motivated and lack credible evidence. Through his lawyer, he has denied having any financial relationship with the IRGC or Mojtaba Khamenei.
+
+## Connected Companies and Assets
+
+Ali Ansari controls a sprawling global network of companies and assets valued at approximately €400 million ($477 million), structured through multiple layers of offshore entities:
+
+**Primary Holding Structure:**
+- **Smart Global Limited** (St. Kitts and Nevis) - formerly named Ziba Leisure Limited, designated by OFAC; serves as the central holding company
+- **Birch Ventures Limited** (Isle of Man) - subsidiary of Smart Global, used to acquire UK properties
+- **Tidalwave Holdings I** (Luxembourg) - shell company in the ownership chain
+- **Tidalwave Holdings II S.à r.l.** (Luxembourg) - incorporated January 2015
+- **Tidalwave Corporation** (Netherlands) - 94% owned by Tidalwave Holdings
+- **Leopard Germany Bero 1 S.à r.l.** (Luxembourg) - linked to German shopping center investment
+- **Veritas Reales Investment Limited** (London) - used for Spanish property holdings
+
+**Banking:**
+- **Ayandeh Bank** (Iran) - Founded by Ansari's family through a 2012 merger; collapsed in October 2025 with $4-5 billion in losses; license revoked by Iran's central bank; previously sanctioned by U.S. in 2018
+- **Bank-E Tat** (Iran) - Co-founded by Ansari in 2009; under U.S. sanctions; later merged to form Ayandeh Bank
+
+**Real Estate and Commercial Properties:**
+
+*United Kingdom:*
+- 12 mansions on The Bishops Avenue (""Billionaire's Row""), London - purchased for £73 million in 2013
+- Additional mansion on The Bishops Avenue - purchased for £33.7 million in 2014
+- Two luxury apartments near Kensington Palace - combined value approximately £35.7 million (purchased 2014 and 2016)
+
+*Germany:*
+- Hilton Frankfurt City Center hotel
+- Hilton Frankfurt Gravenbruch hotel (combined estimated value of both: €80 million)
+- Bero shopping center in Oberhausen - valued at approximately €68 million
+
+*Spain:*
+- Steigenberger Golf and Spa Resort in Camp de Mar, Mallorca - 164-room luxury hotel valued at approximately €22 million
+- Luxury villa in Marbella (owned through Veritas Reales Investment Limited)
+
+*Austria:*
+- Schlosshotel Kitzbühel - 5-star luxury ski resort in the Austrian Alps
+- Stakes in other hotels and ski resorts in the Austrian Alps
+
+*Other Holdings:*
+- Real estate and commercial properties in Cyprus and the United Arab Emirates
+- Iran Mall in Tehran - one of the world's largest shopping malls (twice the size of the Pentagon), opened in 2018
+- Mashhad Mall (Iran)
+- Rotana Hotel (Iran)
+- Investments in mobile, telecommunications, hospitality, and industrial manufacturing sectors in Iran
+
+**Front Companies and Exchange Houses (also sanctioned):**
+- **CDM Trading Limited** (Hong Kong) - designated by OFAC for facilitating transactions for Iranian exchange houses
+- **Naba Alzaki Raw Materials Trading LLC** (UAE) - designated by OFAC as front company
+
+The U.S. Treasury alleges that Ansari used his position at Ayandeh Bank to ""issue excessive loans and embezzle billions of dollars"" from Iranian citizens, channeling funds through shell companies and bank accounts across multiple jurisdictions to accumulate this global property and investment portfolio, primarily for the benefit of Mojtaba Khamenei, his family, and other Iranian regime elites.",True,1,2,2,3,1.75,False,True,"German ETD GmbH (construction-materials wholesale and R&D) directorship and shareholding; Allsco GmbH shareholding; TAT Building Materials Trading L.L.C. (UAE) beneficial ownership, management and shareholding; historical Iranian roles including director of Bank Ayandeh and board membership in TAT-group companies (Towse'e Sakhtemani Saman, Ansar Zarandieh Industrial Town Company, Tehran Pipe and Profile Manufacturing Company, Tat Ansar Investment Group, TAT charitable foundations); Switzerland SECO sanctions list designation","Birth date stated as making him 56-64 years old (reference gives December 26, 1968, making him 56-57 in 2025-2026); described as 'founder' of Ayandeh Bank (reference says 'former owner'); Ayandeh Bank collapse in October 2025 with $4-5 billion losses; UK sanctions date of October 30, 2025; OFAC designation date of July 10, 2026; UK asset freeze of £150 million; EU designation date of July 30, 2026; France listing date of July 30, 2026; €400 million total asset valuation; specific property purchase dates and values (£73 million for 12 mansions in 2013, £33.7 million mansion in 2014, etc.); Bank-E Tat co-founding in 2009; Iran Mall opening in 2018","Ayandeh Bank collapse in October 2025 with $4-5 billion losses and license revocation; OFAC designation date of July 10, 2026 under EO 13876 and 13902; UK sanctions date of October 30, 2025 with £150 million asset freeze; EU and France designation dates of July 30, 2026; specific property purchase dates, prices and quantities (12 mansions for £73 million in 2013, £33.7 million mansion in 2014, £35.7 million Kensington apartments, €80 million Hilton hotels, €68 million Bero center, €22 million Mallorca resort); €400 million total portfolio value; Bank-E Tat founding in 2009; Iran Mall opening in 2018; CDM Trading Limited and Naba Alzaki Raw Materials Trading LLC as sanctioned front companies; legal challenge to UK sanctions; Tidalwave Holdings II, Tidalwave Corporation Netherlands, Veritas Reales Investment Limited, Schlosshotel Kitzbühel, Mashhad Mall, Rotana Hotel",NOT_ACCEPTABLE,"The actual answer contains numerous fabricated dates, figures, and entities not present in the reference. The reference does not mention any 2025 bank collapse, 2026 sanction dates, specific property purchase prices/dates, or many of the named hotels and companies (CDM Trading, Naba Alzaki, Veritas Reales, Schlosshotel Kitzbühel, etc.). These are precise, checkable claims that appear invented, triggering hallucination=true and factual_accuracy=1. Completeness scores 2 because while major sanction programs are covered, several reference companies (German ETD GmbH, Allsco GmbH, TAT Building Materials Trading, historical Iranian TAT-group roles) and Switzerland sanctions are omitted. Traceability scores 2 as sources are mentioned generically but specific fabricated dates/figures have no basis in the stated reference sources. All core sanctions findings are mentioned (not totally absent), so critical_omission remains false despite the poor quality."

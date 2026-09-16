@@ -48,7 +48,15 @@ from typing import Optional
 
 import boto3
 
-from judge import DEFAULT_JUDGE_MODEL_ID, JudgeResult, judge as _judge_call, pending_manual_review
+from judge import (
+    DEFAULT_JUDGE_MODEL_ID,
+    ConsolidationResult,
+    JudgeResult,
+    format_raw_tool_output,
+    judge as _judge_call,
+    judge_consolidation,
+    pending_manual_review,
+)
 
 REGION = "eu-west-1"
 AGENT_RUNTIME_ARN = "arn:aws:bedrock-agentcore:eu-west-1:396961015428:runtime/a2k_external_data_mcp-A3c4F0Cyx7"
@@ -69,6 +77,7 @@ class EvalResult:
     ok: bool = False
     actual_answer: Optional[str] = None
     grade: JudgeResult = None
+    consolidation: Optional[ConsolidationResult] = None
     latency_ms: float = 0.0
     error: str = ""
 
@@ -187,6 +196,13 @@ def _evaluate_row(row: GroundTruthRow, mcp_client, bedrock_client, judge_model_i
         result.actual_answer = envelope.get("answer") or "(no answer -- insufficient evidence)"
         if row.expected_answer:
             result.grade = _judge_call(bedrock_client, judge_model_id, row.query, row.source, row.expected_answer, result.actual_answer)
+            try:
+                raw_tool_output = format_raw_tool_output(envelope.get("toolCalls") or [])
+                result.consolidation = judge_consolidation(
+                    bedrock_client, judge_model_id, row.query, row.expected_answer, raw_tool_output, result.actual_answer
+                )
+            except Exception:  # noqa: BLE001 -- a failed containment pass must not kill the row's weighted grade
+                result.consolidation = None
         else:
             result.grade = pending_manual_review("no expected_answer in ground-truth row")
         result.ok = True
@@ -244,11 +260,14 @@ def _write_output(path: Path, results: list[EvalResult]) -> None:
                 "id", "query", "source", "expected_answer", "actual_answer",
                 "factual_accuracy", "completeness", "traceability", "relevance_clarity", "weighted_score",
                 "critical_omission", "hallucination", "missing_facts", "incorrect_facts", "invented_facts",
-                "verdict", "justification", "latency_ms", "error",
+                "verdict", "justification",
+                "raw_verdict", "raw_justification", "final_verdict", "final_justification", "consolidation_loss",
+                "latency_ms", "error",
             ]
         )
         for r in results:
             g = r.grade
+            c = r.consolidation
             writer.writerow(
                 [
                     r.row.id,
@@ -268,6 +287,11 @@ def _write_output(path: Path, results: list[EvalResult]) -> None:
                     g.invented_facts,
                     g.verdict,
                     g.justification,
+                    c.raw.verdict if c else "",
+                    c.raw.justification if c else "",
+                    c.final.verdict if c else "",
+                    c.final.justification if c else "",
+                    c.consolidation_loss if c else "",
                     f"{r.latency_ms:.0f}",
                     r.error,
                 ]
@@ -284,6 +308,15 @@ def _print_summary(results: list[EvalResult]) -> None:
         n = counts.get(verdict, 0)
         print(f"{verdict:22s} {n:3d}  ({n / total * 100:.0f}%)" if total else f"{verdict:22s} 0")
     print(f"{'TOTAL':22s} {total:3d}")
+
+    with_consolidation = [r for r in results if r.consolidation is not None]
+    if with_consolidation:
+        losses = sum(1 for r in with_consolidation if r.consolidation.consolidation_loss)
+        final_counts: dict[str, int] = {}
+        for r in with_consolidation:
+            final_counts[r.consolidation.final.verdict] = final_counts.get(r.consolidation.final.verdict, 0) + 1
+        final_parts = "  ".join(f"{v}={final_counts.get(v, 0)}" for v in ("Cubierta", "Parcial", "No cubierta"))
+        print(f"\ncontainment(final): {final_parts}   consolidation_loss={losses}/{len(with_consolidation)}")
 
 
 def main() -> None:

@@ -17,6 +17,15 @@ A row with `ok=false` in the audit file (a failed call -- timeout, expired
 credentials, etc., not a bad answer) is graded ERROR directly, no judge call
 -- there's no answer to compare.
 
+Runs TWO independent judges per row (see judge.py): the weighted-rubric
+judge() (factual_accuracy/completeness/traceability/relevance_clarity ->
+ACCEPTABLE/NOT_ACCEPTABLE), and the newer containment judge_consolidation()
+(Cubierta/Parcial/No cubierta, scored twice -- once against the vendor's raw
+tool output via toolCalls[] already in the audit .jsonl, once against the
+final answer -- to surface consolidation_loss: the vendor found it, the
+agent's own synthesis dropped it). That's 3 Bedrock calls per graded row
+instead of 1 -- budget accordingly with --workers/--limit on a large run.
+
 Usage:
     pip install boto3   # if not already present
     python grade_vendor_audit.py
@@ -43,7 +52,15 @@ from typing import Optional
 
 import boto3
 
-from judge import DEFAULT_JUDGE_MODEL_ID, JudgeResult, judge, pending_manual_review
+from judge import (
+    DEFAULT_JUDGE_MODEL_ID,
+    ConsolidationResult,
+    JudgeResult,
+    format_raw_tool_output,
+    judge,
+    judge_consolidation,
+    pending_manual_review,
+)
 
 REGION = "eu-west-1"
 
@@ -55,6 +72,7 @@ class AuditRecord:
     query: str
     ok: bool
     answer: Optional[str]
+    tool_calls: list[dict]
     error: str
 
 
@@ -70,6 +88,7 @@ class GradeResult:
     expected_answer: str
     source: str
     grade: JudgeResult
+    consolidation: Optional[ConsolidationResult]
 
 
 def _load_audit(path: Path, ids: Optional[set[str]], vendors: Optional[set[str]], limit: Optional[int]) -> list[AuditRecord]:
@@ -84,6 +103,7 @@ def _load_audit(path: Path, ids: Optional[set[str]], vendors: Optional[set[str]]
                     query=r["query"],
                     ok=r.get("ok", False),
                     answer=r.get("answer"),
+                    tool_calls=r.get("toolCalls") or [],
                     error=r.get("error", ""),
                 )
             )
@@ -106,15 +126,21 @@ def _grade_one(bedrock_client, model_id: str, record: AuditRecord, gt: Optional[
     source = gt.source if gt else ""
     if not record.ok:
         grade = JudgeResult(verdict="ERROR", justification=f"Call failed, nothing to grade: {record.error}")
-        return GradeResult(record=record, expected_answer=expected_answer, source=source, grade=grade)
+        return GradeResult(record=record, expected_answer=expected_answer, source=source, grade=grade, consolidation=None)
     if not expected_answer:
-        return GradeResult(record=record, expected_answer=expected_answer, source=source, grade=pending_manual_review("no ground truth row for this id"))
+        pending = pending_manual_review("no ground truth row for this id")
+        return GradeResult(record=record, expected_answer=expected_answer, source=source, grade=pending, consolidation=None)
     actual_answer = record.answer or "(no answer -- insufficient evidence)"
     try:
         grade = judge(bedrock_client, model_id, record.query, source, expected_answer, actual_answer)
     except Exception as exc:  # noqa: BLE001 -- one bad row must not kill the whole batch
         grade = JudgeResult(verdict="ERROR", justification=f"{type(exc).__name__}: {exc}")
-    return GradeResult(record=record, expected_answer=expected_answer, source=source, grade=grade)
+    try:
+        raw_tool_output = format_raw_tool_output(record.tool_calls)
+        consolidation = judge_consolidation(bedrock_client, model_id, record.query, expected_answer, raw_tool_output, actual_answer)
+    except Exception as exc:  # noqa: BLE001 -- a failed containment pass must not kill the row's weighted grade
+        consolidation = None
+    return GradeResult(record=record, expected_answer=expected_answer, source=source, grade=grade, consolidation=consolidation)
 
 
 def _write_output(path: Path, results: list[GradeResult]) -> None:
@@ -126,10 +152,12 @@ def _write_output(path: Path, results: list[GradeResult]) -> None:
                 "factual_accuracy", "completeness", "traceability", "relevance_clarity", "weighted_score",
                 "critical_omission", "hallucination", "missing_facts", "incorrect_facts", "invented_facts",
                 "verdict", "justification",
+                "raw_verdict", "raw_justification", "final_verdict", "final_justification", "consolidation_loss",
             ]
         )
         for r in results:
             g = r.grade
+            c = r.consolidation
             writer.writerow(
                 [
                     r.record.vendor,
@@ -151,6 +179,11 @@ def _write_output(path: Path, results: list[GradeResult]) -> None:
                     g.invented_facts,
                     g.verdict,
                     g.justification,
+                    c.raw.verdict if c else "",
+                    c.raw.justification if c else "",
+                    c.final.verdict if c else "",
+                    c.final.justification if c else "",
+                    c.consolidation_loss if c else "",
                 ]
             )
 
@@ -165,6 +198,14 @@ def _print_summary(results: list[GradeResult]) -> None:
         total = len(vendor_results)
         parts = "  ".join(f"{v}={counts.get(v, 0)}" for v in ("ACCEPTABLE", "NOT_ACCEPTABLE", "PENDING_MANUAL_REVIEW", "ERROR"))
         print(f"{vendor:8s} {parts}   (total={total})")
+
+        with_consolidation = [r for r in vendor_results if r.consolidation is not None]
+        losses = sum(1 for r in with_consolidation if r.consolidation.consolidation_loss)
+        final_counts: dict[str, int] = {}
+        for r in with_consolidation:
+            final_counts[r.consolidation.final.verdict] = final_counts.get(r.consolidation.final.verdict, 0) + 1
+        final_parts = "  ".join(f"{v}={final_counts.get(v, 0)}" for v in ("Cubierta", "Parcial", "No cubierta"))
+        print(f"{'':8s} containment(final): {final_parts}   consolidation_loss={losses}/{len(with_consolidation)}")
 
 
 def main() -> None:
