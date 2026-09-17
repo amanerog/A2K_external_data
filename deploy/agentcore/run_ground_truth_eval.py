@@ -52,6 +52,7 @@ from judge import (
     DEFAULT_JUDGE_MODEL_ID,
     ConsolidationResult,
     JudgeResult,
+    consolidation_error,
     format_raw_tool_output,
     judge as _judge_call,
     judge_consolidation,
@@ -201,8 +202,8 @@ def _evaluate_row(row: GroundTruthRow, mcp_client, bedrock_client, judge_model_i
                 result.consolidation = judge_consolidation(
                     bedrock_client, judge_model_id, row.query, row.expected_answer, raw_tool_output, result.actual_answer
                 )
-            except Exception:  # noqa: BLE001 -- a failed containment pass must not kill the row's weighted grade
-                result.consolidation = None
+            except Exception as exc:  # noqa: BLE001 -- a failed containment pass must not kill the row's weighted grade
+                result.consolidation = consolidation_error(f"{type(exc).__name__}: {exc}")
         else:
             result.grade = pending_manual_review("no expected_answer in ground-truth row")
         result.ok = True

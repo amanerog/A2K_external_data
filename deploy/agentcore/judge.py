@@ -365,6 +365,18 @@ class ConsolidationResult:
     consolidation_loss: bool
 
 
+# Per-tool-call cap on format_raw_tool_output's output -- confirmed live
+# 2026-09-17 that Sayari's tool outputs (search_entities running in
+# response_mode "export", already known to ignore the requested `limit` --
+# see agent/README.md) routinely produce raw_tool_output past 500K-1.2M
+# characters when joined uncapped, which silently failed the whole
+# judge_consolidation() call (Bedrock rejecting the oversized prompt) for
+# 13 of the 66 graded rows in a single run -- 12 of them Sayari, exactly the
+# vendor known for this. Capping per call, not just the total, means one
+# huge call doesn't crowd out a second call's contribution.
+_MAX_CHARS_PER_TOOL_CALL = 15_000
+
+
 def format_raw_tool_output(tool_calls: list[dict]) -> str:
     """Builds the "raw tool output" text_to_score for judge_containment's
     first pass out of every tool call this turn made, in call order -- not
@@ -372,15 +384,30 @@ def format_raw_tool_output(tool_calls: list[dict]) -> str:
     calls (vendor_source_agent_system_prompt_v1.md's CONSOLIDATION rule 3:
     "consolidate across all calls, not just the last one"). Expects the same
     tool-call dict shape run_vendor_audit.py's .jsonl and a2k.ask's
-    `toolCalls[]` both already use (a `toolName`/`output` pair at minimum)."""
+    `toolCalls[]` both already use (a `toolName`/`output` pair at minimum).
+    Each call's own output is truncated to _MAX_CHARS_PER_TOOL_CALL -- see
+    that constant's comment for why this exists at all."""
     if not tool_calls:
         return "(no tool calls recorded for this turn)"
     parts = []
     for i, tc in enumerate(tool_calls, 1):
         name = tc.get("toolName") or tc.get("tool_name") or "unknown_tool"
-        output = tc.get("output")
+        output = str(tc.get("output"))
+        if len(output) > _MAX_CHARS_PER_TOOL_CALL:
+            omitted = len(output) - _MAX_CHARS_PER_TOOL_CALL
+            output = f"{output[:_MAX_CHARS_PER_TOOL_CALL]}\n... [truncated, {omitted} more characters omitted]"
         parts.append(f"--- Tool call {i}: {name} ---\n{output}")
     return "\n\n".join(parts)
+
+
+def consolidation_error(reason: str) -> ConsolidationResult:
+    """For when judge_consolidation() itself raised -- callers must not just
+    swallow that into a bare None (that's how 13/66 rows silently lost their
+    containment result with zero trace in a real run before this existed).
+    Surfaces the failure the same way pending_manual_review() surfaces a
+    no-ground-truth row: as a real, visible result instead of an absence."""
+    err = ContainmentResult(verdict="ERROR", justification=reason)
+    return ConsolidationResult(raw=err, final=err, consolidation_loss=False)
 
 
 def judge_containment(bedrock_client, model_id: str, question: str, expected_answer: str, text_to_score: str, *, pass_label: str) -> ContainmentResult:

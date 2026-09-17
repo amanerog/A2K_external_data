@@ -1,0 +1,6 @@
+vendor,id,query,ok,input_tokens,output_tokens,total_tokens,latency_ms,tool_call_count,tool_names,error
+cala,10,"What are the competitor's (Revolut) plans, prices and fee changes and how do they differ by tier?",True,21782,3217,24999,115798,2,"knowledge_search, AskContent",
+cala,43,"Que informação pública existe sobre Isabel José dos Santos e existem referências materiais, judiciais ou reputacionais?",False,,,,240202,0,,"{""code"": ""UPSTREAM_ERROR"", ""message"": ""Agent Runtime call failed: "", ""retryable"": false, ""details"": {}}"
+cala,71,Who is Leopoldo Alejandro Betancourt López? What are his corporate affiliations and any known risks or red flags associated with him?,False,,,,240268,0,,"{""code"": ""UPSTREAM_ERROR"", ""message"": ""Agent Runtime call failed: "", ""retryable"": false, ""details"": {}}"
+cala,73,"Who owns and controls Allwyn Investments Cyprus Ltd, and what companies is it connected to?",False,,,,240226,0,,"{""code"": ""UPSTREAM_ERROR"", ""message"": ""Agent Runtime call failed: "", ""retryable"": false, ""details"": {}}"
+cala,75,"Who is Ali Ansari? What sanctions or watchlist designations apply to him, and what companies is he connected to?",True,82977,6323,89300,103071,6,"entity_search, entity_introspection, entity_retrieval, knowledge_search, knowledge_search, AskContent",

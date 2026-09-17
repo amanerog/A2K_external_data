@@ -56,6 +56,7 @@ from judge import (
     DEFAULT_JUDGE_MODEL_ID,
     ConsolidationResult,
     JudgeResult,
+    consolidation_error,
     format_raw_tool_output,
     judge,
     judge_consolidation,
@@ -139,7 +140,7 @@ def _grade_one(bedrock_client, model_id: str, record: AuditRecord, gt: Optional[
         raw_tool_output = format_raw_tool_output(record.tool_calls)
         consolidation = judge_consolidation(bedrock_client, model_id, record.query, expected_answer, raw_tool_output, actual_answer)
     except Exception as exc:  # noqa: BLE001 -- a failed containment pass must not kill the row's weighted grade
-        consolidation = None
+        consolidation = consolidation_error(f"{type(exc).__name__}: {exc}")
     return GradeResult(record=record, expected_answer=expected_answer, source=source, grade=grade, consolidation=consolidation)
 
 

@@ -1,0 +1,919 @@
+vendor,id,query,source,expected_answer,actual_answer,ok,factual_accuracy,completeness,traceability,relevance_clarity,weighted_score,critical_omission,hallucination,missing_facts,incorrect_facts,invented_facts,verdict,justification,raw_verdict,raw_justification,final_verdict,final_justification,consolidation_loss
+sayari,4,What is the sector's stance (CECA) on banking regulation in Spain?,CECA,«Simplifying regulation would increase the Spanish banking sector's financing capacity by €250 billion» (ES: 'Simplificar la regulación aumentaría en 250.000 millones la capacidad de financiación del sector bancario en España'). Another release: the social welfare program (Obra Social) of member institutions exceeds €1 billion in investment.,"I was unable to find information about CECA's stance on banking regulation in Spain in the Sayari database.
+
+The search returned numerous entities with the name ""CECA"" across many different countries and industries, but none that could be clearly identified as the Spanish banking sector organization you're asking about. Without being able to locate the specific entity in the database, I cannot provide information about their position on banking regulation.
+
+CECA typically refers to the Confederación Española de Cajas de Ahorros (Spanish Confederation of Savings Banks), which was a major banking sector association in Spain. However, this organization does not appear to be present in the Sayari database, or may be listed under a different name or identifier that I was unable to locate with the available search terms.",True,5,1,3,2,2.9,False,False,CECA's position that simplifying regulation would increase Spanish banking sector's financing capacity by €250 billion; social welfare program (Obra Social) investment exceeding €1 billion,,,NOT_ACCEPTABLE,"The reference answer contains no high-impact findings from the six categories (sanctions, PEP, litigation, adverse media, beneficial ownership, adverse risk relationships), so critical_omission remains false despite the answer's failure to provide the requested information. The actual answer provides no factual claims about CECA's stance, earning completeness score of 1 for completely failing to address the reference content (the €250 billion financing capacity claim and €1 billion social welfare investment). Factual_accuracy is 5 because the system makes no incorrect claims—it simply states it cannot find the information in its database. Traceability scores 3 because while it explains why it has no information (not in Sayari database), it provides no source for the requested stance. Relevance_clarity scores 2 because while it correctly identifies what CECA is, it does not engage with the substance of the question about regulatory stance.",No cubierta,"The tool output consists of entity search results returning hundreds of companies with 'CECA' in their names (mostly unrelated businesses like CECA GADIS, CECA SA, etc.) and generic guidance notes, but contains no information about CECA's stance on banking regulation in Spain, the €250 billion financing capacity claim, or the €1 billion social welfare program investment.",No cubierta,"The text_to_score explicitly states that no information about CECA's stance on banking regulation was found. None of the substantive elements from the expected answer are present: neither the statement about simplifying regulation increasing financing capacity by €250 billion, nor the information about the social welfare program exceeding €1 billion in investment.",False
+sayari,7,What are the competitor's (Nubank) annual KPIs and how did they evolve in 2023 against its company priorities?,Nubank (Results Center),«Quarterly amount lent increased from $0.9B in Q4'22 to $2B in Q4'23 (+100% FXN YoY) and IEP climbed from $2.0B in Q4'22 to $3.7B in Q4'23 (+76% FXN YoY). Quarterly Ultraviolet Credit Card Purchase Volume increased from $0.5B in Q4'22 to $1.1B in Q4'23 (+104% FXN YoY)... NuMEX deposits increased from $0 to $1B+ within 7 months from public launch; NuCOL was granted Financing Company License.»,"I cannot provide Nubank's annual KPIs or information about how they evolved in 2023 against company priorities. The Sayari database contains corporate registry information, ownership structures, trade data, and public records, but it does not include financial performance metrics, KPIs, or strategic business information.
+
+To obtain Nubank's 2023 KPIs and performance against company priorities, you would need to consult:
+
+1. **Nubank's Investor Relations materials** - Annual reports, earnings presentations, and SEC filings (as Nu Holdings Ltd. is publicly traded on the NYSE under ticker ""NU"")
+2. **SEC Form 20-F** - Their annual report filed with the U.S. Securities and Exchange Commission
+3. **Quarterly earnings reports** - Available on their investor relations website
+4. **Company press releases** - Official announcements about performance and strategic priorities
+
+The Sayari database did identify multiple entities with ""Nubank"" or ""Nu Holdings"" in their names across various jurisdictions, but these records contain registration information, addresses, and corporate relationships rather than financial performance data.",True,5,1,2,1,2.6,False,False,Quarterly amount lent increased from $0.9B in Q4'22 to $2B in Q4'23 (+100% FXN YoY); IEP climbed from $2.0B in Q4'22 to $3.7B in Q4'23 (+76% FXN YoY); Quarterly Ultraviolet Credit Card Purchase Volume increased from $0.5B in Q4'22 to $1.1B in Q4'23 (+104% FXN YoY); NuMEX deposits increased from $0 to $1B+ within 7 months from public launch; NuCOL was granted Financing Company License,,,NOT_ACCEPTABLE,"The reference answer contains financial performance metrics and KPIs (lending volumes, IEP, credit card purchase volumes, deposits, licensing) but no high-impact findings from the six critical categories (sanctions, PEP, litigation, adverse media, beneficial ownership, adverse risk relationships), so critical_omission remains false. The actual answer is a complete non-answer that states the system cannot provide the requested information and redirects to other sources; it contains zero factual claims about Nubank's KPIs, earning completeness=1 and relevance_clarity=1. Factual_accuracy=5 because the system makes no incorrect factual claims (it simply declines to answer). Traceability=2 because while it correctly identifies that the reference source would be investor relations materials, it provides no actual data from those sources.",No cubierta,"The text_to_score contains only raw tool outputs from entity search queries that return lists of Nubank-related entities and their identifiers, but no KPI data, financial metrics, or performance evolution information. None of the specific KPIs mentioned in the expected answer (quarterly lending amounts, IEP, Ultraviolet Credit Card Purchase Volume, NuMEX deposits, NuCOL licensing) are present in the tool output.",No cubierta,"The text_to_score explicitly states it cannot provide the requested information and explains why the data source does not contain KPIs or financial metrics. None of the specific KPI data points from expected_answer (lending amounts, IEP, credit card purchase volume, NuMEX deposits, NuCOL licensing) are present in the text_to_score.",False
+sayari,9,What new products and account features does the competitor (N26) offer?,N26 (Product),"«N26 Smart: Mastercard debit card, up to 10 sub-accounts (Spaces), budgeting tools, free ATM withdrawals and commission-free purchase of stocks and ETFs. Requirements: over 18, residence in an eligible country and a valid ID.»","I cannot provide information about N26's banking products and account features using Sayari's platform. 
+
+Sayari is a corporate intelligence and supply chain risk database that tracks company ownership structures, business relationships, trade data, and compliance risks. It does not contain information about consumer banking products, account features, interest rates, fees, or financial service offerings.
+
+The search found over 5,500 entities with ""N26"" in their name, including various N26 corporate entities like N26 GmbH, N26 Bank SE, and N26 SE. However, these records contain corporate registration data, ownership information, and business relationships - not consumer product details.
+
+To learn about N26's banking products and new account features, you would need to:
+- Visit N26's official website (n26.com)
+- Check their product pages and press releases
+- Review financial news sources covering fintech
+- Look at app store listings for feature updates
+- Check their investor relations materials
+
+If you're interested in N26's corporate structure, ownership, business partnerships, or compliance risk profile instead, I can help investigate those aspects using Sayari's data.",True,5,1,5,1,3.2,False,False,"N26 Smart product details: Mastercard debit card; up to 10 sub-accounts (Spaces); budgeting tools; free ATM withdrawals; commission-free purchase of stocks and ETFs; Requirements: over 18, residence in an eligible country and a valid ID",,,NOT_ACCEPTABLE,"The reference answer contains zero high-impact findings (no sanctions, PEPs, litigation, adverse media, beneficial ownership, or adverse risk relationships), so critical_omission remains false despite the complete failure to answer. The actual answer explicitly states it cannot provide the requested information about N26's banking products and offers no details about N26 Smart or its features. Completeness scores 1 because the answer does not address any element of the reference content. Relevance_clarity scores 1 because the response is entirely off-topic, providing only a disclaimer about data limitations rather than engaging with the question. Factual_accuracy and traceability score 5 because the statements made (about Sayari's limitations and what it does contain) are not contradicted by the reference and the answer clearly identifies its source constraints.",No cubierta,"The raw tool output contains only entity search results listing various N26 company entities and an AskContent validation message. It does not contain any information about N26's products, account features, the N26 Smart offering, Mastercard debit card, sub-accounts (Spaces), budgeting tools, ATM withdrawals, stock/ETF purchases, or eligibility requirements.",No cubierta,"The text_to_score explicitly states it cannot provide information about N26's banking products and account features. None of the requested information about N26 Smart (debit card, sub-accounts, budgeting tools, ATM withdrawals, stock/ETF purchases, or requirements) is present.",False
+sayari,10,"What are the competitor's (Revolut) plans, prices and fee changes and how do they differ by tier?",Revolut (Pricing),"«Standard — Free; Plus — £3.99/month; Premium — £7.99/month; Metal — £14.99/month; Ultra — £55/month (introductory offer). Declared annual benefits: Plus ~£100, Premium ~£1,750, Metal ~£3,750, Ultra >£9,000.»","I cannot provide information about Revolut's pricing plans, fees, or tier structures because Sayari is a corporate intelligence platform focused on business entities, supply chains, and risk data—not consumer product pricing or financial service fees.
+
+Sayari's database contains information about Revolut's corporate entities (such as Revolut Ltd, Revolut Bank UAB, Revolut Technologies Inc., and other subsidiaries), including:
+- Corporate registration and identifiers
+- Ownership structures and relationships
+- Trade and shipment activities
+- Risk factors and compliance data
+
+However, it does not contain:
+- Subscription pricing plans
+- Banking fees or charges
+- Service tier comparisons
+- Consumer product pricing
+
+To find Revolut's pricing plans and fee information, you should:
+1. Visit Revolut's official website (revolut.com)
+2. Check their pricing or plans page
+3. Review their terms and conditions
+4. Contact Revolut customer support directly
+
+If you're interested in Revolut's corporate structure, business relationships, subsidiaries, or other company intelligence data available in Sayari, I'd be happy to help with that instead.",True,5,1,1,1,2.4,False,False,"Standard — Free; Plus — £3.99/month; Premium — £7.99/month; Metal — £14.99/month; Ultra — £55/month (introductory offer); Declared annual benefits: Plus ~£100, Premium ~£1,750, Metal ~£3,750, Ultra >£9,000",,,NOT_ACCEPTABLE,"The reference answer contains pricing tier information (Standard through Ultra with specific monthly prices and annual benefits), which are product/pricing details, not any of the six high-impact finding categories (sanction, PEP, litigation, adverse media, beneficial ownership, adverse risk relationship), so critical_omission remains false. The actual answer explicitly declines to provide any of the requested pricing information, instead explaining that Sayari does not contain such data. Completeness scores 1 because none of the reference content is addressed. Traceability scores 1 because no source for the requested pricing is provided. Relevance_clarity scores 1 because the answer does not engage with the question's subject matter at all, offering only a disclaimer. Factual_accuracy scores 5 because the actual answer makes no factual claims about Revolut's pricing that could be incorrect.",No cubierta,"The text_to_score contains only raw tool output showing entity search results for companies with names containing 'Revolut' or 'Revolution', and a validation message for AskContent. It does not contain any information about Revolut's pricing tiers, monthly fees, or declared annual benefits that are specified in the expected answer.",No cubierta,"The text_to_score explicitly states it cannot provide the requested information and contains none of the pricing tiers (Standard, Plus, Premium, Metal, Ultra), monthly prices, or declared annual benefits that appear in the expected answer. It is an explanation of why the tool cannot answer rather than an answer containing the substance requested.",False
+sayari,12,What new products and features has the competitor (Revolut) recently announced?,Revolut (Newsroom),"«Revolut reveals 2025 vision, with AI assistant, mortgages, and ATMs on the horizon» and «Revolut reports record profit of $2.3bn for 2025 as revenue surges to $6bn».","I apologize, but I need to clarify something important: **Sayari is a corporate intelligence and supply chain risk platform, not a source for competitor product announcements or feature releases.**
+
+The search results I received show that Sayari's database contains information about Revolut as a **corporate entity** - including various Revolut legal entities like:
+- REVOLUT LTD
+- REVOLUT BANK UAB  
+- REVOLUT GROUP HOLDINGS LTD
+- REVOLUT TECHNOLOGIES INC.
+- And many other subsidiaries and related entities
+
+However, Sayari does **not** track:
+- Product launches
+- Feature announcements
+- Marketing releases
+- Technology roadmaps
+- Consumer-facing product updates
+
+For information about Revolut's recent products and features, you would need to check:
+- Revolut's official website and blog
+- Press releases from Revolut
+- Financial technology news sources
+- Revolut's investor relations materials
+- Tech industry publications
+
+Sayari specializes in:
+- Corporate ownership structures
+- Supply chain relationships
+- Trade data and shipments
+- Business registrations
+- Risk screening (sanctions, PEPs, etc.)
+
+Would you like me to provide information about Revolut's **corporate structure, ownership, or business relationships** instead? Or would you prefer guidance on where to find their product announcement information?",True,1,1,1,1,1.0,False,False,"Revolut's 2025 vision including AI assistant, mortgages, and ATMs; Revolut's record profit of $2.3bn for 2025; revenue surge to $6bn",,,NOT_ACCEPTABLE,"The reference answer contains zero high-impact findings from the six categories (sanction, PEP, litigation, adverse media, beneficial ownership, adverse risk relationship) -- it describes product announcements and financial results only, so critical_omission remains false regardless of answer quality. The actual answer completely fails to address the question: it provides no information about Revolut's new products, features, 2025 vision, AI assistant, mortgages, ATMs, or financial results. Instead, it explains that Sayari (the system being queried) does not track product announcements and offers to provide different information. This is a total non-answer to the question asked, scoring 1 across all dimensions for failing to engage with the reference content at all.",No cubierta,"The text_to_score contains only raw tool output showing entity search results (a list of companies with names containing 'Revolut' or 'Revolution') and a validation message. It does not contain any information about Revolut's recently announced products, features, 2025 vision (AI assistant, mortgages, ATMs), or financial results (profit/revenue figures).",No cubierta,"The expected answer contains two specific pieces of information about Revolut's recent announcements: (1) their 2025 vision including AI assistant, mortgages, and ATMs, and (2) their record profit of $2.3bn and revenue of $6bn for 2025. The text_to_score contains none of this information; instead, it explains why the tool (Sayari) cannot provide product announcements and offers to provide different types of information about corporate structure.",False
+sayari,17,What senior-position profiles and requirements does a peer (BBVA) publish for leadership roles?,BBVA (Careers),"«BBVA — Job portal (Workday, bbva.wd3.myworkdayjobs.com). Senior/leadership vacancies, e.g. 'Executive Director — Securitization, ABS Origination & Structuring' (New York), 'Data Engineering Senior Manager I', 'Software Senior Manager I (BSI)'. Each posting specifies area/location, seniority level, key responsibilities and required qualifications (years of experience, technical skills, languages).»","I understand you're asking about BBVA's published senior leadership position profiles and requirements. However, I need to clarify what information is available through the Sayari platform.
+
+The search returned 667+ BBVA-related entities from Sayari's corporate registry and trade databases. These results include various BBVA subsidiaries and affiliates across multiple countries, investment funds and pension funds managed by BBVA, and corporate entities and financial vehicles.
+
+**What Sayari data shows:**
+Sayari's database contains corporate registry information, ownership structures, trade relationships, and public records about BBVA entities. This includes information about directors, officers, and shareholders as recorded in official company registries.
+
+**What Sayari data does NOT typically contain:**
+- Job descriptions or position requirements
+- Internal HR policies or hiring criteria
+- Leadership competency frameworks
+- Organizational charts with role specifications
+
+If you're looking for information about BBVA's leadership structure, I can help you explore:
+
+1. **Current leadership**: Directors and officers listed in corporate registries for specific BBVA entities
+2. **Corporate structure**: Ownership and subsidiary relationships
+3. **Governance**: Board composition and key personnel
+
+The information you're seeking about senior-position profiles and requirements for leadership roles would typically be found on BBVA's corporate website, careers page, or in publicly available HR/recruitment materials rather than in corporate registry data that Sayari aggregates.
+
+Would you like me to examine the leadership and governance structure of a specific BBVA entity (such as the main holding company Banco Bilbao Vizcaya Argentaria, S.A. or a particular subsidiary)?",True,3,1,2,2,2.0,False,False,"BBVA job portal (Workday, bbva.wd3.myworkdayjobs.com); specific senior/leadership vacancy examples (Executive Director — Securitization, ABS Origination & Structuring in New York, Data Engineering Senior Manager I, Software Senior Manager I (BSI)); posting specifications including area/location, seniority level, key responsibilities, required qualifications (years of experience, technical skills, languages)",,,NOT_ACCEPTABLE,"The reference answer describes specific BBVA senior leadership job postings on their Workday careers portal with detailed examples and requirements. The actual answer completely fails to provide this information, instead explaining that the Sayari platform does not contain job descriptions or HR materials. While the actual answer is factually accurate about what Sayari does and does not contain, it scores 1 on completeness because it does not address the reference content at all. Traceability scores 2 because the answer correctly identifies its data source (Sayari) but provides no information traceable to the reference source (BBVA Careers/Workday). Relevance_clarity scores 2 because while the answer acknowledges the question, it pivots entirely to explaining data limitations rather than answering what was asked, adding substantial content about corporate registries that obscures the core question about published job profiles.",No cubierta,"The expected answer describes BBVA's job portal (Workday), specific senior/leadership vacancy examples with titles, locations, and details about responsibilities and qualifications. The text_to_score contains only raw entity search results listing various BBVA company entities and a validation message for AskContent, with no information about job postings, leadership roles, or their requirements.",No cubierta,"The expected answer describes specific BBVA job postings from their Workday portal with concrete examples of senior positions, responsibilities, and qualifications. The text_to_score explicitly states it cannot provide this information through Sayari and offers only corporate registry data about directors/officers instead of job vacancy profiles.",False
+sayari,18,What is a peer's (BNP Paribas) leadership org structure and the responsibilities of each member?,BNP Paribas (Leadership bios),«The General Management of BNP Paribas is composed of a Chief Executive Officer (CEO) plus two Chief Operating Officers and three Deputy Chief Operating Officers... The Executive Committee brings together the General Management as well as 14 other members.» CEO: Jean-Laurent Bonnafé; COOs: Yann Gérardin (CIB) and Thierry Laborde (CPBS); CFO: Lars Machenil; CRO: Frank Roncey.,"Based on the Sayari database, I found information about BNP Paribas's leadership organizational structure. However, I must note that the data available shows the names and positions of leadership members but does not include detailed descriptions of each member's specific responsibilities. Here's what the database contains:
+
+## BNP Paribas Leadership Structure
+
+### Board Members (Members of the Board)
+The database shows [BNP Paribas](https://graph.sayari.com/resource/entity/ELeoVQ9LHMxaqQCW6lhBvg) has 47 board members, including:
+
+- [Jean-Laurent Bonnafé](https://graph.sayari.com/resource/entity/zu16_H-wc1TTJPjVeWufXg) - Board Member (also identified as a PEP - Politically Exposed Person)
+- [Jean Lemierre](https://graph.sayari.com/resource/entity/6G4v1semuOeDpVlPAWeUtA) - Board Member (PEP)
+- [Denis Kessler](https://graph.sayari.com/resource/entity/MCAJairPF1YcTROjK99FKg) - Board Member (PEP)
+- [Jacques André Aschenbroich](https://graph.sayari.com/resource/entity/VweELelA_UpOpUH61qzaWA) - Board Member (PEP)
+- [Monique Ayache](https://graph.sayari.com/resource/entity/PHABtXMALFZdhFiIegaSdQ) - Board Member (PEP)
+- [Michel Tilmant](https://graph.sayari.com/resource/entity/XmvBwJRa2-bw1p9saD0Ccg) - Board Member
+- [Jean-François Lepetit](https://graph.sayari.com/resource/entity/JvmF-bkR17HEdmcO6wy6dQ) - Board Member
+- [Marion Denise Charpin](https://graph.sayari.com/resource/entity/Hw23DyYmIjeKB4IX22YEFw) - Board Member
+- [Rajna Gibson Brandon](https://graph.sayari.com/resource/entity/l0pLTyOX7xU7Y2EQm6i_ng) - Board Member
+- [Sandrine Verrier](https://graph.sayari.com/resource/entity/KserXlESaj3x8Q0owXMGEQ) - Board Member
+- [Daniela Schwarzer](https://graph.sayari.com/resource/entity/0dmfmrseDMzZaMlhXDG5GA) - Board Member
+- [Vanessa Séverine Aurélie Lepoultier](https://graph.sayari.com/resource/entity/SPDMxmmO3VAM2OyB1SXZrw) - Board Member
+- [Christian Maurice Marie Noyer](https://graph.sayari.com/resource/entity/d3xkQekBhxPVD9Q5p3YD-w) - Board Member
+- [Wouter De Ploey](https://graph.sayari.com/resource/entity/eKUnq_PlfVOgGxXyx0diFQ) - Board Member
+- [Fields Wicker-Miurin](https://graph.sayari.com/resource/entity/jAuEvOEQAlYYsL1YrQvC0w) - Board Member
+- [Hugues Epaillard](https://graph.sayari.com/resource/entity/fl--6C6gNPTK5mUqjVQ5tQ) - Board Member
+- [Nicole Misson](https://graph.sayari.com/resource/entity/NzKAHEAzZI3A_BMBevdF8g) - Board Member
+- [Pierre André de Chalendar](https://graph.sayari.com/resource/entity/w6Tb7i4wWny8GQIfyIra6A) - Board Member
+- [Laurence Parisot](https://graph.sayari.com/resource/entity/lRLsuoaTNRhfy1wniVXNKQ) - Board Member
+- [Valérie Jeanne Chort](https://graph.sayari.com/resource/entity/yblesCECmonHveGoorsAlg) - Board Member
+- [Nicolas Eric Paul Peter](https://graph.sayari.com/resource/entity/nYQiqC4hLP5uMlocj7PaRg) - Board Member
+- [Bertrand Paul Christian Philippe De Mazières](https://graph.sayari.com/resource/entity/ObqIAKsuM7XWWFSrt6_eSg) - Board Member
+
+And additional board members including Baudouin Prot, François Grappotte, Christophe Jacquin De Margerie, Emiel Van Broekhoven, Thierry Mouchard, Meglena Kuneva, Michel Pébereau, Claude Bébéar, Hélène Ploix, Jean-Louis Beffa, Patrick Auguste, Jean-Marie Gianno, Alain Joly, Louis Schweitzer, Suzanne Berger Keniston, and others.
+
+### Directors
+The database shows [BNP Paribas](https://graph.sayari.com/resource/entity/ELeoVQ9LHMxaqQCW6lhBvg) has 38 directors, including:
+
+- [Michel Tilmant](https://graph.sayari.com/resource/entity/H1ZHiisYOFK6eNLC9aUKCA) - Director
+- [Pierre Bouchara](https://graph.sayari.com/resource/entity/nH6QxJoyXkL3tUZ5GxWQ4g) - Director
+- [Juliette Brisac](https://graph.sayari.com/resource/entity/U3sUozcnLi9-LdrEalBrAQ) - Director
+- [Jonathan Banks](https://graph.sayari.com/resource/entity/HqgArT6HieQlhN9ItuI5LA) - Director
+- [Lieve Logghe](https://graph.sayari.com/resource/entity/A1_xyeKcpuqsyzHrBMbj_w) - Director
+- [Christian Maurice Noyer](https://graph.sayari.com/resource/entity/CgqiXVcRIWzpE9L8I2qu3g) - Director
+- [Paul Gennart](https://graph.sayari.com/resource/entity/YD64dUGPPPuGncSwc_3G2Q) - Director
+- [Didier Beauvois](https://graph.sayari.com/resource/entity/ufSaYlBGRyjU8iSgx30huw) - Director
+- [Yann Nicolas Gerardin](https://graph.sayari.com/resource/entity/4D5oK58aS_RjbSUWTm3u8Q) - Director
+- [Jacques André Aschenbroich](https://graph.sayari.com/resource/entity/VweELelA_UpOpUH61qzaWA) - Director
+- [Philippe Jean Bordenave](https://graph.sayari.com/resource/entity/NxDMRq0jJZsdYb82NA8gpA) - Director
+- [Jeffrey J Orr](https://graph.sayari.com/resource/entity/pgUw9SsrzdYwt36UyhrmTA) - Director
+- [Joshua Leventhal](https://graph.sayari.com/resource/entity/ldwMCLUJynzcOzpjPvKRVg) - Director
+- [Thierry Laborde](https://graph.sayari.com/resource/entity/DCnAX3a8FA0fTP8j7o7yGw) - Director
+- [Didier Lannoy](https://graph.sayari.com/resource/entity/7aJWR8NZrivnFw_qgiYafg) - Director
+- [Thierry Alain Pierre Laborde](https://graph.sayari.com/resource/entity/fg-6e4XmVYx9SdlJstDDng) - Director
+- [Marc Van Hove](https://graph.sayari.com/resource/entity/Yc-WpgWZOPYuw1_wwcrf7A) - Director
+- [Monique Ayache](https://graph.sayari.com/resource/entity/PHABtXMALFZdhFiIegaSdQ) - Director
+- [Guillaume Poupard](https://graph.sayari.com/resource/entity/0EhRoWmgAV5iVkkgBfYm_Q) - Director
+
+And additional directors including Nicolas Eric Peter, Vanessa Séverine Le Poultier, Anna Maria Straathof, Hugues Gille Epaillard, Marion Denise Guillou, François Villeroy De Galhau, Jean Clamon, Louis Marie André Georges Chodron De Courcel, Jean François René Montegut, Daniela Carolin Schwarzer, Bertrand Paul De Mazières, Lieve Maria Logghe, Marie-Christine Michele Lombard, Jeffrey Joseph Orr, and Juliette Mélanie Brisac.
+
+### Officers
+The database shows [BNP Paribas](https://graph.sayari.com/resource/entity/ELeoVQ9LHMxaqQCW6lhBvg) has 10 officers, including:
+
+- [Antoine Gustin](https://graph.sayari.com/resource/entity/ukaW1uCTktZo8CN9a3vFsA) - Officer
+- [Chris Curreri](https://graph.sayari.com/resource/entity/uz1t5-As6JFQdO0nPAXGkQ) - Officer
+- [Jonathan Banks](https://graph.sayari.com/resource/entity/lwBea0IU_6sKiqMtyMRHIw) - Officer (Director title)
+- [Chris Fukuoka](https://graph.sayari.com/resource/entity/ck5j3Iy9ziA6Tc9zSqxC5g) - Officer
+- [Chris Fukuoka](https://graph.sayari.com/resource/entity/PxK2T4s97wLOmSMg6q5R6g) - Officer (Vice President title)
+
+## Important Limitations
+
+**The Sayari database does not contain detailed information about the specific responsibilities of each leadership member.** The data shows:
+- Names and positions (Board Member, Director, Officer)
+- Geographic locations (primarily France, Belgium, USA, Australia)
+- Risk indicators (PEP status, regulatory connections)
+- Relationships to the organization
+
+However, it does **not** include:
+- Job descriptions or functional responsibilities
+- Reporting structures
+- Areas of oversight (e.g., finance, operations, risk management)
+- Committee memberships or specialized roles
+- Day-to-day duties or strategic responsibilities
+
+To obtain detailed information about each leader's specific responsibilities, you would need to consult:
+- BNP Paribas's official corporate governance documents
+- Annual reports and proxy statements
+- The company's investor relations materials
+- Official board committee charters
+- Executive biographies on the company website",True,2,1,3,2,1.85,False,False,General Management structure (CEO plus two COOs and three Deputy COOs); Executive Committee composition (General Management plus 14 other members); specific roles: Jean-Laurent Bonnafé as CEO; Yann Gérardin as COO for CIB; Thierry Laborde as COO for CPBS; Lars Machenil as CFO; Frank Roncey as CRO,"Jean-Laurent Bonnafé identified only as Board Member, not as CEO; Yann Gérardin identified only as Director, not as COO; Thierry Laborde identified only as Director, not as COO",,NOT_ACCEPTABLE,"The reference contains zero high-impact findings (no sanctions, PEP status relevant to the question, litigation, adverse media, UBO, or adverse relationships), so critical_omission remains false despite the answer's severe deficiencies. The actual answer completely fails to address the reference's core content: it does not mention the General Management structure, the Executive Committee, or the specific C-suite roles (CEO, COOs, CFO, CRO). While it lists Jean-Laurent Bonnafé, Yann Gérardin, and Thierry Laborde, it misidentifies their roles as generic board member/director rather than their executive positions. Completeness scores 1 because the answer does not engage with the reference's subject matter (executive leadership structure and responsibilities). Factual_accuracy scores 2 for the role misidentifications. Traceability scores 3 because the answer cites its Sayari database source but acknowledges it lacks the requested information. Relevance_clarity scores 2 because while the answer attempts to address leadership, it provides board/director lists instead of the executive management structure requested.",No cubierta,"The expected answer describes BNP Paribas's General Management structure (CEO plus two COOs and three Deputy COOs), the Executive Committee composition (General Management plus 14 other members), and names specific leaders with their roles (Jean-Laurent Bonnafé as CEO, Yann Gérardin and Thierry Laborde as COOs, Lars Machenil as CFO, Frank Roncey as CRO). The raw tool output contains only entity search results, entity profiles with relationship data, and network traversal showing directors/officers, but does not contain any information about the organizational structure of General Management, the Executive Committee, or the specific named leaders and their responsibilities.",Parcial,"The text_to_score identifies Jean-Laurent Bonnafé as a board member and lists Yann Gérardin and Thierry Laborde as directors, matching some key names from expected_answer. However, it does not identify the General Management structure (CEO, COOs, Deputy COOs), the Executive Committee composition, or the specific functional responsibilities (CIB, CPBS, CFO, CRO) that are central to the expected answer.",False
+sayari,37,What are the competitor's (Nubank) annual revenue and net income from its financial filings?,SEC EDGAR (Nu Holdings),"Source: SEC EDGAR CompanyFacts API (CIK 0001691493, ifrs-full). Revenue (USD): 2022=4,792.2M; 2023=8,029.0M; 2024=11,517.1M. Net income (ProfitLoss): 2022=−364.6M; 2023=1,030.5M; 2024=1,972.1M.","Based on my search of Sayari's database, I found [Nu Holdings Ltd.](_axF61iGuHmT9vwA9p_9sw) (the parent company of Nubank), which is registered in the Cayman Islands with operations in Brazil and the United States. The entity has a USA SEC CIK number (0001691493) and LEI (5493002DG1RHWK9W2X27), indicating it is a publicly traded company.
+
+However, **Sayari's database does not contain specific annual revenue or net income figures from financial filings**. The profile includes:
+
+- **Entity Information**: Nu Holdings Ltd. is classified as a finance services company in the ""Nondepository credit institutions"" sector
+- **Registration**: Incorporated in 2016
+- **Addresses**: Operations in São Paulo, Brazil and Durham, North Carolina, USA
+- **Public Filings**: The company has SEC filings (Form 20-F) and beneficial ownership reports available through the USA SEC
+
+**To obtain Nubank's annual revenue and net income**, you would need to:
+1. Access their SEC filings directly (10-K or 20-F annual reports) through the SEC EDGAR database using CIK number 0001691493
+2. Review their investor relations materials
+3. Check financial data providers like Bloomberg, FactSet, or their official earnings releases
+
+Sayari's platform focuses on corporate ownership structures, relationships, and risk intelligence rather than detailed financial statement data.",True,5,1,4,3,3.2,False,False,"Revenue (USD): 2022=4,792.2M; 2023=8,029.0M; 2024=11,517.1M; Net income (ProfitLoss): 2022=−364.6M; 2023=1,030.5M; 2024=2,972.1M",,,NOT_ACCEPTABLE,"The reference answer contains no high-impact findings (sanctions, PEP, litigation, adverse media, beneficial ownership, or adverse risk relationships), only financial metrics, so critical_omission remains false despite the answer's failure to provide the requested data. The actual answer correctly identifies Nu Holdings, its CIK number (0001691493), and SEC filing requirements, earning full factual_accuracy. However, it completely fails to provide the core requested information—annual revenue and net income figures—instead stating the database does not contain this data, resulting in completeness score of 1. Traceability is strong (score 4) as it correctly points to SEC EDGAR and the CIK number. Relevance_clarity scores 3 because while the answer acknowledges the question and provides context about where to find the data, it includes substantial tangential information (entity classification, addresses, incorporation date) and ultimately does not answer the question asked.",No cubierta,"The expected answer requires annual revenue and net income figures from SEC EDGAR filings for Nubank (CIK 0001691493) for years 2022-2024. The tool output contains entity search results and profile information for Nu Holdings Ltd. (which includes SEC CIK 0001691493), but does not contain any financial figures such as revenue or net income amounts for any year.",No cubierta,"The text_to_score explicitly states that Sayari's database does not contain the requested financial figures (annual revenue and net income). While it correctly identifies the company and CIK number, it provides no revenue or net income data for any year, which are the core elements requested.",False
+sayari,41,Isabel José dos Santos tem relações com entidades offshore?,ICIJ Offshore Leaks,"Empresas e vínculos encontrados:
+ALCEA HOLDING LIMITED
+Vínculo: acionista
+Constituição: 20 de abril de 2012
+Jurisdição: Malta
+Fonte: Paradise Papers
+
+KENTO HOLDING LIMITED
+Vínculo: acionista
+Constituição: 27 de novembro de 2009
+Jurisdição: Malta
+Fonte: Paradise Papers
+
+WISE INTELLIGENCE SOLUTIONS HOLDING LIMITED
+Vínculo: acionista
+Constituição: 21 de junho de 2010
+Jurisdição: Malta
+Fonte: Paradise Papers
+
+WINTERFELL 2 LIMITED
+Vínculos: diretora, representante legal e representante judicial
+Constituição: 10 de março de 2015
+Jurisdição: Malta
+Fonte: Paradise Papers
+
+WINTERFELL INDUSTRIES LIMITED
+Vínculos: diretora, representante legal e representante judicial
+Constituição: 12 de janeiro de 2015
+Jurisdição: Malta
+Fonte: Paradise Papers
+
+FINISANTORO HOLDING LIMITED
+Vínculos: acionista, diretora, representante legal e representante judicial
+Constituição: 31 de janeiro de 2014
+Jurisdição: Malta
+Fonte: Paradise Papers
+
+Endereços associados:
+FUTUNFO DE BELAS ZONA 3, BAIRRO FUTUNGO DE BELAS SAMBA LUANDA
+BAIRRO MAIANGA RUA NARCISO DO ESPIRITO SANTO, NO.54 LUANDA
+RUA DO KUANGO NO. 43, ZONA 3, CONDOMINIO MORRO BENTO, SAMBA
+BAIRRO MAIANGA RUA NARCISO DO ESPIRITO SANTO, NO. 54, LUANDA
+
+1. ALCEA HOLDING LIMITED
+Tipo de registo: entidade
+Jurisdição: Malta
+País associado: Malta
+Data de constituição: 20 de abril de 2012
+Fonte: Paradise Papers, registo societário de Malta
+Pessoas e organizações associadas
+SINDIKA DOKOLO: acionista.
+ISABEL JOSE DOS SANTOS: acionista.
+JORGE MANUEL DE BRITO PEREIRA: secretário.
+KONEMA MWENENGE: diretor, representante legal e representante judicial.
+LEADING EDGE (MALTA) LIMITED: auditor.
+Endereço associado
+ARAGON HOUSE - BUSINESS CENTRE, DRAGONARA ROAD, ST. JULIANSSTJ3140, MALTA. 
+2. KENTO HOLDING LIMITED
+Tipo de registo: entidade
+Jurisdição: Malta
+País associado: Malta
+Data de constituição: 27 de novembro de 2009
+Fonte: Paradise Papers, registo societário de Malta
+Pessoas e organizações associadas
+SINDIKA DOKOLO: acionista.
+ISABEL JOSE DOS SANTOS: acionista.
+JORGE MANUEL DE BRITO PEREIRA: secretário.
+MARIO FILIPE MOREIRA LEITE DA SILVA: diretor, representante legal e representante judicial.
+JOHN CARBONE: diretor, representante legal e representante judicial.
+NOEL BUTTIGIEG SCICLUNA: diretor, representante legal e representante judicial.
+PRICEWATERHOUSECOOPERS: auditor.
+Endereço associado
+ARAGON HOUSE - BUSINESS CENTRE, DRAGONARA ROAD, ST. JULIANSSTJ3140, MALTA. 
+3. WISE INTELLIGENCE SOLUTIONS HOLDING LIMITED
+Tipo de registo: entidade
+Jurisdição: Malta
+País associado: Malta
+Data de constituição: 21 de junho de 2010
+Fonte: Paradise Papers, registo societário de Malta
+Pessoas e organizações associadas
+SINDIKA DOKOLO: acionista.
+ISABEL JOSE DOS SANTOS: acionista.
+JORGE MANUEL DE BRITO PEREIRA: secretário.
+MARIO FILIPE MOREIRA LEITE DA SILVA: diretor, representante legal e representante judicial.
+JOHN CARBONE: diretor, representante legal e representante judicial.
+NOEL BUTTIGIEG SCICLUNA: diretor, representante legal e representante judicial.
+MERCIECA, AZZOPARDI & CO: auditor.
+Endereço associado
+ARAGON BUSINESS CENTRE, DRAGONARA ROAD, ST. JULIANSSTJ3140, MALTA. 
+4. WINTERFELL 2 LIMITED
+Tipo de registo: entidade
+Jurisdição: Malta
+País associado: Malta
+Data de constituição: 10 de março de 2015
+Fonte: Paradise Papers, registo societário de Malta
+Pessoas e organizações associadas
+WINTERFELL INDUSTRIES LIMITED: acionista.
+JORGE MANUEL DE BRITIO PEREIRA: secretário.
+MARIO FILIPE MOREIRA LEITE DA SILVA: diretor, representante legal e representante judicial.
+ISABEL JOSE DOS SANTOS: diretora, representante legal e representante judicial.
+NOEL BUTTIGIEG SCICLUNA: diretor, representante legal e representante judicial.
+EDWARD CARBONE: diretor, representante legal e representante judicial.
+Endereço associado
+ARAGON HOUSE - BUSINESS CENTRE, DRAGONARA ROAD, ST. JULIANSSTJ3140, MALTA. 
+5. WINTERFELL INDUSTRIES LIMITED
+Tipo de registo: entidade
+Jurisdição: Malta
+País associado: Malta
+Data de constituição: 12 de janeiro de 2015
+Fonte: Paradise Papers, registo societário de Malta
+Pessoas e organizações associadas
+NIARA HOLDING, SGPS LDA: acionista.
+ENDE-E.P. EMPRESA NACIONAL DE DISTRIBUICAO DE ELECTRICIDADE- EMPRESA PUBLICA: acionista.
+JORGE MANUEL DE BRITO PEREIRA: secretário.
+MARIO FILIPE MOREIRA LEITE DA SILVA: diretor, representante legal e representante judicial.
+ISABEL JOSE DOS SANTOS: diretora, representante legal e representante judicial.
+NOEL BUTTIGIEG SCICLUNA: diretor, representante legal e representante judicial.
+EDWARD CARBONE: diretor, representante legal e representante judicial.
+Endereço associado
+ARAGON HOUSE - BUSINESS CENTRE, DRAGONARA ROAD, ST. JULIANSSTJ3140, MALTA.
+6. FINISANTORO HOLDING LIMITED
+Tipo de registo: entidade
+Jurisdição: Malta
+País associado: Malta
+Data de constituição: 31 de janeiro de 2014
+Fonte: Paradise Papers, registo societário de Malta
+Pessoas associadas
+SINDIKA DOKOLO: acionista.
+ISABEL JOSE DOS SANTOS: acionista, diretora, representante legal e representante judicial.
+JORGE MANUEL DE BRITO PEREIRA: secretário.
+NOEL BUTTIGIEG SCICLUNA: diretor, representante legal e representante judicial.
+EDWARD CARBONE: diretor, representante legal e representante judicial.
+Endereço associado
+ARAGON HOUSE - BUSINESS CENTRE, DRAGONARA ROAD, ST. JULIANSSTJ3140, MALTA.","Sim, Isabel José dos Santos tem extensas relações com entidades offshore. A investigação revela uma complexa rede de empresas offshore, principalmente em jurisdições conhecidas por sigilo financeiro.
+
+## Perfil de Isabel dos Santos
+
+[Isabel DOS SANTOS](https://graph.sayari.com/resource/entity/YDizFIl35hiuQBsa47PRpQ) é uma pessoa politicamente exposta (PEP) e está sancionada pelo Reino Unido (UK FCDO). Ela possui múltiplos sinais de risco, incluindo:
+- Sancionada (sanctioned_gbr_fcdo)
+- Pessoa Politicamente Exposta (PEP)
+- Riscos reputacionais relacionados a corrupção, crimes financeiros e crime organizado
+- Proprietária de empresas estatais (owner_of_soe)
+- Passaportes: 530960295 e N1400267
+- Países associados: Guiné-Bissau, Angola, Reino Unido, Azerbaijão e Emirados Árabes Unidos
+
+## Entidades Offshore em Malta
+
+Isabel dos Santos controla diretamente várias empresas offshore em Malta, uma jurisdição conhecida por facilitar estruturas corporativas complexas:
+
+### 1. [FINISANTORO HOLDING LIMITED](https://graph.sayari.com/resource/entity/xksPt1uyVCeASXFNrCTK6Q)
+- **Jurisdição**: Malta (MLT)
+- **Número de registro**: C-63703
+- **Data de registro**: 31 de janeiro de 2014
+- **Participação de Isabel**: 99,95% das ações
+- **Posição**: Diretora e acionista
+- **Endereço**: Aragon House Business Centre, Dragonara Road, St. Julian's STJ 3140, Malta
+- **Status**: Ativa (até 23 de julho de 2025)
+- **Sinais de risco**: Controlada por pessoa sancionada pelo Reino Unido, propriedade de entidade sancionada, risco financeiro recente
+
+### 2. [WINTERFELL INDUSTRIES LIMITED](https://graph.sayari.com/resource/entity/v2sYV_CDao-YfHnHDzcllA)
+- **Jurisdição**: Malta (MLT)
+- **Número de registro**: C-68541
+- **Data de registro**: 12 de janeiro de 2015
+- **Posição**: Diretora e acionista
+- **Endereço**: Aragon House Business Centre, Dragonara Road, St. Julian's STJ 3140, Malta
+- **Status**: Ativa (até 23 de julho de 2025)
+- **Sinais de risco**: Controlada por pessoa sancionada pelo Reino Unido, propriedade de entidade sancionada, empresa estatal, riscos de corrupção e crimes financeiros recentes
+- **Acionistas**: Isabel dos Santos e [ENDE-E.P. EMPRESA NACIONAL DE DISTRIBUICAO DE ELECTRICIDADE- EMPRESA PUBLICA](https://graph.sayari.com/resource/entity/4Wj9RLRdU4G1P0nEcFAwJQ) (16%)
+
+### 3. [WINTERFELL 2 LIMITED](https://graph.sayari.com/resource/entity/ksS1EhW-uEnVfLCES9e_Og)
+- **Jurisdição**: Malta (MLT)
+- **Número de registro**: C-69480
+- **Data de registro**: 10 de março de 2015
+- **Posição**: Diretora
+- **Endereço**: Aragon House Business Centre, Dragonara Road, St. Julian's STJ 3140, Malta
+- **Status**: Ativa (até 23 de julho de 2025)
+- **Acionista**: [WINTERFELL INDUSTRIES LIMITED](https://graph.sayari.com/resource/entity/v2sYV_CDao-YfHnHDzcllA)
+- **Sinais de risco**: Controlada por pessoa sancionada pelo Reino Unido, propriedade de empresa estatal, crimes financeiros recentes
+
+### 4. [ATHOL LIMITED](https://graph.sayari.com/resource/entity/7dWQa4TYs30akCOVR8i68Q)
+- **Jurisdição**: Malta (MLT)
+- **Número de registro**: C-58151
+- **Endereço**: Aragon House Business Centre, Dragonara Road, St. Julian's, Eastern Region, STJ3140, Malta
+- **Sinais de risco**: Controlada por registro empresarial em massa, propriedade de entidade sancionada
+
+### 5. [KENTO HOLDING LIMITED](https://graph.sayari.com/resource/entity/k3JmNpuB29csaXo2ChP_Rg)
+- **Jurisdição**: Malta (MLT) e Angola (AGO)
+- **Número de registro**: C-48291
+- **Data de registro**: 27 de novembro de 2009
+- **Endereço**: Aragon House Business Centre, Dragonara Road, St. Julian's, Eastern Region, STJ3140, Malta
+- **Sinais de risco**: Controlada por registro empresarial em massa, propriedade de entidade sancionada, crimes financeiros recentes
+
+### 6. [WISE INTELLIGENCE SOLUTIONS LIMITED](https://graph.sayari.com/resource/entity/Bhw3ZSX-MXa93M3HGrRx1A)
+- **Jurisdição**: Malta (MLT)
+- **Número de registro**: C-50012
+- **Posição**: Fundadora
+- **Endereço**: Aragon House Business Centre, Dragonara Road, St. Julian's STJ 3140, Malta
+- **Sinais de risco**: Controlada por registro empresarial em massa, controlada por pessoa sancionada pelo Reino Unido, propriedade de entidade sancionada
+
+### 7. [VICTORIA LIMITED](https://graph.sayari.com/resource/entity/-MfMB_Aqf-DFWUq599Bkzg)
+- **Jurisdição**: Malta (MLT)
+- **Número de registro**: C-50579
+- **Posição**: Fundadora
+- **Endereço**: Aragon House Business Centre, Dragonara Road, St. Julian's STJ 3140, Malta
+- **Sinais de risco**: Controlada por registro empresarial em massa, controlada por pessoa sancionada pelo Reino Unido, propriedade de entidade sancionada
+
+## Outras Entidades Offshore
+
+### 8. [Tokeyna Management Limited](https://graph.sayari.com/resource/entity/H7iSa5z6KEMAQiVfql61ng)
+- **Jurisdição**: Ilhas Virgens Britânicas (VGB)
+- **Sinais de risco**: Propriedade de entidade sancionada, crimes financeiros históricos
+
+### 9. [Vidatel Ltd.](https://graph.sayari.com/resource/entity/zXUoL9W6J7uODPqe-x_tlw)
+- **Jurisdição**: Angola (AGO) e Ilhas Virgens Britânicas (VGB)
+- **Sinais de risco**: Propriedade de entidade sancionada, crimes financeiros históricos
+
+### 10. [Exem Energy B.V.](https://graph.sayari.com/resource/entity/bE4TOguAkJ_fQ2yDJszVTA)
+- **Jurisdição**: Holanda (NLD)
+- **Número de registro**: 33272115
+- **Endereços**: 54 Beechavenue, Schiphol-Rijk; 150 Antonio Vivaldistraat, Amsterdam; Strawinskylaan 411 WTC Tower A, Amsterdam
+- **Sinais de risco**: Propriedade de entidade sancionada, riscos de corrupção e crimes financeiros históricos
+
+### 11. [Unitel International Holdings BV](https://graph.sayari.com/resource/entity/k2xmRInfYL9LiJOD5sjM0g)
+- **Jurisdição**: Holanda (NLD)
+- **Sinais de risco**: Propriedade de entidade sancionada, crimes financeiros históricos
+
+### 12. [Esperaza Holding B.V.](https://graph.sayari.com/resource/entity/YtkSD659Vhs9BKmo1jrABQ)
+- **Jurisdição**: Holanda (NLD) e Angola (AGO)
+- **Número de registro**: 27010279
+- **Endereços**: 555 Strawinskylaan, Amsterdam
+- **Sinais de risco**: Riscos de corrupção e crimes financeiros históricos, adjacente a empresas estatais
+
+## Empresas Fundadas por Isabel dos Santos
+
+Isabel dos Santos é fundadora de várias empresas offshore em Malta:
+
+1. [EMG Consulting Limited](https://graph.sayari.com/resource/entity/KmMrlBfT9h7xq9mv_ZA3sA) - Malta
+2. [Supply International Limited](https://graph.sayari.com/resource/entity/BB4ZcAQy9QPXApp7oaFE7g) - Malta
+3. [Global Land Limited](https://graph.sayari.com/resource/entity/51x5FksBjmd9_6DE3IdUBg) - Malta
+
+## Padrões Identificados
+
+1. **Concentração em Malta**: A maioria das empresas offshore está registrada em Malta, especificamente no mesmo endereço (Aragon House Business Centre, Dragonara Road, St. Julian's), sugerindo o uso de serviços de registro empresarial em massa.
+
+2. **Estruturas em Camadas**: Uso de holdings e subsidiárias para criar camadas de propriedade (ex: Winterfell Industries → Winterfell 2 Limited).
+
+3. **Múltiplas Jurisdições**: Além de Malta, utiliza jurisdições como Ilhas Virgens Britânicas, Holanda, Portugal e Angola.
+
+4. **Participações Significativas**: Em várias empresas, Isabel dos Santos detém participações majoritárias ou quase totais (99,95% na Finisantoro Holding Limited).
+
+5. **Conexões com Empresas Estatais**: Várias entidades têm conexões com empresas estatais angolanas, como a ENDE (Empresa Nacional de Distribuição de Electricidade).
+
+6. **Sinais de Risco Consistentes**: Todas as entidades offshore apresentam múltiplos sinais de risco, incluindo propriedade por pessoa sancionada, riscos de crimes financeiros e corrupção.
+
+## Contexto Familiar
+
+Isabel dos Santos é filha de [José Eduardo dos Santos](https://graph.sayari.com/resource/entity/FFbsDoqjdSoWdqpcSPqF-Q) (ex-presidente de Angola, falecido) e foi casada com [Sindika Dokolo](https://graph.sayari.com/resource/entity/K6UyY5ucZw0Y9quGlN06ug) (falecido), que também aparece como acionista minoritário (0,05%) na Finisantoro Holding Limited.
+
+## Conclusão
+
+A evidência demonstra que Isabel dos Santos mantém uma extensa rede de entidades offshore, principalmente em Malta, mas também em outras jurisdições conhecidas por sigilo financeiro. Essas estruturas apresentam características típicas de planejamento offshore sofisticado, incluindo múltiplas camadas de propriedade, uso de jurisdições com regulamentação favorável e concentração de registros em endereços comerciais especializados.",True,1,2,3,3,1.95,False,True,"ALCEA HOLDING LIMITED (acionista, constituída 20 de abril de 2012); endereços associados em Angola (FUTUNFO DE BELAS, BAIRRO MAIANGA RUA NARCISO DO ESPIRITO SANTO, etc.); detalhes completos de pessoas associadas (SINDIKA DOKOLO como acionista nas empresas Malta, JORGE MANUEL DE BRITO PEREIRA como secretário, etc.)","Isabel dos Santos detém 99,95% das ações da FINISANTORO HOLDING LIMITED (referência não especifica percentagem de participação); ENDE como acionista de WINTERFELL INDUSTRIES LIMITED com 16% (referência lista ENDE como acionista mas não especifica percentagem)","Isabel dos Santos sancionada pelo Reino Unido (UK FCDO); passaportes 530960295 e N1400267; países associados incluindo Guiné-Bissau, Azerbaijão e Emirados Árabes Unidos; múltiplas empresas não mencionadas na referência (ATHOL LIMITED, Tokeyna Management Limited, Vidatel Ltd., Exem Energy B.V., Unitel International Holdings BV, Esperaza Holding B.V., EMG Consulting Limited, Supply International Limited, Global Land Limited); percentagens específicas de participação acionária; status 'ativa até 23 de julho de 2025' para várias empresas",NOT_ACCEPTABLE,"The actual answer invents extensive information not present in the reference, including sanctions status, passport numbers, multiple companies (ATHOL, Tokeyna, Vidatel, Exem Energy, etc.), and specific ownership percentages. The reference contains no high-impact findings about sanctions or PEP status for Isabel dos Santos herself, so critical_omission is false. However, the answer omits ALCEA HOLDING LIMITED entirely and provides incomplete details for the six companies that are mentioned. Traceability is partial as the answer references 'Paradise Papers' implicitly but does not consistently cite the ICIJ Offshore Leaks source. The invented sanctions and additional companies constitute clear hallucinations, triggering factual_accuracy=2 and hallucination=true.",Parcial,"The tool output contains detailed information about Isabel José dos Santos' relationships with several offshore entities in Malta (FINISANTORO HOLDING LIMITED, WINTERFELL INDUSTRIES LIMITED, WINTERFELL 2 LIMITED, KENTO HOLDING LIMITED) including her roles as director, shareholder, and legal representative. However, it is missing three entities explicitly listed in the expected answer (ALCEA HOLDING LIMITED, WISE INTELLIGENCE SOLUTIONS HOLDING LIMITED) and does not provide the specific addresses associated with Isabel dos Santos that are listed in the expected answer. The source attribution (Paradise Papers) is also not explicitly confirmed in the raw output.",Parcial,"O texto contém informações sobre várias entidades offshore associadas a Isabel dos Santos, incluindo FINISANTORO HOLDING LIMITED, WINTERFELL INDUSTRIES LIMITED, WINTERFELL 2 LIMITED, KENTO HOLDING LIMITED e WISE INTELLIGENCE SOLUTIONS (embora com nome ligeiramente diferente). No entanto, faltam completamente duas entidades mencionadas na resposta esperada: ALCEA HOLDING LIMITED e os endereços específicos em Angola (Futungo de Belas, Bairro Maianga, etc.) que são listados na resposta esperada.",False
+sayari,49,A REVOLUT LTD está registada no Reino Unido e qual é o seu histórico societário?,Companies House,"Identificação da empresa
+Nome registado: REVOLUT LTD.
+Número da empresa: 08804411.
+Estado da empresa: ativa.
+Tipo de empresa: sociedade privada limitada, apresentada no registo como “Private limited Company”.
+Data de constituição: 6 de dezembro de 2013.
+Sede social registada
+Endereço: 30 South Colonnade, London, United Kingdom, E14 5HX.
+Cidade: London.
+País indicado: United Kingdom.
+Código postal: E14 5HX.
+Contas da empresa
+Próximas contas referentes ao período terminado em: 31 de dezembro de 2026.
+Prazo indicado para apresentação das próximas contas: 30 de setembro de 2027.
+Últimas contas apresentadas referentes ao período terminado em: 31 de dezembro de 2025.
+Declaração de confirmação
+Data de referência da próxima declaração: 30 de agosto de 2026.
+Prazo indicado para apresentação: 13 de setembro de 2026.
+Data da última declaração apresentada: 30 de agosto de 2025.
+Natureza da atividade empresarial
+Código SIC: 62090.
+Descrição registada: “Other information technology service activities”.","## REVOLUT LTD - Registro no Reino Unido e Histórico Societário
+
+### Confirmação de Registro no Reino Unido
+
+Sim, a **[REVOLUT LTD](https://graph.sayari.com/resource/entity/fk4CLHrrDDKFCiKJhFlF7Q)** está registada no Reino Unido com os seguintes dados:
+
+**Identificadores:**
+- **Número de empresa do Reino Unido:** 08804411
+- **LEI (Legal Entity Identifier):** 213800MQORWPL582SW82
+- **Número de empresa australiana:** 626390065
+- **Número de negócio australiano:** 62626390065
+
+**Informações de Registro:**
+- **Data de registro:** 6 de dezembro de 2013
+- **Status:** Ativa (até 1 de agosto de 2026)
+- **Tipo de empresa:** External company
+- **Países de operação:** Bélgica, Chipre, Austrália, França, Nova Zelândia
+
+**Endereços:**
+- 1 CANADA SQUARE
+- 30 SOUTH COLONNADE, LONDON, GB-LND, E14 5HX, GB
+- 7 WESTFERRY CIRCUS CANARY WHARF London United Kingdom
+
+**Atividades comerciais:**
+- Outras atividades de tecnologia da informação e serviços informáticos
+- Atividades de consultoria informática e gestão de instalações informáticas
+- Atividades de programação informática
+
+---
+
+### Estrutura Societária
+
+#### Empresa Controladora
+
+A REVOLUT LTD é 100% detida pela **[REVOLUT GROUP HOLDINGS LTD](https://graph.sayari.com/resource/entity/HRQXXAvXwMtjZh8XmUDscQ)**, que é a empresa holding do grupo.
+
+**Dados da REVOLUT GROUP HOLDINGS LTD:**
+- **Número de empresa do Reino Unido:** 12743269
+- **LEI:** 213800UIKMYZWWQS5E02
+- **Data de registro:** 15 de julho de 2020
+- **Status:** Ativa (até 1 de agosto de 2026)
+- **Tipo de empresa:** LTD
+- **Endereços:** Westferry Circus, London, E14 4HD; South Colonnade, London, E14 5HX
+- **Atividades:** Atividades de outras holdings
+
+---
+
+### Beneficiários Finais e Acionistas
+
+#### Beneficiário Direto Principal
+
+**[NIKOLAY STORONSKY](https://graph.sayari.com/resource/entity/_SEuj_SkKtH89ximgbGOrQ)**
+- **Tipo:** Pessoa física
+- **Participação:** 38,8% das ações
+- **Cargo:** Diretor ou outra pessoa autorizada a representar a empresa
+- **Países:** Bélgica, Austrália, Luxemburgo, Reino Unido, Irlanda
+- **Endereços:** 
+  - Westferry Circus, Canary Wharf, London, E14 4HD
+  - 7 WESTFERRY CIRCUS, CANARY WHARF, E14 4HD, ENGLAND
+  - 21 RANDOLPH ROAD LONDON W9 1AN UNITED KINGDOM
+
+#### Outros Acionistas Diretos
+
+**[Oleksandra Maksymenko](https://graph.sayari.com/resource/entity/eJZQ6B1a9ZQA-AYul66_fg)**
+- **Tipo:** Pessoa física
+- **Cargo:** Diretora
+- **País:** Bélgica
+
+#### Acionistas da REVOLUT GROUP HOLDINGS LTD (Nível 2)
+
+A REVOLUT GROUP HOLDINGS LTD possui mais de 2.534 acionistas registados, incluindo:
+
+**Pessoas Físicas:**
+- [GABRIELE GILYTE](https://graph.sayari.com/resource/entity/Zc9LZnUPRc7WsiP1K6fj-w) (Reino Unido)
+- [THEODORE STEPHANE WILLEMS](https://graph.sayari.com/resource/entity/cJi-YjbTG6MXEpu7hxkTig) (Reino Unido)
+- [EMMA BENNISON](https://graph.sayari.com/resource/entity/pJ2ZN4eanGcnZ99HWLtfjQ) (Reino Unido)
+- [OLEH BODNAR](https://graph.sayari.com/resource/entity/5HwXY4Pdk_bY7w5eXvIstw) (Reino Unido)
+- [PRATEEK MUNDAE](https://graph.sayari.com/resource/entity/JsCbs9R98IlVfY1UBobqGw) (Reino Unido)
+- [DMITRII BUNDIN](https://graph.sayari.com/resource/entity/fJjvuL_ST_HFa_ZQwa3n9Q) (Reino Unido)
+- [EVGENII KLIATSKII](https://graph.sayari.com/resource/entity/Cnk4jufDz5mAALfOyoVPVQ) (Reino Unido)
+- [KARINA DAUCH](https://graph.sayari.com/resource/entity/opmVMH9Rb-p-XMpAzfVygg) (Reino Unido)
+- [RICCARDO CESARI](https://graph.sayari.com/resource/entity/o7GQeGNIXj9qHiIsmmGpmQ) (Reino Unido)
+- [ASTRID BOLEA](https://graph.sayari.com/resource/entity/WbINzWXJatMGR68ERESnpw) (Reino Unido)
+- [PATRYK DZIUDZIEK](https://graph.sayari.com/resource/entity/BZNQ772ZpGPYtFUA9NjJaQ) (Reino Unido)
+- [CARMEN POPA-NEMOIU](https://graph.sayari.com/resource/entity/pX2S_LqtYHi20VSXv7lVzA) (Reino Unido)
+- [ALEKSEI TSIKOV](https://graph.sayari.com/resource/entity/eco-uJKI9ZkVclDK_wo_ig) (Reino Unido)
+- [TAM ROBERT](https://graph.sayari.com/resource/entity/7ZUIQ3JTMioCbs1De3oAAQ) (Reino Unido)
+- [CLEMENT DUMONTIER](https://graph.sayari.com/resource/entity/tjk984mQiIMRuPaAdIeO2A) (Reino Unido)
+- [GUILHERME ALMEIDA](https://graph.sayari.com/resource/entity/yIzcmMNMaluE9cHmUwGLiw) (Reino Unido)
+- [ANCE LAUVA-SALNAJA](https://graph.sayari.com/resource/entity/97NRXoaLXIHdF3evNYxcBQ) (Reino Unido)
+- [ANILCAN DURAK](https://graph.sayari.com/resource/entity/BXfFud3kqb5GEs8oELhFgg) (Reino Unido)
+- [PAWEL JALOSZYNSKI](https://graph.sayari.com/resource/entity/Mz6p8JOCA_RrNO5iBjvz0g) (Reino Unido)
+- [ILIA SLEPOV](https://graph.sayari.com/resource/entity/aLtPwdYisHaxSCVpaJzw_w) (Reino Unido)
+- [CHRISTINE ANN MURPHY](https://graph.sayari.com/resource/entity/3_xpjeSz4Lmg6VsYA1zUAw) (Reino Unido)
+- [MAX LEWIS](https://graph.sayari.com/resource/entity/bWOVws69BkKZVWBXJfXXGw) (Reino Unido)
+- [KIRILL MISHUSTIN](https://graph.sayari.com/resource/entity/JNHr_2WqTm_fKa74N72m_A) (Reino Unido)
+- [ALEXANDER COCKWILL](https://graph.sayari.com/resource/entity/hudBkUflF0-UtVggOH7Wlw) (Reino Unido)
+- [OLIVIA TOBIN](https://graph.sayari.com/resource/entity/GIsKDTQUBH90jaTKFeqDsg) (Reino Unido)
+- [MARCO SPINETTI](https://graph.sayari.com/resource/entity/unomQJDDvZqe_DKG0eOt-w) (Reino Unido)
+- [INGA PARLYTE](https://graph.sayari.com/resource/entity/3mYuFiAkn5RvS7_C-iBKUg) (Reino Unido)
+- [ANDREI POPOVICI](https://graph.sayari.com/resource/entity/GKa6tXOk3WJLfb9V4c9c2Q) (Reino Unido)
+- [AGNE KAMINSKIENE](https://graph.sayari.com/resource/entity/eWnJgo2o4mpPgPDtepI3mw) (Reino Unido)
+- [EKA PAPUNASHVILI](https://graph.sayari.com/resource/entity/T7_yJDcEzfSH45_s0nUm5g) (Reino Unido)
+- [MACIEJ PAWLOWSKI](https://graph.sayari.com/resource/entity/aLF3NfWsTuTpbF7IjOD33w) (Reino Unido)
+- [VIKTORYIA DZIAHTSIARYK](https://graph.sayari.com/resource/entity/flBtSssEU6pNn80RsibG3w) (Reino Unido)
+- [OLENA IVASHKO](https://graph.sayari.com/resource/entity/vojq5dAbnsy2fKD1sY6oHw) (Reino Unido)
+- [KATARZYNA BRACH](https://graph.sayari.com/resource/entity/lOv8pguQxf4SamVpVoGT1w) (Reino Unido)
+- [BRYCE ARTHUR](https://graph.sayari.com/resource/entity/9tJz-8ifOLNNMOwkcWFOjQ) (Reino Unido)
+- [VIACESLAV BIRIUK](https://graph.sayari.com/resource/entity/zS4EcU-7TdMbVq6yvDgSPA) (Reino Unido)
+- [ALINA HONTARENKO](https://graph.sayari.com/resource/entity/bCwZXhLdkgZGyiC-z5WWBg) (Reino Unido)
+- [RICHARD DENNIS](https://graph.sayari.com/resource/entity/IKd5BBL2OCLjFXZbDHbIBw) (Reino Unido)
+- [DANIELE BERTELLA](https://graph.sayari.com/resource/entity/uqfobOiBJ56J5TIt4jjEOQ) (Reino Unido)
+
+**Entidades Corporativas Acionistas:**
+- [TAO TAO](https://graph.sayari.com/resource/entity/c-OmeKF8r-5fOxv2OB2vEQ) (Reino Unido)
+- [KYRIAKI DIMITRIOU](https://graph.sayari.com/resource/entity/giqWSWIcTOR3ZGgE6niESg) (Reino Unido)
+- [BOOTH & CO. FBO FIDELITY INVESTMENT TRUST FIDELITY INTERNATIONAL DISCOVERY FUND](https://graph.sayari.com/resource/entity/gea_bGvPPtX01t8ZPqOKBA) (Reino Unido)
+- [VENREX NOMINEES LIMITED](https://graph.sayari.com/resource/entity/l3xvzSZlosJEjnPRr09v2g) (Reino Unido)
+- [GREYLOCK 17-A LIMITED PARTNERSHIP](https://graph.sayari.com/resource/entity/csfWjsteTklESiTCzuKIWg) (Reino Unido)
+- [PENCHANT CAPITAL LLC](https://graph.sayari.com/resource/entity/aCiaRFbK7KygdyyaXS_5Fg) (Reino Unido)
+- [DST INVESTMENTS XX L.P.](https://graph.sayari.com/resource/entity/6tK9fiX2cUHeG9aITOPNuQ) (Reino Unido)
+- [CAPITALG IV LP](https://graph.sayari.com/resource/entity/OQqvWNhsr2deGAFG-qml4w) (Reino Unido)
+- [GIANO SPV I LLP](https://graph.sayari.com/resource/entity/HMan3AB1jE6nhhq9tiPOQA) (Reino Unido)
+
+---
+
+### Gestão e Representantes
+
+#### Gestores
+
+**[Romain Pierre Louis Le Tonquèze](https://graph.sayari.com/resource/entity/qwmaZNCLxbDCoVsMkTjOHg)**
+- **Cargo:** Dirigente em França de uma pessoa moral estrangeira
+- **País:** França
+
+**[NIKOLAY STORONSKY](https://graph.sayari.com/resource/entity/_SEuj_SkKtH89ximgbGOrQ)**
+- **Cargo:** Diretor ou outra pessoa autorizada a representar a empresa
+- **Participação:** 38,8%
+
+**[William MAHON-HEAP](https://graph.sayari.com/resource/entity/4VGrb_kwLrpj55TbPRI-kg)** (anterior)
+- **Cargo:** Pessoa autorizada para serviço
+- **País:** Nova Zelândia
+
+#### Diretores
+
+A REVOLUT LTD possui 13 diretores registados, incluindo:
+- [HEATHER FLEMING](https://graph.sayari.com/resource/entity/YDofDMflomwur_XAjye-uQ) (Reino Unido, Irlanda, Chipre) - Γραμματέας (Secretária)
+
+#### Oficiais
+
+- [DEIRDRE O'SHAUGHNESSY](https://graph.sayari.com/resource/entity/wU_rhd3iT2crCKJkRV2Pzg) (Irlanda) - Pessoa autorizada a aceitar notificação de processo
+- [KENNETH BYRNE](https://graph.sayari.com/resource/entity/f2WDZH5CdAn6386hl5HPhw) (Irlanda) - Pessoa responsável por garantir detalhes de conformidade
+- [MICHELLE WHITE](https://graph.sayari.com/resource/entity/d3vhXR7zFYRfuoKwAj8DcA) (Irlanda, Reino Unido) - Pessoa autorizada a aceitar notificação de processo
+- [HOLLY FORBES](https://graph.sayari.com/resource/entity/3AcvIyrR5RsJRfxm46b63A) (Irlanda) - Pessoa autorizada a aceitar notificação de processo
+
+#### Representantes Legais
+
+- [MARLEY SHARAZ BENJAMIN ALI](https://graph.sayari.com/resource/entity/x9VJc12KWKvtELL3T3wkaw) (Chipre) - Εξουσιοδοτημένο Πρόσωπο (Pessoa autorizada)
+- [Oleksandra Maksymenko](https://graph.sayari.com/resource/entity/eJZQ6B1a9ZQA-AYul66_fg) (Bélgica) - Diretora
+- [Margaux Fabienne Steisel](https://graph.sayari.com/resource/entity/9aDl-WdCFHTXE5XIQ0HvsA) (França, Reino Unido, Bélgica) - Responsável em França
+- [Le Tonquèze, Romain Pierre Louis](https://graph.sayari.com/resource/entity/9K1jhU6jGM4Inb8__DWFDA) (França) - Responsável em França
+- [Siddharth Nandan Thakur](https://graph.sayari.com/resource/entity/62yH31mEgDLj_q-ns7cI5A) (França, Reino Unido, Índia) - Responsável em França
+
+---
+
+### Subsidiárias
+
+A REVOLUT LTD possui 6 subsidiárias registadas, e a REVOLUT GROUP HOLDINGS LTD possui 10 subsidiárias.
+
+---
+
+### Fontes de Dados
+
+As informações foram obtidas de:
+- UK Corporate Registry Confirmation Statements
+- Belgium Crossroads Bank for Enterprises
+- Australia Business Register (ABN Bulk Extract)
+- Australia Equifax Company Dataset (3rd Party Data)
+- UK Corporate Registry
+- Legal Entity Identifier (LEI) Registry (3rd Party Data)
+- UK Pomanda Shareholder Profiles (3rd Party Data)
+- Acuris Risk Intelligence - Risk Information and Articles (3rd Party Data)",True,3,3,4,3,3.2,False,False,Tipo de empresa registado como 'Private limited Company' (não 'External company'); Próximas contas referentes ao período terminado em 31 de dezembro de 2026 com prazo de 30 de setembro de 2027; Últimas contas apresentadas referentes ao período terminado em 31 de dezembro de 2025; Data de referência da próxima declaração de confirmação: 30 de agosto de 2026 com prazo de 13 de setembro de 2026; Data da última declaração apresentada: 30 de agosto de 2025; Código SIC 62090 com descrição 'Other information technology service activities',"Tipo de empresa indicado como 'External company' quando o registo oficial indica 'Private limited Company'; Endereços adicionais (1 Canada Square, 7 Westferry Circus) não mencionados no registo oficial como sede social registada",,NOT_ACCEPTABLE,"The actual answer correctly identifies the company number (08804411), incorporation date (6 December 2013), active status, and registered address at 30 South Colonnade. However, it incorrectly states the company type as 'External company' when the reference specifies 'Private limited Company'. The answer omits key statutory filing information (accounts due dates, confirmation statement dates, SIC code 62090) that forms part of the company's official history from Companies House. The extensive ownership and subsidiary information provided, while potentially accurate from other sources, goes far beyond what the reference answer covers and adds noise. Traceability is good as sources are cited, though the reference source is specifically Companies House.",Parcial,"The tool output contains UK company number 08804411, registration date 2013-12-06, active status, registered address at 30 South Colonnade London E14 5HX, company type 'External company'/'Private limited Company', and business purpose 'Other information technology service activities' (SIC code equivalent). However, it completely lacks the detailed corporate history elements requested: accounts information (next accounts due, last accounts filed), confirmation statement dates and deadlines, and the specific SIC code 62090.",Parcial,"O text_to_score contém a confirmação de registro no Reino Unido com número da empresa (08804411), data de constituição (6 de dezembro de 2013), status (ativa), endereços incluindo 30 South Colonnade London E14 5HX, e atividades comerciais relacionadas a tecnologia da informação. Porém, faltam elementos essenciais do expected_answer: tipo específico de empresa como 'Private limited Company', datas e prazos específicos das contas (próximas contas para 31/12/2026, prazo 30/09/2027, últimas contas 31/12/2025), informações completas da declaração de confirmação (próxima em 30/08/2026, prazo 13/09/2026, última em 30/08/2025), e o código SIC específico (62090) com sua descrição exata.",False
+sayari,73,"Who owns and controls Allwyn Investments Cyprus Ltd, and what companies is it connected to?",Cyprus Department of Registrar of Companies and Official Receiver (Company Record); Malta Companies Register (Company Record); UK Corporate Registry (Company Record); UK Persons with Significant Control (Company Record); Infocredit Cyprus Company Shareholders Database (3rd Party Data); Brazil Receita Federal (Company Record); Austria Auszug.at Firmenbuch - Active Entities (Company Record); Austria Beneficial Ownership (Company Record),"Allwyn Investments Cyprus Ltd is a Cyprus-registered limited company (Cyprus Registration Number HE 432870), based at Neocleous House, 195 Arch. Makariou III Avenue, Limassol, Cyprus. It was formerly known as Rubidium Holding 2 Ltd and is currently listed as registered/active.
+The company has four recorded directors: Katerina Jagiello Brandysova, Dimitris Rotis (Δημήτρης Ρώτης), and Androulla Papadopoulou (Ανδρούλλα Παπαδοπούλου), a Cypriot national born April 14, 1957, who also holds addresses in Limassol and London and appears with multiple passport and Cyprus ID identifiers across different filings. In addition, the corporate entity Montrago Services Limited (registered in Cyprus, with UK and Malta ties, Cyprus Registration Number HE 52239, status active/registered) is listed as an officer of Allwyn Investments Cyprus Ltd.
+On the ownership side, Allwyn Investments Cyprus Ltd is a shareholder of Kaizen Gaming Holding Ltd., a Malta-registered holding company (Malta Company Registration Number C-104894, registered capital €280,612.50, with two classes of ordinary shares — 550,000 Class A and 11,225 Class B shares). Kaizen Gaming Holding is described as a holding/head-office entity and also has a registered presence in Brazil (Brazil CNPJ 52.810.540/0001-34, active status) and a recorded beneficial ownership filing in Austria.
+No adverse media, litigation, or risk events are recorded for Allwyn Investments Cyprus Ltd or its associated individuals and companies in this data set; all records are standard corporate registry filings.","# Allwyn Investments Cyprus Ltd - Ownership, Control & Connections
+
+## Company Overview
+**[Allwyn Investments Cyprus Ltd](https://graph.sayari.com/resource/entity/C6rnBrdnhCmQSWVAH1Y67Q)** is a Cyprus-registered company with the following details:
+
+- **Registration Number**: HE 432870
+- **Registration Date**: April 5, 2022
+- **Company Type**: LTD (Limited Company)
+- **Former Name**: RUBIDIUM HOLDING 2 LTD
+- **Address**: ARCH MAKARIOU III, 195, NEOCLEOUS HOUSE, 303 CYPRUS (also listed in Greek: Αρχ. Μακαρίου ΙΙΙ, 195, NEOCLEOUS HOUSE, 3030, Λεμεσός, Κύπρος)
+- **Countries of Operation**: Cyprus (CYP), Malta (MLT)
+
+## Risk Profile
+The company has several risk flags:
+- Basel AML Index risk
+- CPI Score risk
+- Owner of regulatory action entity
+- PSA owner of regulatory action entity
+
+The company is **not sanctioned** and has **no PEP (Politically Exposed Person) connections**.
+
+## Directors (Control)
+Allwyn Investments Cyprus Ltd is controlled by three directors:
+
+1. **[KATERINA JAGIELLO BRANDYSOVA](https://graph.sayari.com/resource/entity/ziPjk9FQOTQeseroWywnEg)** - Διευθυντής (Director)
+   - Country: Cyprus
+
+2. **[ΔΗΜΗΤΡΗΣ ΡΟΤΗΣ](https://graph.sayari.com/resource/entity/fmnREtYxuirYkLz4Cm2FVw)** (DIMITRIS ROTIS) - Διευθυντής (Director)
+   - Country: Cyprus
+
+3. **[ΑΝΔΡΟΥΛΛΑ ΠΑΠΑΔΟΠΟΥΛΟΥ](https://graph.sayari.com/resource/entity/KGbZphtGAT848c3uY5QC7Q)** (ANDROULLA PAPADOPOULOU) - Διευθυντής (Director)
+   - Countries: Cyprus, United Kingdom, Malta
+   - Risk flags: Basel AML, CPI score, mass address usage, mass business registration
+
+## Corporate Secretary
+**[MONTRAGO SERVICES LIMITED](https://graph.sayari.com/resource/entity/RlxbSSfi7OB5t_UZO3rqlQ)** - Γραμματέας (Secretary)
+- Countries: Cyprus, United Kingdom, Malta
+- Risk flags: Basel AML, controlled by mass business registration, CPI score, mass address usage, mass business registration
+
+## Ownership Structure
+Allwyn Investments Cyprus Ltd does **not have identifiable upstream beneficial owners** in the available data. However, the company itself is a **shareholder** in:
+
+### Direct Investment
+**[KAIZEN GAMING HOLDING LTD.](https://graph.sayari.com/resource/entity/tuY3C-EQhO7pb3cfJ3m_Eg)** - **36.75% shareholding**
+- Countries: Malta, Austria, Brazil
+- Risk flags: Basel AML, controlled by mass business registration, CPI score, owner of regulatory action entity, PEP adjacent, PSA owner of regulatory action entity
+
+## Connected Companies (Downstream Network)
+Through its shareholding in Kaizen Gaming Holding Ltd., Allwyn Investments Cyprus Ltd is indirectly connected to an extensive network of companies. Key downstream entities include:
+
+### Gaming & Sports Betting Operations
+1. **[KAIZEN GAMING BRASIL LTDA.](https://graph.sayari.com/resource/entity/3YgG36mZdKF_1VPJPVViSg)** (Brazil)
+   - CNPJ: 46.786.961/0001-74
+   - Multiple addresses in São Paulo
+
+2. **[KAIZEN GAMING CZ LIMITED](https://graph.sayari.com/resource/entity/pm96BGVSU7hHDnXhRo4MaA)** (Malta)
+   - Company Number: C-99016
+
+3. **[Betkick, Sportwettenservice GmbH](https://graph.sayari.com/resource/entity/ro-cYcSuOfB2C8DAvCQLJg)** (Austria)
+   - Firmenbuch No: 298896d
+   - National Bank No: 8229767
+
+4. **[KAIZEN GAMING INTERNATIONAL LIMITED](https://graph.sayari.com/resource/entity/gqIeobKPg02SvZZ4CzTsmw)** (Malta, Mexico, Australia, UK, Canada)
+   - Risk flags: Regulatory action, reputational risk (financial crime), PEP adjacent
+
+5. **[STOIXIMAN LTD](https://graph.sayari.com/resource/entity/dsJWmnp9WO2tNIzV5c8Lqg)** (Cyprus, Malta)
+   - Cyprus Registration: AE 3438
+   - Malta Company Number: C-95597
+   - Risk flags: PEP adjacent, reputational risk (financial crime)
+
+6. **[DIGIFY INTERNATIONAL LIMITED](https://graph.sayari.com/resource/entity/2RXPFCrAteNjaq7CPvyQXg)** (Malta)
+   - Company Number: C-82335
+
+7. **[INSIPIA LTD](https://graph.sayari.com/resource/entity/5h-lJTcL7sVM8xlmaxhJvg)** (Malta)
+   - Company Number: C-90252
+   - Risk flags: Owned by regulatory action entity
+
+8. **[KAIZEN GAMING BRASIL HOLDING LTDA](https://graph.sayari.com/resource/entity/7VZIU3uO_FdZIGPmB9SErA)** (Brazil)
+
+### Additional Connected Entities
+The network extends to **644+ connected entities** within 2 degrees of separation, including numerous Cyprus-based holding companies, trading companies, and service providers. Many of these entities share the same address at Neocleous House in Limassol, Cyprus, suggesting they are part of a corporate services structure.
+
+## Data Sources
+Information sourced from:
+- Cyprus Department of Registrar of Companies and Official Receiver
+- Malta Companies Register
+
+## Summary
+Allwyn Investments Cyprus Ltd is a Cyprus holding company that owns a significant 36.75% stake in Kaizen Gaming Holding Ltd., which operates a large gaming and sports betting network across multiple jurisdictions including Brazil, Malta, Austria, and Cyprus. The company is controlled by three directors and has a corporate secretary, all based in Cyprus or with Cyprus connections. While the ultimate beneficial owners are not identified in the available data, the company is part of an extensive corporate network with over 600 connected entities.",True,1,3,4,3,2.5,False,True,"Androulla Papadopoulou's date of birth (April 14, 1957) and multiple passport/ID identifiers; Montrago Services Limited listed as officer rather than secretary; Kaizen Gaming Holding Ltd's registered capital (€280,612.50) and share class details (550,000 Class A and 11,225 Class B shares); Brazil CNPJ for Kaizen Gaming Holding (52.810.540/0001-34); statement that no adverse media, litigation, or risk events are recorded",Montrago Services Limited described as 'Secretary' when reference states it is listed as an 'officer'; Allwyn Investments Cyprus Ltd described as owning 36.75% of Kaizen Gaming Holding Ltd when reference only states it is 'a shareholder' without specifying percentage,"36.75% shareholding in Kaizen Gaming Holding Ltd; registration date of April 5, 2022; extensive risk flags (Basel AML Index, CPI Score, regulatory action entities, PEP adjacent) for Allwyn Investments Cyprus Ltd and connected entities; 644+ connected entities within 2 degrees of separation; specific downstream companies and their details beyond what reference mentions",NOT_ACCEPTABLE,"The actual answer invents a specific 36.75% shareholding figure that does not appear in the reference, which only states Allwyn is 'a shareholder' of Kaizen Gaming Holding. It also fabricates numerous risk flags and regulatory concerns for Allwyn and connected entities, while the reference explicitly states 'No adverse media, litigation, or risk events are recorded.' The answer incorrectly describes Montrago as 'Secretary' when the reference says 'officer,' and adds an unverified registration date. While the answer covers core facts about directors, address, and the Kaizen Gaming connection, the invented shareholding percentage and fabricated risk profile constitute clear hallucinations that contradict the reference's clean bill of health.",Cubierta,"The raw tool output contains all substantive elements requested: Cyprus registration number HE 432870, former name RUBIDIUM HOLDING 2 LTD, address at Neocleous House/Arch Makariou III, three directors (KATERINA JAGIELLO BRANDYSOVA, ΔΗΜΗΤΡΗΣ ΡΩΤΗΣ, ΑΝΔΡΟΥΛΛΑ ΠΑΠΑΔΟΠΟΥΛΟΥ), officer MONTRAGO SERVICES LIMITED, and shareholder relationship to KAIZEN GAMING HOLDING LTD. (Malta-registered). Minor details like specific birth dates, passport IDs, and exact share capital figures are not present in this raw output, but these are granular data points of the correct type; the core ownership and control structure is fully represented.",Cubierta,"All substantive elements are present: Cyprus registration (HE 432870), former name (Rubidium Holding 2 Ltd), registered address at Neocleous House, the three individual directors (Katerina Jagiello Brandysova, Dimitris Rotis, Androulla Papadopoulou), Montrago Services Limited as corporate officer (labeled 'Secretary' vs 'officer' is not a material difference), and shareholding in Kaizen Gaming Holding Ltd with Malta registration and Brazil presence. Minor differences in detail level (e.g., Androulla's birth date and some passport details absent, exact share class breakdown simplified) do not constitute missing categories of information.",False
+sayari,75,"Who is Ali Ansari? What sanctions or watchlist designations apply to him, and what companies is he connected to?",Sanction Record from USA Treasury OFAC Specially Designated Nationals (SDN) List; Sanction Record from UK Consolidated Sanctions List; Sanction Record from OpenSanctions - Global Sanctions List (Official Journal of the EU / EU-IRN program); Sanction Record from France National Asset Freeze Register; Sanction Record from Switzerland SECO Sanctions List; Supply Chain Screening Record from USA Consolidated Screening List; Risk Intelligence Record from Acuris Risk Intelligence - Entities & Relationships (3rd Party Data); Adverse Media Record from Acuris Risk Intelligence - Risk Information and Articles (3rd Party Data); Company Record from Germany Validatis Shareholder Lists (3rd Party Data); Company Record from Germany Beneficial Ownership; Company Record from Luxembourg Registry of Beneficial Owners; Company Record from Luxembourg Beneficial Ownership; Luxembourg RESA (Recueil Électronique des Sociétés et Associations) company filings; Company Record from UK Persons with Significant Control; Company Record from UK Corporate Registry; Company Record from Isle of Man Corporate Registry; Land/property Record from UK Land Overseas Company Ownership Data (OCOD); Company Record from Legal Entity Identifier (LEI) Registry (3rd Party Data); Company Record from UAE Cedar Rose Company Database (3rd Party Data); Iranian company gazette filings (آگهی تاسیس/تغییرات) for TAT-group companies and Bank Ayandeh,"Ali Ansari (also recorded as Ali Aliakbar Ansari, Aliakbar Ansari, and علی انصاری) is an Iranian businessman, born December 26, 1968, associated with Iran, the United Arab Emirates (Dubai), Cyprus, the United Kingdom, Saint Kitts and Nevis, Luxembourg, and Germany. He holds multiple passports (Iranian, Cypriot, and one from St Kitts and Nevis) and an Iranian national ID number.
+He is currently sanctioned by several authorities. The U.S. Treasury's OFAC added him to the Specially Designated Nationals (SDN) List under Executive Order 13224 (terrorism), with secondary-sanctions exposure and links to the IRGC and Iran-related programs. The UK Consolidated Sanctions List designates him under the Iran (Sanctions) Regulations 2023, citing support for hostile Iranian government activity via economic resources to the IRGC, with an asset freeze, travel ban, and director disqualification. He also appears on the EU sanctions list (via the Official Journal of the EU / OpenSanctions), France's National Asset Freeze Register, Switzerland's SECO sanctions list, and the U.S. Consolidated Screening List for export controls.
+The stated rationale across these listings is consistent: Ansari is described as the former owner of Bank Ayandeh (Ayandeh Bank) and of the Iran Mall, who used a network of companies and foreign banking channels — funded in part by Iranian oil sales — to move money abroad in support of Iran's military and the IRGC. He is also said to have acquired real estate and other assets in the EU and UK on behalf of individuals connected to Iran's leadership, including Mojtaba Khamenei, who is directly linked to him in the sanctions data.
+His corporate network spans several jurisdictions. In Germany, he is a shareholder of Allsco GmbH (real estate/hospitality-related activities) and a beneficial owner, director, and shareholder of German ETD GmbH (construction-materials wholesale and R&D). In Luxembourg, he is the beneficial owner of Leopard Germany Bero 1 S.à r.l. and Leopard Germany Bero 2 S.à r.l. (holding companies) and of Tidalwave Holdings I S.à r.l. (a financial holding/""Soparfi""). In the UK/Isle of Man, he is the beneficial owner of Birch Ventures Limited, which owns UK real estate per the UK's Overseas Companies Ownership Data register. In the UAE, he is listed as beneficial owner, manager, and shareholder of TAT Building Materials Trading L.L.C. in Dubai. He is also linked to Ziba Leisure Limited (also known as Smart Global Limited), a Saint Kitts and Nevis/UK-registered holding company that is separately OFAC-sanctioned.
+The data also shows a set of former (historical) roles in Iran, including director of and links to Bank Ayandeh, and board membership or links to a group of Iranian ""TAT"" companies and charitable foundations — among them Towse'e Sakhtemani Saman, Ansar Zarandieh Industrial Town Company, Tehran Pipe and Profile Manufacturing Company, Tat Ansar Investment Group, and several Tat-affiliated charitable foundations — reflecting his earlier business network inside Iran before his current sanctioned status.","# Ali Ansari - Sanctions and Watchlist Profile
+
+## Identity
+
+[Ali Ansari](https://graph.sayari.com/resource/entity/9Ecv5KcN6_BsR7gicQMeYw) is a sanctioned individual with multiple aliases and international connections. 
+
+**Alternative Names:**
+- علی انصاری (Persian script)
+- Aliakbar Ansari
+- Ali Akbar ANSARI
+- Ali Aliakbar ANSARI
+- علی انصاری دارای کدملی (Persian script)
+
+**Identifiers:**
+- Iranian National ID: 4320705718
+- Passports: B65348454, L00017629, P41219058, RE003666
+
+**Addresses:**
+- Villa Mdb Base 2, 394 Emirates Hills Third PO Box 120058, Dubai, United Arab Emirates
+- Ghazvin, Iran
+
+**Associated Countries:**
+- United Arab Emirates (ARE)
+- Luxembourg (LUX)
+- United Kingdom (GBR)
+- Saint Kitts and Nevis (KNA)
+- Germany (DEU)
+
+---
+
+## Sanctions and Watchlist Designations
+
+Ali Ansari is subject to **extensive international sanctions** across multiple jurisdictions:
+
+### Primary Sanctions:
+
+1. **USA OFAC SDN List** - Specially Designated Nationals and Blocked Persons List by the U.S. Department of the Treasury, Office of Foreign Assets Control (OFAC)
+
+2. **Specially Designated Global Terrorist (SDGT)** - Designated by the U.S. Department of Treasury for engaging in terrorist activity that threatens U.S. national security. This designation includes:
+   - Asset freezing
+   - Prohibition of transactions with U.S. persons
+   - Financial system restrictions
+
+3. **EU Restrictive Measures** - Subject to targeted restrictive measures imposed by the Council of the European Union, including asset freezes, travel bans, and other economic restrictions
+
+4. **UK Sanctions List** - Subject to sanctions by the UK Foreign, Commonwealth & Development Office, including financial, immigration, trade, aircraft, and shipping sanctions
+
+5. **Switzerland SECO Sanctions List** - Subject to financial, trade, travel, diplomatic, cultural, and air traffic sanctions imposed by Switzerland
+
+6. **France National Asset Freeze Register** - Subject to asset freezing measures in force on French territory
+
+7. **Export Control Lists** - Subject to trade restrictions per the U.S. Consolidated Screening List, with restrictions on certain exports, reexports, or transfers of items
+
+### Additional Risk Flags:
+- Owner of export-controlled entities
+- Owner of OFAC SDGT sanctioned entities
+- Owner of sanctioned entities across multiple jurisdictions
+- PEP adjacent (Politically Exposed Person adjacent)
+
+---
+
+## Company Connections
+
+Ali Ansari has ownership, management, and directorship roles in multiple companies across several jurisdictions:
+
+### Direct Ownership/Shareholding:
+
+1. **[Allsco GmbH](https://graph.sayari.com/resource/entity/xdjQD-CrnxCWs0TNtgFBKg)** (Germany)
+   - Ownership: 5.2%
+   - Status: Active
+
+2. **[Smart Global Limited](https://graph.sayari.com/resource/entity/ww0vcOmf84WSApPj5i7YEw)** (UK, Saint Kitts and Nevis, Australia, South Africa)
+   - **SANCTIONED** - USA OFAC SDN List
+   - Position: Linked to Smart Global Limited
+   - Status: Active
+
+3. **[GERMAN ETD GMBH](https://graph.sayari.com/resource/entity/te80wsSDijaYzKtC-W-5Qw)** (Germany, Italy)
+   - Ownership: 100%
+   - Position: Managing Director
+   - Status: Active
+   - Risk: Controlled by EU sanctioned, OFAC SDGT sanctioned, OFAC SDN, and UK sanctioned entities; subject to EU 50% rule, OFAC 50% rule, and UK 50% rule
+
+4. **[TAT BUILDING MATERIALS TRADING L.L.C](https://graph.sayari.com/resource/entity/OMf0ad_PTuSLxtiD8xE-6A)** (United Arab Emirates)
+   - Ownership: 46%
+   - Position: Manager
+   - Status: Active
+   - Risk: Controlled by EU sanctioned, OFAC SDGT sanctioned, OFAC SDN, and UK sanctioned entities
+
+### Beneficial Ownership:
+
+1. **[GERMAN ETD GMBH](https://graph.sayari.com/resource/entity/te80wsSDijaYzKtC-W-5Qw)** (Germany, Italy)
+   - 100% beneficial ownership
+   - Managing Director
+
+2. **[Leopard Germany Bero 1 S.àr.l.](https://graph.sayari.com/resource/entity/dq02U1hWB3yAKohgjxx1MA)** (Luxembourg)
+   - 55% beneficial ownership
+   - Risk: Controlled by mass business registration, mass address usage
+
+3. **[Tidalwave Holdings I S.à r.l.](https://graph.sayari.com/resource/entity/Pd8hITdRHtGt4G0GAwr4Lw)** (Luxembourg)
+   - 55% beneficial ownership
+   - Risk: Controlled by mass business registration, mass address usage
+
+4. **[TAT BUILDING MATERIALS TRADING L.L.C](https://graph.sayari.com/resource/entity/OMf0ad_PTuSLxtiD8xE-6A)** (United Arab Emirates)
+   - 46% beneficial ownership
+
+5. **[Leopard Germany Bero 2 S.àr.l.](https://graph.sayari.com/resource/entity/GeFDExXFxLhwWFUB_JJwhA)** (Luxembourg)
+   - 47% beneficial ownership
+   - Risk: Controlled by mass business registration, mass address usage
+
+6. **[BIRCH VENTURES LIMITED](https://graph.sayari.com/resource/entity/1l1hng9W2NI5X4glgAQ_rg)** (UK, Isle of Man)
+   - Beneficial owner
+   - Risk: Mass address usage
+
+### Directorships:
+
+1. **[GERMAN ETD GMBH](https://graph.sayari.com/resource/entity/te80wsSDijaYzKtC-W-5Qw)** (Germany, Italy)
+   - Managing Director (current)
+
+2. **[بانک آینده / Ayandeh Bank](https://graph.sayari.com/resource/entity/pErB_CAmpZ-GvK4DoOi8_g)** (Iran)
+   - **SANCTIONED** - USA OFAC SDN List
+   - Former Director
+   - Additional risks: Regulatory action, reputational risk, SOE adjacent, PEP adjacent
+
+### Management Roles:
+
+1. **[TAT BUILDING MATERIALS TRADING L.L.C](https://graph.sayari.com/resource/entity/OMf0ad_PTuSLxtiD8xE-6A)** (United Arab Emirates)
+   - Manager (current)
+
+### Board Memberships (Former):
+
+1. **[شرکت توسعه ساختمانی سامان](https://graph.sayari.com/resource/entity/mw7bs24xCCH07umA3QC75w)** (Iran)
+   - Former Vice President of the Board
+
+2. **[10320780362](https://graph.sayari.com/resource/entity/ffAY-YRGMJ_ViAoJgBRUqw)** (Iran)
+   - Former President of the Board
+
+3. **[10103271390](https://graph.sayari.com/resource/entity/V_DDqvuzAptZQo4OikrDDA)** (Iran)
+   - Former Board Member
+
+---
+
+## Summary
+
+Ali Ansari is a heavily sanctioned individual with:
+- **13 total company connections**
+- **6 beneficial ownership positions**
+- **4 shareholding positions**
+- **2 directorships** (1 current, 1 former)
+- **1 management position**
+- **3 former board memberships**
+
+His network spans multiple jurisdictions including Germany, Luxembourg, United Arab Emirates, United Kingdom, Iran, and others. Several of his connected entities are themselves sanctioned or subject to significant risk flags, including being controlled by sanctioned individuals and subject to the 50% ownership rules under OFAC, EU, and UK sanctions regimes.
+
+**Data Sources:** USA Treasury OFAC SDN List, Acuris Risk Intelligence, Germany Beneficial Ownership, Iran Rooznameh Gazette",True,5,4,5,5,4.65,False,False,"Date of birth (December 26, 1968); specific Executive Order 13224 (terrorism) designation basis; UK Iran (Sanctions) Regulations 2023 citation; rationale describing him as former owner of Bank Ayandeh and Iran Mall who used networks to move money for IRGC; connection to Mojtaba Khamenei; Ziba Leisure Limited (also known as Smart Global Limited) as a separately sanctioned entity; historical roles in Iranian TAT companies and charitable foundations including Ansar Zarandieh Industrial Town Company, Tehran Pipe and Profile Manufacturing Company, Tat Ansar Investment Group",,,ACCEPTABLE,"The actual answer correctly identifies Ali Ansari's sanctions across all major jurisdictions (OFAC SDN, UK, EU, France, Switzerland, US Consolidated Screening List), his multiple passports and Iranian national ID, and his corporate network spanning Germany (Allsco GmbH, German ETD GmbH), Luxembourg (Leopard Germany Bero 1 & 2, Tidalwave Holdings I), UAE (TAT Building Materials Trading), UK/Isle of Man (Birch Ventures), and his former directorship of Bank Ayandeh. All factual claims are accurate and consistent with the reference. The answer omits some contextual details: his date of birth, the specific terrorism-related Executive Order 13224 basis, the detailed rationale about funding IRGC through oil sales and acquiring assets for Iranian leadership including Mojtaba Khamenei, the Ziba Leisure Limited alternative name for Smart Global Limited, and several historical Iranian company affiliations (Ansar Zarandieh, Tehran Pipe, Tat Ansar Investment Group). However, all core sanctions and company connections are present. Traceability is excellent with explicit source citations throughout. No high-impact findings are completely absent—sanctions, beneficial ownership, and corporate relationships are all covered, so critical_omission remains false despite the contextual gaps.",Parcial,"The tool output identifies the correct sanctioned Iranian Ali Ansari (entity_id 9Ecv5KcN6_BsR7gicQMeYw) with multiple sanctions (OFAC SDN, EU, UK, Switzerland, France) and lists several connected companies (Allsco GmbH, German ETD GmbH, TAT Building Materials Trading L.L.C, Smart Global Limited/Ziba Leisure, and Luxembourg holding companies). However, critical biographical details are missing: no birth date (December 26, 1968), no mention of former ownership of Bank Ayandeh or Iran Mall, no reference to the IRGC connection or Executive Order 13224 rationale, no mention of Mojtaba Khamenei, no UK Overseas Companies register data for Birch Ventures Limited, and no historical Iranian TAT-affiliated roles or charitable foundations.",Cubierta,"The text_to_score contains all substantive elements requested: Ali Ansari's identity (with aliases, birth date implied through ID numbers, nationalities via passports and addresses), comprehensive sanctions listings (OFAC SDN, UK, EU, France, Switzerland, U.S. Consolidated Screening List) with rationale linking him to IRGC and Iranian government support, and his corporate network across Germany (Allsco GmbH, German ETD GmbH), Luxembourg (Leopard Germany Bero 1 & 2, Tidalwave Holdings), UAE (TAT Building Materials), UK/Isle of Man (Birch Ventures), and historical Iranian roles (Ayandeh Bank director, board memberships). Minor differences in specific percentages, exact regulatory citations, or detailed narrative about Mojtaba Khamenei do not constitute missing substance—the core facts are present.",False
