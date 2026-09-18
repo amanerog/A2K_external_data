@@ -106,6 +106,18 @@ class LookupResult:
     query_embedding: list[float] = field(default_factory=list)
 
 
+def _normalize_query(text: str) -> str:
+    """Lowercase + collapse all whitespace runs to a single space, trimmed --
+    applied before embedding and before storing `queryText`, so two questions
+    that differ only in casing/spacing ("Who controls Acme Corp?" vs "who
+    controls   acme corp?") embed to the exact same vector (similarity 1.0)
+    instead of relying on the embedding model's own robustness to that.
+    Called on both lookup() and store()'s `query` independently -- pure and
+    deterministic, so both always agree without needing to pass a normalized
+    value between them."""
+    return " ".join(text.lower().split())
+
+
 def _cosine_similarity(a: list[float], b: list[float]) -> float:
     dot = sum(x * y for x, y in zip(a, b))
     norm_a = math.sqrt(sum(x * x for x in a))
@@ -239,6 +251,7 @@ def lookup(bedrock_client, query: str, operation: str) -> LookupResult:
     Bedrock-side failure here (e.g. a missing IAM permission) propagated all
     the way up through _ask_via_agent() and failed the entire a2k.ask call,
     exactly the outcome this module's whole design is supposed to prevent."""
+    query = _normalize_query(query)
     try:
         query_embedding = embed_query(bedrock_client, query)
     except Exception as exc:  # noqa: BLE001 -- see docstring above
@@ -304,7 +317,12 @@ def store(*, operation: str, query: str, query_embedding: list[float], answered_
     successful response. Called after a live agent call succeeds, with the
     exact `content` dict `_call_agent()` returned; reuses the embedding
     lookup() already computed for this same request rather than re-embedding
-    the query a second time."""
+    the query a second time.
+
+    `query` is normalized the same way lookup() normalizes it -- pure and
+    deterministic, so `queryText` stored here always matches what the
+    `query_embedding` passed in was actually computed from."""
+    query = _normalize_query(query)
     try:
         import boto3
 

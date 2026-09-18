@@ -114,9 +114,14 @@ def _use_fake_dynamo(monkeypatch, *, similarity_threshold: float = 0.90, ttl_sec
     return fake_table
 
 
-def _store_one(monkeypatch, bedrock, *, operation="ask", query="Who controls Acme Corp?", content=None):
+def _store_one(monkeypatch, bedrock, *, operation="ask", query="who controls acme corp?", content=None):
+    """Mirrors the real flow (engine.py's lookup() computing the embedding,
+    store() reusing it) -- query is normalized *before* embedding here too,
+    same as lookup() does internally, so `embeddings` fixtures below only
+    ever need an entry keyed by the already-normalized text."""
     content = content or {"answer": "Beta Holdings controls Acme Corp.", "citations": [], "toolCalls": [{"vendor": "cala"}]}
-    embedding = cache_module.embed_query(bedrock, query)
+    normalized = cache_module._normalize_query(query)
+    embedding = cache_module.embed_query(bedrock, normalized)
     cache_module.store(
         operation=operation,
         query=query,
@@ -129,9 +134,9 @@ def _store_one(monkeypatch, bedrock, *, operation="ask", query="Who controls Acm
 
 def test_lookup_misses_on_an_empty_cache(monkeypatch):
     _use_fake_dynamo(monkeypatch)
-    bedrock = _FakeBedrock(embeddings={"Who controls Acme Corp?": [1.0, 0.0]})
+    bedrock = _FakeBedrock(embeddings={"who controls acme corp?": [1.0, 0.0]})
 
-    result = cache_module.lookup(bedrock, "Who controls Acme Corp?", "ask")
+    result = cache_module.lookup(bedrock, "who controls acme corp?", "ask")
 
     assert result.hit is None
     assert result.query_embedding == [1.0, 0.0]  # embedded even on a miss, for a caller's later store()
@@ -140,10 +145,10 @@ def test_lookup_misses_on_an_empty_cache(monkeypatch):
 def test_lookup_hits_on_a_near_identical_query(monkeypatch):
     _use_fake_dynamo(monkeypatch)
     bedrock = _FakeBedrock(embeddings={
-        "Who controls Acme Corp?": [1.0, 0.0],
+        "who controls acme corp?": [1.0, 0.0],
         "who controls acme corp": [0.99, 0.14],  # cosine sim ~0.99, above threshold
     })
-    _store_one(monkeypatch, bedrock, query="Who controls Acme Corp?")
+    _store_one(monkeypatch, bedrock, query="who controls acme corp?")
 
     result = cache_module.lookup(bedrock, "who controls acme corp", "ask")
 
@@ -155,10 +160,10 @@ def test_lookup_hits_on_a_near_identical_query(monkeypatch):
 def test_lookup_misses_below_the_similarity_threshold(monkeypatch):
     _use_fake_dynamo(monkeypatch, similarity_threshold=0.90)
     bedrock = _FakeBedrock(embeddings={
-        "Who controls Acme Corp?": [1.0, 0.0],
-        "What is the weather today?": [0.0, 1.0],  # orthogonal, similarity 0.0
+        "who controls acme corp?": [1.0, 0.0],
+        "what is the weather today?": [0.0, 1.0],  # orthogonal, similarity 0.0
     })
-    _store_one(monkeypatch, bedrock, query="Who controls Acme Corp?")
+    _store_one(monkeypatch, bedrock, query="who controls acme corp?")
 
     result = cache_module.lookup(bedrock, "What is the weather today?", "ask")
 
@@ -174,12 +179,12 @@ def test_equivalence_check_rejects_a_semantically_similar_but_wrong_candidate(mo
     _use_fake_dynamo(monkeypatch, similarity_threshold=0.90)
     bedrock = _FakeBedrock(
         embeddings={
-            "Who controls Acme Corp?": [1.0, 0.0],
-            "What does Acme Corp control?": [0.99, 0.14],
+            "who controls acme corp?": [1.0, 0.0],
+            "what does acme corp control?": [0.99, 0.14],
         },
         equivalent_result=False,
     )
-    _store_one(monkeypatch, bedrock, query="Who controls Acme Corp?")
+    _store_one(monkeypatch, bedrock, query="who controls acme corp?")
 
     result = cache_module.lookup(bedrock, "What does Acme Corp control?", "ask")
 
@@ -194,13 +199,13 @@ def test_satisfies_check_alone_rejecting_is_also_enough_to_miss(monkeypatch):
     _use_fake_dynamo(monkeypatch, similarity_threshold=0.90)
     bedrock = _FakeBedrock(
         embeddings={
-            "Who controls Acme Corp?": [1.0, 0.0],
+            "who controls acme corp?": [1.0, 0.0],
             "who controls acme corp": [0.99, 0.14],
         },
         equivalent_result=True,
         satisfies_result=False,
     )
-    _store_one(monkeypatch, bedrock, query="Who controls Acme Corp?")
+    _store_one(monkeypatch, bedrock, query="who controls acme corp?")
 
     result = cache_module.lookup(bedrock, "who controls acme corp", "ask")
 
@@ -208,15 +213,34 @@ def test_satisfies_check_alone_rejecting_is_also_enough_to_miss(monkeypatch):
     assert len(bedrock.verify_calls) == 2  # both checks ran; the second is what rejected it
 
 
+def test_query_normalization_makes_pure_formatting_variants_embed_identically(monkeypatch):
+    """Casing/whitespace-only differences must not depend on the embedding
+    model's own robustness -- normalize first, so the exact same text (and
+    therefore the exact same vector) is what actually gets embedded."""
+    seen_inputs = []
+
+    class _RecordingBedrock(_FakeBedrock):
+        def invoke_model(self, modelId, body):
+            text = json.loads(body)["inputText"]
+            seen_inputs.append(text)
+            return super().invoke_model(modelId, body)
+
+    bedrock = _RecordingBedrock(embeddings={"who controls acme corp?": [1.0, 0.0]})
+
+    cache_module.lookup(bedrock, "  Who Controls   Acme Corp?  ", "ask")
+
+    assert seen_inputs == ["who controls acme corp?"]
+
+
 def test_operation_is_an_exact_match_dimension(monkeypatch):
     """ask and search are different response contracts -- a stored `ask`
     answer must never satisfy a `search` lookup, even for the identical
     query text with a perfect similarity score."""
     _use_fake_dynamo(monkeypatch)
-    bedrock = _FakeBedrock(embeddings={"Who controls Acme Corp?": [1.0, 0.0]})
-    _store_one(monkeypatch, bedrock, operation="ask", query="Who controls Acme Corp?")
+    bedrock = _FakeBedrock(embeddings={"who controls acme corp?": [1.0, 0.0]})
+    _store_one(monkeypatch, bedrock, operation="ask", query="who controls acme corp?")
 
-    result = cache_module.lookup(bedrock, "Who controls Acme Corp?", "search")
+    result = cache_module.lookup(bedrock, "who controls acme corp?", "search")
 
     assert result.hit is None
 
@@ -228,10 +252,10 @@ def test_cache_is_vendor_blind(monkeypatch):
     on question + operation. answeredBySources is carried through as
     metadata only, confirming provenance isn't lost, just never filtered on."""
     _use_fake_dynamo(monkeypatch)
-    bedrock = _FakeBedrock(embeddings={"Who controls Acme Corp?": [1.0, 0.0]})
-    _store_one(monkeypatch, bedrock, query="Who controls Acme Corp?", content={"answer": "x", "citations": [], "toolCalls": [{"vendor": "sayari"}]})
+    bedrock = _FakeBedrock(embeddings={"who controls acme corp?": [1.0, 0.0]})
+    _store_one(monkeypatch, bedrock, query="who controls acme corp?", content={"answer": "x", "citations": [], "toolCalls": [{"vendor": "sayari"}]})
 
-    result = cache_module.lookup(bedrock, "Who controls Acme Corp?", "ask")
+    result = cache_module.lookup(bedrock, "who controls acme corp?", "ask")
 
     assert result.hit is not None
     assert result.hit.answeredBySources == ["cala"]  # from store()'s explicit answered_by_sources, not content
@@ -239,11 +263,11 @@ def test_cache_is_vendor_blind(monkeypatch):
 
 def test_expired_entries_are_not_served(monkeypatch):
     fake_table = _use_fake_dynamo(monkeypatch)
-    bedrock = _FakeBedrock(embeddings={"Who controls Acme Corp?": [1.0, 0.0]})
-    _store_one(monkeypatch, bedrock, query="Who controls Acme Corp?")
+    bedrock = _FakeBedrock(embeddings={"who controls acme corp?": [1.0, 0.0]})
+    _store_one(monkeypatch, bedrock, query="who controls acme corp?")
     fake_table.items[0]["ttl"] = int(time.time()) - 10  # force it into the past
 
-    result = cache_module.lookup(bedrock, "Who controls Acme Corp?", "ask")
+    result = cache_module.lookup(bedrock, "who controls acme corp?", "ask")
 
     assert result.hit is None
 
@@ -252,14 +276,14 @@ def test_lookup_never_raises_when_dynamo_is_unreachable(monkeypatch):
     """A broken/unreachable cache must fall through to a live agent call,
     never fail the request that's asking."""
     _use_fake_dynamo(monkeypatch)
-    bedrock = _FakeBedrock(embeddings={"Who controls Acme Corp?": [1.0, 0.0]})
+    bedrock = _FakeBedrock(embeddings={"who controls acme corp?": [1.0, 0.0]})
 
     def _boom(name):
         raise RuntimeError("dynamo is down")
 
     monkeypatch.setattr(boto3, "resource", _boom)
 
-    result = cache_module.lookup(bedrock, "Who controls Acme Corp?", "ask")
+    result = cache_module.lookup(bedrock, "who controls acme corp?", "ask")
 
     assert result.hit is None
     assert result.query_embedding == [1.0, 0.0]  # the embedding call itself succeeded fine here
@@ -279,7 +303,7 @@ def test_lookup_never_raises_when_embedding_itself_fails(monkeypatch):
 
     bedrock = _BrokenEmbeddingBedrock(embeddings={})
 
-    result = cache_module.lookup(bedrock, "Who controls Acme Corp?", "ask")  # must not raise
+    result = cache_module.lookup(bedrock, "who controls acme corp?", "ask")  # must not raise
 
     assert result.hit is None
     assert result.query_embedding == []  # nothing to reuse for a later store() -- embedding never succeeded
@@ -295,7 +319,7 @@ def test_store_never_raises_when_dynamo_is_unreachable(monkeypatch):
 
     cache_module.store(
         operation="ask",
-        query="Who controls Acme Corp?",
+        query="who controls acme corp?",
         query_embedding=[1.0, 0.0],
         answered_by_sources=["cala"],
         content={"answer": "x"},
