@@ -255,7 +255,7 @@ def lookup(bedrock_client, query: str, operation: str) -> LookupResult:
     try:
         query_embedding = embed_query(bedrock_client, query)
     except Exception as exc:  # noqa: BLE001 -- see docstring above
-        print(f"a2k-box: answer cache embedding failed, falling through to a live call: {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
+        print(f"a2k-box: answer cache embedding failed, falling through to a live call: {type(exc).__name__}: {exc}", file=sys.stdout, flush=True)
         return LookupResult(hit=None, query_embedding=[])
 
     try:
@@ -308,7 +308,7 @@ def lookup(bedrock_client, query: str, operation: str) -> LookupResult:
         # as gateway/audit.py's own best-effort-write warning: a silent
         # miss-on-every-call is an operational problem (bad IAM, wrong table
         # name, ...) worth surfacing in CloudWatch, not routine debug noise.
-        print(f"a2k-box: answer cache lookup failed, falling through to a live call: {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
+        print(f"a2k-box: answer cache lookup failed, falling through to a live call: {type(exc).__name__}: {exc}", file=sys.stdout, flush=True)
         return LookupResult(hit=None, query_embedding=query_embedding)
 
 
@@ -353,4 +353,4 @@ def store(*, operation: str, query: str, query_embedding: list[float], answered_
         if _scan_cache is not None:
             _scan_cache[1].append(item)
     except Exception as exc:  # noqa: BLE001 -- cache errors must never break a live request
-        print(f"a2k-box: answer cache store failed, this answer won't be cached: {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
+        print(f"a2k-box: answer cache store failed, this answer won't be cached: {type(exc).__name__}: {exc}", file=sys.stdout, flush=True)

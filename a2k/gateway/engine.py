@@ -604,14 +604,14 @@ class GatewayEngine:
         print(
             f"a2k-box: [DIAGNOSTIC] answer_cache_ready={config.answer_cache_ready!r} "
             f"enabled={config.answer_cache_enabled!r} table={config.answer_cache_table!r}",
-            file=sys.stderr, flush=True,
+            file=sys.stdout, flush=True,
         )
         if not config.answer_cache_ready:
             return answer_cache.LookupResult(hit=None, query_embedding=[])
         try:
             return answer_cache.lookup(self._get_bedrock_client(), query, operation)
         except Exception as exc:  # noqa: BLE001 -- see docstring above
-            print(f"a2k-box: answer cache lookup failed, falling through to a live call: {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
+            print(f"a2k-box: answer cache lookup failed, falling through to a live call: {type(exc).__name__}: {exc}", file=sys.stdout, flush=True)
             return answer_cache.LookupResult(hit=None, query_embedding=[])
 
     def _cache_store(self, operation: str, query: str, query_embedding: list[float], content: dict) -> None:
@@ -627,7 +627,7 @@ class GatewayEngine:
                 content=content,
             )
         except Exception as exc:  # noqa: BLE001 -- same reasoning as _cache_lookup() above
-            print(f"a2k-box: answer cache store failed, this answer won't be cached: {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
+            print(f"a2k-box: answer cache store failed, this answer won't be cached: {type(exc).__name__}: {exc}", file=sys.stdout, flush=True)
 
     async def _get_agent_token(self) -> str:
         """Cognito client-credentials token for the agent's own inbound-auth
