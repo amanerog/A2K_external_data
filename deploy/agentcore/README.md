@@ -612,6 +612,55 @@ credentials in directly:
    `boto3` need to actually be in the deployed code -- see "Files in this
    directory" above for the build steps).
 
+**Semantic answer cache (optional, off by default).** `gateway/cache.py` --
+before the live agent-mediated `ask`/`search` path (`_ask_via_agent()`/
+`_search_via_agent()`) calls out to the agent's Runtime at all, it checks
+whether a close-enough version of this question was already answered
+(embedding similarity + one verification LLM call), and if so, replays that
+answer instead of re-querying. Two things this needs that nothing else on
+this Runtime has needed so far:
+
+1. **This is the first capability on a2k-box's own Runtime that calls
+   Bedrock directly** (embeddings + a small Converse verification call) --
+   everything else that talks to an LLM lives in the *agent's* separate
+   Runtime (`agent/README.md`). Attach an inline policy to **a2k-box's**
+   execution role (not the agent's -- these are two separate Runtimes with
+   two separate roles), same shape as `agent/README.md`'s own equivalent
+   section for its Runtime:
+   ```json
+   {
+     "Version": "2012-10-17",
+     "Statement": [{
+       "Sid": "InvokeModelForAnswerCache",
+       "Effect": "Allow",
+       "Action": ["bedrock:InvokeModel", "bedrock:Converse"],
+       "Resource": [
+         "arn:aws:bedrock:eu-west-1::foundation-model/amazon.titan-embed-text-v2:0",
+         "arn:aws:bedrock:eu-west-1:<account-id>:inference-profile/<ANSWER_CACHE_VERIFY_MODEL_ID>",
+         "arn:aws:bedrock:*::foundation-model/<the underlying model id behind that inference profile, no region/account prefix>"
+       ]
+     }]
+   }
+   ```
+   The last two `Resource` entries follow `agent/README.md`'s own note on
+   cross-region inference profiles: routing can land the actual `Converse`
+   call in a different region than the Runtime itself, so the foundation-model
+   ARN needs a region wildcard, not the Runtime's own region.
+2. **A DynamoDB table** for the cache itself -- partition key `id` (String).
+   No sort key, no GSI needed (every read is a full `Scan`, see `cache.py`'s
+   own module docstring for why that's an accepted trade-off at this stage).
+   Enable **TTL** on the table, attribute name `ttl` -- this is what makes
+   expired entries self-delete instead of needing a cleanup job. Add a
+   `dynamodb:Scan`/`PutItem` inline policy for this table to the same
+   execution role, same pattern as `vendor_cards_table`'s own policy
+   elsewhere in this file.
+
+Environment variables: `ANSWER_CACHE_ENABLED=true` and `ANSWER_CACHE_TABLE=<table
+name>` (both required -- see `config.py`'s `answer_cache_ready`). Everything
+else (`ANSWER_CACHE_TTL_SECONDS`, `ANSWER_CACHE_SIMILARITY_THRESHOLD`,
+`ANSWER_CACHE_EMBEDDING_MODEL_ID`, `ANSWER_CACHE_VERIFY_MODEL_ID`) has a
+working default -- see `config.py`'s own field comments before overriding.
+
 **Known perf issue, fixed 2026-08-18:** `CalaMcpAdapter`/`SayariMcpAdapter`
 used to fully hydrate (introspection+retrieval / get_entity_summary) *every*
 name-match candidate `entity_search`/`search_entities` returned, up to

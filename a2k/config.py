@@ -203,6 +203,44 @@ class Config:
         default_factory=lambda: int(os.environ.get("VENDOR_CARDS_CACHE_TTL_SECONDS", "600"))
     )
 
+    # -- Semantic answer cache (a2k/gateway/cache.py) --------------------------
+    # Off by default -- same pattern as cala_raw_knowledge_search/trace_calls
+    # below: shipping this must not silently change behavior for existing
+    # deployments. Even with this true, an unset answer_cache_table still
+    # disables the cache entirely (same "no DynamoDB access configured"
+    # fallback vendor_cards_table uses) -- both must be set.
+    answer_cache_enabled: bool = field(default_factory=lambda: _bool_env("ANSWER_CACHE_ENABLED", False))
+    # DynamoDB table name, partition key `id` (uuid per cached answer). Not a
+    # _secret_env() -- a table name isn't a credential, same reasoning as
+    # vendor_cards_table above.
+    answer_cache_table: str | None = field(default_factory=lambda: os.environ.get("ANSWER_CACHE_TABLE"))
+    # How long a cached answer is trusted before a lookup ignores it and the
+    # entry is left to expire via DynamoDB's own TTL attribute. Conservative
+    # default (24h, not vendor_cards_table's 10min) -- this caches KYC/AML
+    # answers (sanctions, litigation, ownership), not read-mostly metadata;
+    # tune down per-deployment if that's still too stale for the data in
+    # question. A future refinement could tie this to _freshness()-style
+    # per-source granularity instead of one flat value -- not done for v1.
+    answer_cache_ttl_seconds: int = field(
+        default_factory=lambda: int(os.environ.get("ANSWER_CACHE_TTL_SECONDS", "86400"))
+    )
+    # Cosine-similarity floor an embedding candidate must clear before the
+    # verification LLM call even runs -- deliberately generous (recall-
+    # favoring): the verification call is the real precision filter, this is
+    # just a cheap pre-filter so obviously-unrelated cache entries never reach
+    # it. See cache.py's lookup().
+    answer_cache_similarity_threshold: float = field(
+        default_factory=lambda: float(os.environ.get("ANSWER_CACHE_SIMILARITY_THRESHOLD", "0.90"))
+    )
+    answer_cache_embedding_model_id: str = field(
+        default_factory=lambda: os.environ.get("ANSWER_CACHE_EMBEDDING_MODEL_ID", "amazon.titan-embed-text-v2:0")
+    )
+    answer_cache_verify_model_id: str = field(
+        default_factory=lambda: os.environ.get(
+            "ANSWER_CACHE_VERIFY_MODEL_ID", "eu.anthropic.claude-sonnet-4-5-20250929-v1:0"
+        )
+    )
+
     audit_log_path: Path = field(
         default_factory=lambda: Path(
             os.environ.get("A2K_AUDIT_LOG_PATH", str(REPO_ROOT / "audit.jsonl"))
@@ -258,6 +296,10 @@ class Config:
     @property
     def httpx_verify(self) -> str | bool:
         return self.ca_bundle or True
+
+    @property
+    def answer_cache_ready(self) -> bool:
+        return bool(self.answer_cache_enabled and self.answer_cache_table)
 
 
 config = Config()

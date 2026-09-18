@@ -37,6 +37,7 @@ from ..models.envelope import (
 )
 from ..models.request import A2KRequest, ExplainRequest, GetDocumentRequest
 from . import audit as gw_audit
+from . import cache as answer_cache
 from . import conflict, synthesis, tracing
 
 GATEWAY_KB_ID = "urn:a2k:gateway:k2-external-intel"
@@ -76,6 +77,12 @@ class GatewayEngine:
         self._agent_token: str | None = None
         self._agent_token_expires_at: float = 0.0
         self._response_cache: dict[str, CitedResponseEnvelope] = {}
+        # Lazily built by _get_bedrock_client() -- only ever needed when the
+        # semantic answer cache (gateway/cache.py) is enabled; this is the
+        # first thing on this Runtime that calls Bedrock directly, so don't
+        # pay for a client nobody asked for when config.answer_cache_ready
+        # is False (the common case today).
+        self._bedrock_client = None
 
     # -- operations -------------------------------------------------------
 
@@ -148,7 +155,15 @@ class GatewayEngine:
         """Live-mode path (mcp_to_agent_to_mcp branch): delegates to the agent
         (direct vendor-MCP discovery) instead of the deterministic
         _gather_facts()/adapters path above -- see _call_agent()'s docstring
-        for the full trade-off."""
+        for the full trade-off.
+
+        Checked against the semantic answer cache (gateway/cache.py) first,
+        before any vendor is decided or contacted -- a hit means
+        _call_agent() is never invoked at all for this request. The cache is
+        vendor-blind by design (see cache.py's module docstring): `sources`
+        on `req` plays no part in matching, only `operation` does, so a hit
+        here can come from an answer originally produced by a different
+        vendor than this request's own `sources` would pick."""
         request_id = self._request_id(req)
         sources = req.sources or list(self.adapters)
         source_kb_id = self._source_kb_id(sources)
@@ -156,12 +171,23 @@ class GatewayEngine:
         t0 = time.monotonic()
         tracing.trace("engine.search.request", requestId=request_id, query=req.query, sources=sources, limit=limit)
 
-        try:
-            content = await self._call_agent("search", req.query, req.sources, request_id)
-        except A2KError as err:
-            return self._error_envelope("search", source_kb_id, err, request_id)
+        cache_result = self._cache_lookup(req.query, "search")
+        if cache_result.hit is not None:
+            content = cache_result.hit.content
+            retrieved_at = cache_result.hit.cachedAt
+            decision_reason = f"served from cache, originally answered at {cache_result.hit.cachedAt}"
+        else:
+            try:
+                content = await self._call_agent("search", req.query, req.sources, request_id)
+            except A2KError as err:
+                return self._error_envelope("search", source_kb_id, err, request_id)
+            retrieved_at = None
+            decision_reason = None
 
-        citations = [self._citation_from_agent(i, c) for i, c in enumerate(content.get("citations") or [])]
+        citations = [
+            self._citation_from_agent(i, c, retrieved_at=retrieved_at)
+            for i, c in enumerate(content.get("citations") or [])
+        ]
         passages = [
             Passage(
                 id=f"passage-{i + 1}",
@@ -179,7 +205,7 @@ class GatewayEngine:
             source_kb_id=source_kb_id,
             operation="search",
             policy_decision="allowed",
-            decision_reason=None,
+            decision_reason=decision_reason,
             citation_ids=[c.id for c in citations],
         )
 
@@ -190,7 +216,7 @@ class GatewayEngine:
             answer=None,
             passages=passages,
             citations=citations,
-            freshness=self._agent_freshness(),
+            freshness=self._agent_freshness(retrieved_at=retrieved_at),
             accessDecision=self._access_decision(),
             audit=audit,
             usage=self._agent_usage(t0, content, retrieval_count=len(passages)),
@@ -198,6 +224,8 @@ class GatewayEngine:
             pageInfo={"nextCursor": None, "hasMore": False, "pageLimit": limit},
         )
         self._cache(request_id, envelope)
+        if cache_result.hit is None:
+            self._cache_store("search", req.query, cache_result.query_embedding, content)
         tracing.trace(
             "engine.search.response",
             requestId=request_id,
@@ -315,19 +343,34 @@ class GatewayEngine:
         conflicts[] below) isn't rebuilt on this path -- accurately
         reconstructing it would need the same per-KB response bookkeeping
         conflict.py's deterministic comparison already has, which this path
-        doesn't produce."""
+        doesn't produce.
+
+        Checked against the semantic answer cache (gateway/cache.py) first,
+        before any vendor is decided or contacted -- see _search_via_agent()'s
+        own docstring for why this is vendor-blind by design."""
         request_id = self._request_id(req)
         sources = req.sources or list(self.adapters)
         source_kb_id = self._source_kb_id(sources)
         t0 = time.monotonic()
         tracing.trace("engine.ask.request", requestId=request_id, query=req.query, sources=sources)
 
-        try:
-            content = await self._call_agent("ask", req.query, req.sources, request_id)
-        except A2KError as err:
-            return self._error_envelope("ask", source_kb_id, err, request_id)
+        cache_result = self._cache_lookup(req.query, "ask")
+        if cache_result.hit is not None:
+            content = cache_result.hit.content
+            retrieved_at = cache_result.hit.cachedAt
+            decision_reason = f"served from cache, originally answered at {cache_result.hit.cachedAt}"
+        else:
+            try:
+                content = await self._call_agent("ask", req.query, req.sources, request_id)
+            except A2KError as err:
+                return self._error_envelope("ask", source_kb_id, err, request_id)
+            retrieved_at = None
+            decision_reason = None
 
-        citations = [self._citation_from_agent(i, c) for i, c in enumerate(content.get("citations") or [])]
+        citations = [
+            self._citation_from_agent(i, c, retrieved_at=retrieved_at)
+            for i, c in enumerate(content.get("citations") or [])
+        ]
         claims = [
             Claim(
                 id=f"claim-{i + 1}",
@@ -370,7 +413,7 @@ class GatewayEngine:
             source_kb_id=source_kb_id,
             operation="ask",
             policy_decision="allowed",
-            decision_reason=None,
+            decision_reason=decision_reason,
             citation_ids=[c.id for c in citations],
         )
 
@@ -388,7 +431,7 @@ class GatewayEngine:
                 confidenceMethod="llm-self-report",
                 strictGroundingSatisfied=strict_satisfied,
             ),
-            freshness=self._agent_freshness(),
+            freshness=self._agent_freshness(retrieved_at=retrieved_at),
             accessDecision=self._access_decision(),
             audit=audit,
             conflicts=aware_conflicts,
@@ -396,6 +439,8 @@ class GatewayEngine:
             toolCalls=self._agent_tool_calls(content),
         )
         self._cache(request_id, envelope)
+        if cache_result.hit is None:
+            self._cache_store("ask", req.query, cache_result.query_embedding, content)
         tracing.trace(
             "engine.ask.response",
             requestId=request_id,
@@ -522,6 +567,42 @@ class GatewayEngine:
         results = await asyncio.gather(*(run(s) for s in sources))
         return dict(results)
 
+    def _get_bedrock_client(self):
+        """Lazily built, reused across calls within this warm container --
+        same caching-a-client-not-a-token idea as _get_agent_token()'s own
+        module-level reuse, just no expiry to track since a boto3 client
+        itself doesn't expire. Only ever called when config.answer_cache_ready
+        (see _cache_lookup()/_cache_store() below) -- this is the first
+        capability on this Runtime that talks to Bedrock directly, so its
+        execution role needs bedrock:InvokeModel/Converse added (see
+        deploy/agentcore/README.md)."""
+        if self._bedrock_client is None:
+            import boto3
+
+            self._bedrock_client = boto3.client("bedrock-runtime")
+        return self._bedrock_client
+
+    def _cache_lookup(self, query: str, operation: str) -> answer_cache.LookupResult:
+        """No-op (empty miss, no Bedrock call) when the cache isn't enabled
+        -- see config.answer_cache_ready. cache.lookup() itself never raises,
+        but config.answer_cache_ready gates it here too so a disabled cache
+        costs this request nothing at all, not even an embedding call."""
+        if not config.answer_cache_ready:
+            return answer_cache.LookupResult(hit=None, query_embedding=[])
+        return answer_cache.lookup(self._get_bedrock_client(), query, operation)
+
+    def _cache_store(self, operation: str, query: str, query_embedding: list[float], content: dict) -> None:
+        if not config.answer_cache_ready or not query_embedding:
+            return
+        answered_by_sources = sorted({tc.get("vendor") for tc in (content.get("toolCalls") or []) if tc.get("vendor")})
+        answer_cache.store(
+            operation=operation,
+            query=query,
+            query_embedding=query_embedding,
+            answered_by_sources=answered_by_sources,
+            content=content,
+        )
+
     async def _get_agent_token(self) -> str:
         """Cognito client-credentials token for the agent's own inbound-auth
         pool -- separate from anything the Cala/Sayari adapters use. Mirrors
@@ -624,19 +705,24 @@ class GatewayEngine:
             raise A2KError(ErrorCode.UPSTREAM_ERROR, f"Agent reported failure: {body.get('error')}")
         return body.get("content") or {}
 
-    def _citation_from_agent(self, index: int, citation: dict) -> Citation:
+    def _citation_from_agent(self, index: int, citation: dict, *, retrieved_at: str | None = None) -> Citation:
         """Builds a real Citation from the agent's lightweight CitationOut
         shape (agent/direct_agent.py) -- `id`/`retrievedAt` are assigned here,
         not trusted from the model, same division of labor as
         gateway/synthesis.py's Fact -> Citation conversion on the
         Gateway-mediated path. No sourceHash: unlike that path, nothing here
-        re-fetches the source document to hash it."""
+        re-fetches the source document to hash it.
+
+        `retrieved_at` defaults to now() (a live call, fetched this instant)
+        but a cache hit (gateway/cache.py) passes the original cached-at
+        timestamp instead -- same "never claim now for a replayed answer"
+        reasoning as _agent_freshness()'s own `retrieved_at` param."""
         return Citation(
             id=f"citation-{index + 1}",
             documentId=citation.get("documentId"),
             title=citation.get("title"),
             sourceUrl=citation.get("sourceUrl"),
-            retrievedAt=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            retrievedAt=retrieved_at or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         )
 
     def _citation_ids_for(self, citations: list[Citation], indexes: list[int]) -> list[str]:
@@ -669,17 +755,35 @@ class GatewayEngine:
             for tc in (content.get("toolCalls") or [])
         ]
 
-    def _agent_freshness(self) -> Freshness:
+    def _agent_freshness(self, retrieved_at: str | None = None) -> Freshness:
         """Unlike _freshness() below (still used by _insufficient_evidence,
         which has real Facts with source_last_updated to inspect), the agent
-        doesn't report source-level update timestamps -- there's nothing to
-        compute `stale` from, so it's always False here rather than guessed."""
+        doesn't report source-level update timestamps -- on a live call
+        (retrieved_at omitted) there's nothing to compute `stale` from, so
+        it's always False rather than guessed.
+
+        A cache hit (gateway/cache.py) DOES have something to measure from:
+        the ISO timestamp the answer was originally generated at. Pass it as
+        `retrieved_at` and `stale` is computed against
+        config.answer_cache_ttl_seconds, the same way _freshness() computes
+        staleness against max_staleness_hours -- a replayed answer must never
+        just claim `retrievedAt=now()` as if it had just been fetched live."""
         now = datetime.now(timezone.utc)
+        if retrieved_at is None:
+            return Freshness(
+                sourceLastUpdated=None,
+                reviewedAt=None,
+                retrievedAt=now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                stale=False,
+                validAsOf=now.strftime("%Y-%m-%d"),
+            )
+        retrieved_dt = datetime.fromisoformat(retrieved_at.replace("Z", "+00:00"))
+        stale = (now - retrieved_dt) > timedelta(seconds=config.answer_cache_ttl_seconds)
         return Freshness(
             sourceLastUpdated=None,
             reviewedAt=None,
-            retrievedAt=now.strftime("%Y-%m-%dT%H:%M:%SZ"),
-            stale=False,
+            retrievedAt=retrieved_at,
+            stale=stale,
             validAsOf=now.strftime("%Y-%m-%d"),
         )
 
