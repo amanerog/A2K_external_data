@@ -7,6 +7,7 @@ transportes".
 from __future__ import annotations
 
 import asyncio
+import sys
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -586,22 +587,37 @@ class GatewayEngine:
         """No-op (empty miss, no Bedrock call) when the cache isn't enabled
         -- see config.answer_cache_ready. cache.lookup() itself never raises,
         but config.answer_cache_ready gates it here too so a disabled cache
-        costs this request nothing at all, not even an embedding call."""
+        costs this request nothing at all, not even an embedding call.
+
+        The try/except here is specifically for _get_bedrock_client() --
+        cache.lookup() already guards everything past that point, but
+        building the client itself happens outside cache.py, so it needs
+        its own guard for the same "cache errors must never break a live
+        request" reason (confirmed live 2026-09-18 that a gap exactly like
+        this one, in cache.lookup() itself, took down the whole a2k.ask call
+        on a Bedrock IAM error -- see cache.py's lookup() docstring)."""
         if not config.answer_cache_ready:
             return answer_cache.LookupResult(hit=None, query_embedding=[])
-        return answer_cache.lookup(self._get_bedrock_client(), query, operation)
+        try:
+            return answer_cache.lookup(self._get_bedrock_client(), query, operation)
+        except Exception as exc:  # noqa: BLE001 -- see docstring above
+            print(f"a2k-box: answer cache lookup failed, falling through to a live call: {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
+            return answer_cache.LookupResult(hit=None, query_embedding=[])
 
     def _cache_store(self, operation: str, query: str, query_embedding: list[float], content: dict) -> None:
         if not config.answer_cache_ready or not query_embedding:
             return
-        answered_by_sources = sorted({tc.get("vendor") for tc in (content.get("toolCalls") or []) if tc.get("vendor")})
-        answer_cache.store(
-            operation=operation,
-            query=query,
-            query_embedding=query_embedding,
-            answered_by_sources=answered_by_sources,
-            content=content,
-        )
+        try:
+            answered_by_sources = sorted({tc.get("vendor") for tc in (content.get("toolCalls") or []) if tc.get("vendor")})
+            answer_cache.store(
+                operation=operation,
+                query=query,
+                query_embedding=query_embedding,
+                answered_by_sources=answered_by_sources,
+                content=content,
+            )
+        except Exception as exc:  # noqa: BLE001 -- same reasoning as _cache_lookup() above
+            print(f"a2k-box: answer cache store failed, this answer won't be cached: {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
 
     async def _get_agent_token(self) -> str:
         """Cognito client-credentials token for the agent's own inbound-auth

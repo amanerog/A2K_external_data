@@ -262,7 +262,27 @@ def test_lookup_never_raises_when_dynamo_is_unreachable(monkeypatch):
     result = cache_module.lookup(bedrock, "Who controls Acme Corp?", "ask")
 
     assert result.hit is None
-    assert result.query_embedding == [1.0, 0.0]  # the embedding call itself still ran, outside the try/except
+    assert result.query_embedding == [1.0, 0.0]  # the embedding call itself succeeded fine here
+
+
+def test_lookup_never_raises_when_embedding_itself_fails(monkeypatch):
+    """The concrete bug found live 2026-09-18: a Bedrock-side failure on the
+    embedding call (there, a missing IAM permission) must degrade to a plain
+    miss, not propagate up and fail the entire a2k.ask call -- this is
+    exactly the guarantee the rest of this module already had everywhere
+    except here, before this test/fix existed."""
+    _use_fake_dynamo(monkeypatch)
+
+    class _BrokenEmbeddingBedrock(_FakeBedrock):
+        def invoke_model(self, modelId, body):
+            raise RuntimeError("AccessDeniedException: not authorized to perform bedrock:InvokeModel")
+
+    bedrock = _BrokenEmbeddingBedrock(embeddings={})
+
+    result = cache_module.lookup(bedrock, "Who controls Acme Corp?", "ask")  # must not raise
+
+    assert result.hit is None
+    assert result.query_embedding == []  # nothing to reuse for a later store() -- embedding never succeeded
 
 
 def test_store_never_raises_when_dynamo_is_unreachable(monkeypatch):

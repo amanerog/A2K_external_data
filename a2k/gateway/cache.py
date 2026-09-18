@@ -230,9 +230,21 @@ def _scan_entries() -> list[dict[str, Any]]:
 def lookup(bedrock_client, query: str, operation: str) -> LookupResult:
     """Never raises -- a broken/unreachable cache must fall through to a
     live agent call, not fail the request. Returns a miss (with the computed
-    embedding still populated) on any error, same resilience posture as
-    gateway/audit.py's own best-effort local-file write."""
-    query_embedding = embed_query(bedrock_client, query)
+    embedding still populated when embedding itself succeeded, empty
+    otherwise) on any error, same resilience posture as gateway/audit.py's
+    own best-effort local-file write.
+
+    The embedding call is its own try/except, not folded into the block
+    below -- confirmed live 2026-09-18 that leaving it unguarded meant a
+    Bedrock-side failure here (e.g. a missing IAM permission) propagated all
+    the way up through _ask_via_agent() and failed the entire a2k.ask call,
+    exactly the outcome this module's whole design is supposed to prevent."""
+    try:
+        query_embedding = embed_query(bedrock_client, query)
+    except Exception as exc:  # noqa: BLE001 -- see docstring above
+        print(f"a2k-box: answer cache embedding failed, falling through to a live call: {type(exc).__name__}: {exc}", file=sys.stderr, flush=True)
+        return LookupResult(hit=None, query_embedding=[])
+
     try:
         now_epoch = int(time.time())
         candidates = []
