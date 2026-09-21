@@ -595,17 +595,7 @@ class GatewayEngine:
         its own guard for the same "cache errors must never break a live
         request" reason (confirmed live 2026-09-18 that a gap exactly like
         this one, in cache.lookup() itself, took down the whole a2k.ask call
-        on a Bedrock IAM error -- see cache.py's lookup() docstring).
-
-        TEMPORARY diagnostic print below (2026-09-18) -- unconditional, not
-        gated behind anything, to settle live whether answer_cache_ready is
-        actually True/False on a deploy where lookups still aren't hitting
-        with no error logged either. Remove once that's confirmed working."""
-        print(
-            f"a2k-box: [DIAGNOSTIC] answer_cache_ready={config.answer_cache_ready!r} "
-            f"enabled={config.answer_cache_enabled!r} table={config.answer_cache_table!r}",
-            file=sys.stdout, flush=True,
-        )
+        on a Bedrock IAM error -- see cache.py's lookup() docstring)."""
         if not config.answer_cache_ready:
             return answer_cache.LookupResult(hit=None, query_embedding=[])
         try:
