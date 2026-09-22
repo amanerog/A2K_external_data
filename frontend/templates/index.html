@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>A2K External Data</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="topbar"></div>
+
+  <header class="appbar">
+    <div class="appbar-inner">
+      <div class="logo-tile">K2</div>
+      <div class="appbar-text">
+        <h1>A2K External Data</h1>
+        <p>Asistente de inteligencia societaria</p>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Filters card -->
+    <section class="card filters-card">
+      <div class="card-head">
+        <h2 class="card-title">
+          <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
+            <polygon points="3,4 21,4 14,12.5 14,19 10,21 10,12.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"></polygon>
+          </svg>
+          Filtros de consulta
+        </h2>
+        <span class="count-badge" id="filter-count">0</span>
+      </div>
+
+      <div class="filter-row">
+        <span class="filter-label">Tipo de consulta:</span>
+        <label class="radio"><input type="radio" name="operation" value="ask" checked> Respuesta sintetizada</label>
+        <label class="radio"><input type="radio" name="operation" value="search"> Pasajes en bruto</label>
+      </div>
+
+      <div class="filter-row">
+        <span class="filter-label">Fuentes:</span>
+        <label class="check"><input type="checkbox" name="sources" value="cala"> Cala</label>
+        <label class="check"><input type="checkbox" name="sources" value="sayari"> Sayari</label>
+        <label class="check"><input type="checkbox" name="sources" value="linkup"> Linkup</label>
+        <span class="hint">Sin marcar, el agente decide la fuente.</span>
+      </div>
+    </section>
+
+    <!-- Conversation card -->
+    <section class="card chat-card">
+      <div class="chat-scroll" id="chat">
+        <div class="msg assistant">
+          <div class="avatar">K2</div>
+          <div class="bubble">
+            Hola, soy el asistente de <strong>A2K External Data</strong>. Pregúntame sobre empresas,
+            propiedad societaria, sanciones o riesgo reputacional, o usa una de las preguntas rápidas.
+          </div>
+        </div>
+      </div>
+
+      <div class="chips" id="chips">
+        <button type="button" class="chip">¿Quién controla Acme Robotics?</button>
+        <button type="button" class="chip">¿Qué sanciones aplican a Ali Ansari?</button>
+        <button type="button" class="chip">Estructura societaria de Revolut Ltd.</button>
+        <button type="button" class="chip">Vínculos offshore de Isabel dos Santos.</button>
+      </div>
+
+      <form id="query-form" class="composer">
+        <input type="text" id="query" name="query" placeholder="Escribe tu pregunta..." autocomplete="off" required>
+        <button type="submit" id="submit-btn">Preguntar</button>
+      </form>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

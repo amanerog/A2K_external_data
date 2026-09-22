@@ -216,6 +216,22 @@ def _answer_satisfies(bedrock_client, *, cached_query: str, cached_answer: str, 
     return bool(_converse_json(bedrock_client, prompt).get("satisfies", False))
 
 
+def _cached_content_as_text(content: dict[str, Any]) -> str:
+    """The text the satisfies check judges -- `ask` results carry an
+    `answer`, but `search` results carry `passages` and no `answer` at all
+    (see agent/entrypoint_a2k.py's two response shapes). Reading `answer`
+    unconditionally meant every `search` lookup handed the verification call
+    an empty string, which it (correctly) judged as satisfying nothing --
+    so `search` could never produce a cache hit, confirmed live 2026-09-22.
+    Falls back to the passages' own text, joined, so both operations give
+    the check something real to judge."""
+    answer = content.get("answer")
+    if answer:
+        return answer
+    passages = content.get("passages") or []
+    return "\n\n".join(p.get("text", "") for p in passages if p.get("text"))
+
+
 def _scan_entries() -> list[dict[str, Any]]:
     global _scan_cache
     now = time.monotonic()
@@ -291,7 +307,7 @@ def lookup(bedrock_client, query: str, operation: str) -> LookupResult:
         satisfies = _answer_satisfies(
             bedrock_client,
             cached_query=best_payload["queryText"],
-            cached_answer=best_payload["content"].get("answer") or "",
+            cached_answer=_cached_content_as_text(best_payload["content"]),
             new_query=query,
         )
         if not satisfies:

@@ -1,0 +1,8 @@
+# Self-contained, scoped to this directory -- same "one requirements file
+# per deployable unit" convention deploy/agentcore/requirements.txt already
+# uses, rather than adding frontend-only deps to the root Pipfile (a2k-box
+# itself doesn't need any of these).
+fastapi>=0.139.0,<1.0
+uvicorn[standard]>=0.51.0,<1.0
+boto3>=1.43.0,<2.0
+jinja2>=3.1.0,<4.0

@@ -213,6 +213,34 @@ def test_satisfies_check_alone_rejecting_is_also_enough_to_miss(monkeypatch):
     assert len(bedrock.verify_calls) == 2  # both checks ran; the second is what rejected it
 
 
+def test_search_results_can_hit_even_though_they_have_no_answer_field(monkeypatch):
+    """Found live 2026-09-22: a `search` result's content carries `passages`
+    and no `answer` at all, so reading `answer` unconditionally handed the
+    satisfies check an empty string -- which it correctly judged as
+    satisfying nothing, making a `search` cache hit impossible. The check
+    must be given the passages' own text instead."""
+    _use_fake_dynamo(monkeypatch)
+    seen_prompts = []
+
+    class _RecordingBedrock(_FakeBedrock):
+        def converse(self, modelId, messages, inferenceConfig):
+            seen_prompts.append(messages[0]["content"][0]["text"])
+            return super().converse(modelId, messages, inferenceConfig)
+
+    bedrock = _RecordingBedrock(embeddings={"who controls santander?": [1.0, 0.0]})
+    search_content = {
+        "passages": [{"text": "Banco Santander SA has no single controlling shareholder."}],
+        "citations": [{"documentId": "d1"}],
+    }
+    _store_one(monkeypatch, bedrock, operation="search", query="who controls santander?", content=search_content)
+
+    result = cache_module.lookup(bedrock, "who controls santander?", "search")
+
+    assert result.hit is not None
+    satisfies_prompt = next(p for p in seen_prompts if '"satisfies"' in p)
+    assert "no single controlling shareholder" in satisfies_prompt  # real text, not an empty answer
+
+
 def test_query_normalization_makes_pure_formatting_variants_embed_identically(monkeypatch):
     """Casing/whitespace-only differences must not depend on the embedding
     model's own robustness -- normalize first, so the exact same text (and
