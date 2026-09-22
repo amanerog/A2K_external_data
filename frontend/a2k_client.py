@@ -23,12 +23,18 @@ import os
 from typing import Any, Optional
 
 REGION = os.environ.get("AWS_REGION", "eu-west-1")
-# The currently-deployed a2k-box MCP Runtime -- same ARN every script in
-# deploy/agentcore/ points at. Overridable so this doesn't need a code
-# change if a2k-box is ever redeployed under a different Runtime.
+# The a2k-box MCP Runtime this frontend talks to -- NOT the same as the
+# original a2k_external_data_mcp-A3c4F0Cyx7 ARN that older deploy/agentcore/
+# scripts (predating the `cache` branch) still point at. This must be the
+# Runtime that actually has the answer-cache code deployed (ANSWER_CACHE_*
+# env vars set, the IAM permissions from this branch's plan) -- confirmed
+# live 2026-09-22 that pointing this at the wrong Runtime silently "works"
+# (real answers still come back) while never touching the cache at all, no
+# error anywhere to notice by. Overridable so this doesn't need a code
+# change if a2k-box is ever redeployed under yet another Runtime.
 AGENT_RUNTIME_ARN = os.environ.get(
     "A2K_BOX_RUNTIME_ARN",
-    "arn:aws:bedrock-agentcore:eu-west-1:396961015428:runtime/a2k_external_data_mcp-A3c4F0Cyx7",
+    "arn:aws:bedrock-agentcore:eu-west-1:396961015428:runtime/mcp_cache_hosted_agent-YHUBZcF0g2",
 )
 MCP_PROTOCOL_VERSION = "2025-06-18"
 

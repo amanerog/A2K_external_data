@@ -328,6 +328,54 @@ def lookup(bedrock_client, query: str, operation: str) -> LookupResult:
         return LookupResult(hit=None, query_embedding=query_embedding)
 
 
+
+# Per-call cap on toolCalls[*]["output"] when persisting to the cache. citations[]
+# (sourceUrl/documentId/title/retrievedAt) is the trazabilidad the KCP contract
+# actually cares about and is never touched here -- this cap only bounds the
+# separate, non-normative raw-vendor-response field (see _strip_tool_outputs).
+# 5,000 chars/call keeps even a response with a dozen-plus tool calls (the most
+# seen live) well under DynamoDB's 400KB item limit alongside the embedding,
+# citations, and answer text, while still leaving a real sample to verify a
+# cache-hit answer against -- rather than dropping it to None outright.
+_MAX_CACHED_TOOL_OUTPUT_CHARS = 5_000
+
+
+def _strip_tool_outputs(content: dict[str, Any]) -> dict[str, Any]:
+    """DynamoDB items have a hard 400KB limit -- `content["toolCalls"][*]["output"]`
+    is the raw response from a vendor's own tool call, which can run to
+    hundreds of KB on its own for some vendors (Sayari's `search_entities`
+    ignoring the requested `limit` under `response_mode: "export"` is the
+    known repeat offender -- same root cause `deploy/agentcore/judge.py`'s
+    `format_raw_tool_output()` already had to cap for, confirmed live
+    2026-09-22 to also break `PutItem` here with `ValidationException: Item
+    size has exceeded the maximum allowed size`). Truncated to
+    `_MAX_CACHED_TOOL_OUTPUT_CHARS` rather than dropped entirely -- the
+    frontend's tool-calls table doesn't render `output` today, but it's the
+    field judge.py's own faithfulness check reads to verify an answer against
+    what the vendor actually returned, so a cache-hit answer keeps a real
+    (if bounded) sample instead of losing that evidence outright.
+
+    `output` is a dict on the normal path (observability.py's
+    `ToolCallLogger` stores the tool's raw result, not a pre-serialized
+    string -- that's the actual multi-hundred-KB Sayari case this exists
+    for), so it's JSON-dumped before length-checking rather than truncated
+    as-is; a plain string (the exception-message fallback) is truncated
+    directly."""
+    if not content.get("toolCalls"):
+        return content
+    lightened = dict(content)
+    truncated_calls = []
+    for tc in content["toolCalls"]:
+        output = tc.get("output")
+        if output is not None:
+            text = output if isinstance(output, str) else json.dumps(output, default=str)
+            if len(text) > _MAX_CACHED_TOOL_OUTPUT_CHARS:
+                output = text[:_MAX_CACHED_TOOL_OUTPUT_CHARS] + f"...<{len(text)} chars total, truncated for cache storage>"
+        truncated_calls.append({**tc, "output": output})
+    lightened["toolCalls"] = truncated_calls
+    return lightened
+
+
 def store(*, operation: str, query: str, query_embedding: list[float], answered_by_sources: list[str], content: dict[str, Any]) -> None:
     """Never raises -- a failed cache write must not fail an otherwise-
     successful response. Called after a live agent call succeeds, with the
@@ -347,7 +395,7 @@ def store(*, operation: str, query: str, query_embedding: list[float], answered_
         payload = {
             "queryText": query,
             "embedding": query_embedding,
-            "content": content,
+            "content": _strip_tool_outputs(content),
             "cachedAt": cached_at,
         }
         item = {

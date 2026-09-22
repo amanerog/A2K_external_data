@@ -213,6 +213,66 @@ def test_satisfies_check_alone_rejecting_is_also_enough_to_miss(monkeypatch):
     assert len(bedrock.verify_calls) == 2  # both checks ran; the second is what rejected it
 
 
+def test_store_truncates_tool_call_outputs_before_writing(monkeypatch):
+    """Found live 2026-09-22: some vendors' tool outputs (Sayari's
+    search_entities under response_mode="export", the known repeat
+    offender) run to hundreds of KB, which alone can push a DynamoDB item
+    past its 400KB hard limit and fail PutItem with ValidationException.
+    `output` is truncated (not dropped) so a cache-hit answer still keeps a
+    bounded sample of the raw vendor response worth auditing against --
+    everything else on the tool call (vendor/toolName/status/input) must
+    still survive untouched."""
+    fake_table = _use_fake_dynamo(monkeypatch)
+    content = {
+        "answer": "x",
+        "citations": [],
+        "toolCalls": [
+            {"vendor": "sayari", "toolName": "search_entities", "status": "success", "input": {"q": "Acme"}, "output": "y" * 500_000},
+        ],
+    }
+    cache_module.store(operation="ask", query="who controls acme?", query_embedding=[1.0, 0.0], answered_by_sources=["sayari"], content=content)
+
+    assert len(fake_table.items) == 1
+    stored_payload = json.loads(fake_table.items[0]["payloadJson"])
+    stored_tool_call = stored_payload["content"]["toolCalls"][0]
+    assert stored_tool_call["output"].startswith("y" * 100)
+    assert len(stored_tool_call["output"]) < 5_200  # capped, not the full 500,000 chars
+    assert "truncated" in stored_tool_call["output"]
+    assert stored_tool_call["vendor"] == "sayari"
+    assert stored_tool_call["toolName"] == "search_entities"
+    assert stored_tool_call["input"] == {"q": "Acme"}
+    assert len(fake_table.items[0]["payloadJson"]) < 10_000  # nowhere near the 400KB limit anymore
+
+
+def test_store_truncates_dict_shaped_tool_call_output(monkeypatch):
+    """The real path (observability.py's ToolCallLogger) stores `output` as
+    a dict -- the tool's raw parsed result, not a pre-serialized string --
+    so the oversized-payload case above (a giant string) doesn't exercise
+    the actual code path. This is the one that does."""
+    fake_table = _use_fake_dynamo(monkeypatch)
+    content = {
+        "answer": "x",
+        "citations": [],
+        "toolCalls": [
+            {
+                "vendor": "sayari",
+                "toolName": "search_entities",
+                "status": "success",
+                "input": {"q": "Acme"},
+                "output": {"entities": [{"id": str(i), "name": "y" * 200} for i in range(2_000)]},
+            },
+        ],
+    }
+    cache_module.store(operation="ask", query="who controls acme?", query_embedding=[1.0, 0.0], answered_by_sources=["sayari"], content=content)
+
+    stored_payload = json.loads(fake_table.items[0]["payloadJson"])
+    stored_output = stored_payload["content"]["toolCalls"][0]["output"]
+    assert isinstance(stored_output, str)  # truncated to a preview string, not the full dict
+    assert len(stored_output) < 5_200
+    assert "truncated" in stored_output
+    assert len(fake_table.items[0]["payloadJson"]) < 15_000
+
+
 def test_search_results_can_hit_even_though_they_have_no_answer_field(monkeypatch):
     """Found live 2026-09-22: a `search` result's content carries `passages`
     and no `answer` at all, so reading `answer` unconditionally handed the
