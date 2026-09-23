@@ -70,7 +70,7 @@ tried first and confirmed *not* to work (the CLI arg silently wins); moving the 
 ```bash
 cd frontend
 pip install -r requirements-dev.txt
-pytest --cov=grc --cov-report=xml --cov-report=term-missing
+pytest --cov --cov-report=xml --cov-report=term-missing
 ```
 
 `tests/test_app.py` covers the FastAPI routes (`/health`, `/`, `/api/ask`, `/api/search`,
@@ -78,8 +78,17 @@ including the transport-error -> 502 path) against a monkeypatched `a2k_client`;
 test_a2k_client.py` covers `a2k_client.py`'s own session/SSE-parsing logic against a fake
 `bedrock-agentcore` client -- no real AWS call, no network, in either file. Both import `app`/
 `a2k_client` straight from `grc/` via `pyproject.toml`'s `pythonpath = ["grc"]`, no install
-needed first. `[tool.coverage.run]` scopes the report to `grc/` itself (not the tests, not any
-editable-install site-packages).
+needed first.
+
+`--cov` bare (no `=grc`, no `=.`) is deliberate, matching exactly what this pipeline's own
+`PYTHON_BUILD_COMMAND` step runs -- it falls back to `[tool.coverage.run]`'s `source = ["."]` in
+`pyproject.toml`. **Do not change that to `source = ["grc"]`, and do not run `--cov=grc`
+locally** -- either one rebases `coverage.xml`'s recorded filenames to be relative to `grc/`
+itself (`filename="app.py"`), but Sonar resolves `coverage.xml` paths relative to the *project
+base directory* (matching `sonar.sources=./grc`), so an un-prefixed `app.py` matches nothing and
+silently counts as uncovered. Confirmed live: this exact mismatch is what produced a "43.5%
+Coverage on New Code" quality-gate failure despite 100% real coverage -- `source = ["."]` is
+what makes `coverage.xml` come out with `filename="grc/app.py"`, which actually matches.
 
 `pytest-cov`'s `--cov-report=xml` writes `coverage.xml` in Cobertura format at this directory's
 root -- this pipeline's Sonar step already passes `-Dsonar.python.coverage.reportPaths=./coverage.xml`

@@ -39,7 +39,15 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 
 [tool.coverage.run]
-# Fuente para el informe que Sonar consume (ver README.md "Tests y
-# cobertura") -- limitado a los modulos reales de esta app en grc/, no a las
-# dependencias instaladas en modo editable ni a los propios tests.
-source = ["grc"]
+# source = ["."] a proposito, NO ["grc"] -- este pipeline pasa `--cov` sin
+# valor (ver PYTHON_BUILD_COMMAND), asi que pytest-cov usa este `source`
+# como raiz de medicion. Con source=["grc"], coverage.py genera coverage.xml
+# con filename="app.py" (relativo a grc/, sin el prefijo) -- Sonar resuelve
+# esas rutas relativas a la RAIZ DEL PROYECTO (coincide con
+# sonar.sources=./grc), asi que "app.py" (sin grc/) no casa con ningun
+# archivo real y esas lineas se cuentan como no cubiertas (confirmado live:
+# esto es lo que causo el 43.5% de "Coverage on New Code" con source=["grc"]
+# pese al 100% real). Con source=["."] el XML sale con
+# filename="grc/app.py"/"grc/a2k_client.py", que si casa.
+source = ["."]
+omit = ["tests/*"]
