@@ -31,10 +31,12 @@ a2k-box's Runtime -- the same credentials any script in `../deploy/agentcore/` a
 (your own AWS CLI/SSO session; nothing new to set up if you've already run those scripts).
 
 ```bash
+cd grc
 uvicorn app:app --reload --port 8000
 ```
 
-Open `http://localhost:8000`.
+Open `http://localhost:8000`. (`app.py`/`a2k_client.py` live in `grc/`, not at this directory's
+root -- see "Project layout" below for why.)
 
 ## Configuration
 
@@ -43,38 +45,56 @@ Open `http://localhost:8000`.
 | `A2K_BOX_RUNTIME_ARN` | the current a2k-box MCP Runtime ARN (`a2k_external_data_mcp-...`) | Which Runtime to call -- override if a2k-box is ever redeployed under a different Runtime. |
 | `AWS_REGION` | `eu-west-1` | Region for both the Bedrock AgentCore client and the Runtime ARN above. |
 
-See `a2k_client.py`'s own top for the exact defaults.
+See `grc/a2k_client.py`'s own top for the exact defaults.
+
+## Project layout
+
+```
+frontend/
+  grc/                # actual application code -- app.py, a2k_client.py, static/, templates/
+  tests/              # pytest, kept out of grc/ so it's excluded from Sonar's `sonar.sources`
+  Dockerfile, entrypoint.sh, Pipfile(.lock), pyproject.toml, requirements(-dev).txt
+  deploy/             # EKS manifests
+```
+
+The `grc/` split (rather than a flat layout with `app.py` at this directory's root) is **not**
+a stylistic choice -- Santander's shared CI/CD pipeline's "Sonar Scan with Sonar-Scanner" step
+hardcodes `-Dsonar.sources=./grc` as a command-line argument, and CLI `-D` properties always win
+over anything in `sonar-project.properties`. A local `sonar-project.properties` override was
+tried first and confirmed *not* to work (the CLI arg silently wins); moving the actual code into
+`grc/` is what actually gets a green Sonar scan. `pyproject.toml`'s `[tool.setuptools]` and
+`entrypoint.sh`'s `cd grc` are both there because of this.
 
 ## Tests and coverage
 
 ```bash
 cd frontend
 pip install -r requirements-dev.txt
-pytest --cov=. --cov-report=xml --cov-report=term-missing
+pytest --cov=grc --cov-report=xml --cov-report=term-missing
 ```
 
 `tests/test_app.py` covers the FastAPI routes (`/health`, `/`, `/api/ask`, `/api/search`,
 including the transport-error -> 502 path) against a monkeypatched `a2k_client`; `tests/
 test_a2k_client.py` covers `a2k_client.py`'s own session/SSE-parsing logic against a fake
-`bedrock-agentcore` client -- no real AWS call, no network, in either file. `pyproject.toml`'s
-`[tool.coverage.run]` scopes the report to this directory's own modules (not the editable
-install's site-packages, not the tests themselves).
+`bedrock-agentcore` client -- no real AWS call, no network, in either file. Both import `app`/
+`a2k_client` straight from `grc/` via `pyproject.toml`'s `pythonpath = ["grc"]`, no install
+needed first. `[tool.coverage.run]` scopes the report to `grc/` itself (not the tests, not any
+editable-install site-packages).
 
 `pytest-cov`'s `--cov-report=xml` writes `coverage.xml` in Cobertura format at this directory's
-root -- the format SonarQube's Python scanner reads via `sonar.python.coverage.reportPaths`
-(point that setting at `frontend/coverage.xml` in whatever scans this subdirectory as its own
-Sonar project; wiring the actual CI/Sonar pipeline step to run the command above and pick up
-that path is outside this repo -- not verified here, no Sonar server reachable from this
-environment). `requirements-dev.txt` is dev/test-only -- never installed in the Docker image
-(the Dockerfile's `pipenv requirements` reads `Pipfile`, which has no `[dev-packages]`, on
-purpose).
+root -- this pipeline's Sonar step already passes `-Dsonar.python.coverage.reportPaths=./coverage.xml`
+itself (see `sonar-project.properties`'s own comment), so nothing further needs wiring here
+beyond making sure this command actually runs and produces that file in CI, which
+`PYTHON_BUILD_COMMAND`'s `pipenv run python -m pytest ...` step already does. `requirements-dev.txt`
+is dev/test-only -- never installed in the Docker image (the Dockerfile's `pipenv requirements`
+reads `Pipfile`'s `[packages]` only, not `[dev-packages]`).
 
 ## How a request flows
 
 1. Browser submits the form -> `app.js` `fetch()`s `POST /api/ask` (or `/api/search`) with
    `{"query": ..., "sources": [...]}` (`sources` empty = let the agent decide, same as omitting
    it on a raw MCP call).
-2. `app.py` opens a **fresh MCP session** (`a2k_client.new_session()`) and calls the tool
+2. `grc/app.py` opens a **fresh MCP session** (`a2k_client.new_session()`) and calls the tool
    (`a2k_client.call_ask()`/`call_search()`) -- one new session per request, not pooled/reused
    across requests; see the plan this was built from for why (each web request is independent
    and short-lived, and session reuse across concurrent users would need isolation this doesn't

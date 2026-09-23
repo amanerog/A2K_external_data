@@ -16,27 +16,30 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-# El frontend no es un paquete (no hay subcarpeta ni __init__.py) -- app.py
-# y a2k_client.py viven planos en este directorio y se ejecutan tal cual
-# (entrypoint.sh hace `uvicorn app:app` con este directorio como cwd), asi
-# que se declaran como modulos sueltos en vez de con
-# [tool.setuptools.packages.find].
+# El codigo vive en grc/ (no en el src/ que setuptools autodetecta por
+# convencion) -- layout impuesto por el pipeline de Sonar de Santander, que
+# pasa -Dsonar.sources=./grc como argumento de linea de comandos y por tanto
+# no se puede pisar desde sonar-project.properties (los -D siempre ganan).
+# app.py/a2k_client.py siguen siendo modulos sueltos, no un paquete con
+# __init__.py -- package-dir los remapea a grc/ sin necesitar convertirlos
+# en un paquete real.
+package-dir = {"" = "grc"}
 py-modules = ["app", "a2k_client"]
 
 [tool.pytest.ini_options]
-# pythonpath = ["."] hace que `import app` / `import a2k_client` funcionen en
-# collection sin instalar el paquete primero, igual que el pythonpath =
-# ["grc"] del proyecto grc/sinc_amn resuelve el mismo problema para su
-# propio layout. testpaths acota el descubrimiento a tests/ -- sin esto,
-# pytest camina todo el repo desde aqui hacia arriba y puede recoger
-# test_*.py ajenos (ver el mismo comentario en el pyproject.toml raiz).
-pythonpath = ["."]
+# tests/ vive en la raiz del repo, no dentro de grc/ (ver sonar.tests en
+# sonar-project.properties) -- pythonpath = ["grc"] es lo que permite que
+# `import app` / `import a2k_client` resuelvan ahi durante collection sin
+# instalar el paquete primero. testpaths acota el descubrimiento a tests/ --
+# sin esto, pytest camina todo el repo desde aqui hacia arriba y puede
+# recoger test_*.py ajenos (ver el mismo comentario en el pyproject.toml
+# raiz).
+pythonpath = ["grc"]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 
 [tool.coverage.run]
 # Fuente para el informe que Sonar consume (ver README.md "Tests y
-# cobertura") -- limitado a los modulos reales de esta app, no a las
+# cobertura") -- limitado a los modulos reales de esta app en grc/, no a las
 # dependencias instaladas en modo editable ni a los propios tests.
-source = ["."]
-omit = ["tests/*"]
+source = ["grc"]
