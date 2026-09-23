@@ -45,6 +45,30 @@ Open `http://localhost:8000`.
 
 See `a2k_client.py`'s own top for the exact defaults.
 
+## Tests and coverage
+
+```bash
+cd frontend
+pip install -r requirements-dev.txt
+pytest --cov=. --cov-report=xml --cov-report=term-missing
+```
+
+`tests/test_app.py` covers the FastAPI routes (`/health`, `/`, `/api/ask`, `/api/search`,
+including the transport-error -> 502 path) against a monkeypatched `a2k_client`; `tests/
+test_a2k_client.py` covers `a2k_client.py`'s own session/SSE-parsing logic against a fake
+`bedrock-agentcore` client -- no real AWS call, no network, in either file. `pyproject.toml`'s
+`[tool.coverage.run]` scopes the report to this directory's own modules (not the editable
+install's site-packages, not the tests themselves).
+
+`pytest-cov`'s `--cov-report=xml` writes `coverage.xml` in Cobertura format at this directory's
+root -- the format SonarQube's Python scanner reads via `sonar.python.coverage.reportPaths`
+(point that setting at `frontend/coverage.xml` in whatever scans this subdirectory as its own
+Sonar project; wiring the actual CI/Sonar pipeline step to run the command above and pick up
+that path is outside this repo -- not verified here, no Sonar server reachable from this
+environment). `requirements-dev.txt` is dev/test-only -- never installed in the Docker image
+(the Dockerfile's `pipenv requirements` reads `Pipfile`, which has no `[dev-packages]`, on
+purpose).
+
 ## How a request flows
 
 1. Browser submits the form -> `app.js` `fetch()`s `POST /api/ask` (or `/api/search`) with

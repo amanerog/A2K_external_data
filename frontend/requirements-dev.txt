@@ -1,0 +1,11 @@
+# Test/coverage tooling only -- never installed in the Docker image (the
+# Dockerfile's `pipenv requirements` reads frontend/Pipfile, not this file,
+# and Pipfile has no [dev-packages] on purpose, see frontend/Pipfile). Same
+# version constraints as the root project's own dev-packages, for
+# consistency. httpx is here (not in requirements.txt) purely because
+# FastAPI's TestClient needs it -- the app itself never imports httpx.
+-r requirements.txt
+pytest>=9.1.0,<10.0
+pytest-asyncio>=1.4.0,<2.0
+pytest-cov>=6.0.0,<7.0
+httpx>=0.28.0,<1.0

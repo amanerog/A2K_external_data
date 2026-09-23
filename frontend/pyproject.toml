@@ -24,10 +24,19 @@ build-backend = "setuptools.build_meta"
 py-modules = ["app", "a2k_client"]
 
 [tool.pytest.ini_options]
-# No hay tests todavia para el frontend (ver README.md) -- esto queda listo
-# para cuando se añadan, sin necesitar tocar la config: pythonpath = ["."]
-# hace que `import app` / `import a2k_client` funcionen en collection sin
-# instalar el paquete primero, igual que el pythonpath = ["grc"] del
-# proyecto grc/sinc_amn resuelve el mismo problema para su propio layout.
+# pythonpath = ["."] hace que `import app` / `import a2k_client` funcionen en
+# collection sin instalar el paquete primero, igual que el pythonpath =
+# ["grc"] del proyecto grc/sinc_amn resuelve el mismo problema para su
+# propio layout. testpaths acota el descubrimiento a tests/ -- sin esto,
+# pytest camina todo el repo desde aqui hacia arriba y puede recoger
+# test_*.py ajenos (ver el mismo comentario en el pyproject.toml raiz).
 pythonpath = ["."]
+testpaths = ["tests"]
 asyncio_mode = "auto"
+
+[tool.coverage.run]
+# Fuente para el informe que Sonar consume (ver README.md "Tests y
+# cobertura") -- limitado a los modulos reales de esta app, no a las
+# dependencias instaladas en modo editable ni a los propios tests.
+source = ["."]
+omit = ["tests/*"]
