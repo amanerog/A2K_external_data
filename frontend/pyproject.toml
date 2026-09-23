@@ -1,0 +1,33 @@
+[project]
+name = "front_a2k_ed"
+version = "0.0.1"
+description = "Frontal A2K external Data"
+requires-python = ">=3.13"
+# Las dependencias se gestionan en el Pipfile/Pipfile.lock (fuente de verdad
+# para el build de Docker, ver Dockerfile) y en requirements.txt (desarrollo
+# local, ver README.md "Run locally"). Este bloque queda vacio a proposito:
+# `pip install -e .` aqui es solo para tener app.py/a2k_client.py resolubles
+# como modulos en modo editable durante desarrollo local (linters, IDEs), no
+# para resolver versiones.
+dependencies = []
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+# El frontend no es un paquete (no hay subcarpeta ni __init__.py) -- app.py
+# y a2k_client.py viven planos en este directorio y se ejecutan tal cual
+# (entrypoint.sh hace `uvicorn app:app` con este directorio como cwd), asi
+# que se declaran como modulos sueltos en vez de con
+# [tool.setuptools.packages.find].
+py-modules = ["app", "a2k_client"]
+
+[tool.pytest.ini_options]
+# No hay tests todavia para el frontend (ver README.md) -- esto queda listo
+# para cuando se añadan, sin necesitar tocar la config: pythonpath = ["."]
+# hace que `import app` / `import a2k_client` funcionen en collection sin
+# instalar el paquete primero, igual que el pythonpath = ["grc"] del
+# proyecto grc/sinc_amn resuelve el mismo problema para su propio layout.
+pythonpath = ["."]
+asyncio_mode = "auto"
