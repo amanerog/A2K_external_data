@@ -1,0 +1,20 @@
+[[source]]
+url = "https://nexus.alm.europe.cloudcenter.corp/repository/pypi-public/simple"
+verify_ssl = false
+name = "nexus"
+
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+fastapi = ">=0.139.0,<1.0"
+uvicorn = {extras = ["standard"], version = ">=0.51.0,<1.0"}
+boto3 = ">=1.43.0,<2.0"
+jinja2 = ">=3.1.0,<4.0"
+
+[dev-packages]
+
+[requires]
+python_version = "3.13"

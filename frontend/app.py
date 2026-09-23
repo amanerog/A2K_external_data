@@ -36,6 +36,16 @@ class QueryRequest(BaseModel):
     sources: Optional[list[str]] = None
 
 
+@app.get("/health")
+async def health() -> dict:
+    # Deliberately doesn't call out to a2k-box's own Runtime -- this only
+    # confirms the frontend process itself is up, same shallow check
+    # a2k/api/rest.py's own /health does. A deep check (a live MCP round
+    # trip) would make k8s restart this pod whenever a2k-box is briefly
+    # unreachable, which is a2k-box's outage to surface, not this frontend's.
+    return {"service": "a2k-frontend", "status": "ok"}
+
+
 @app.get("/")
 async def index(request: Request):
     # Starlette's TemplateResponse signature is (request, name, context=...)

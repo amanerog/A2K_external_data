@@ -9,9 +9,7 @@ cache, see `a2k/gateway/cache.py`). It talks directly to that Runtime over MCP
 REST transport (`a2k/api/rest.py`) either. Nothing here changes a2k-box or the agent; this is
 purely a consumer of what's already running.
 
-**Scope, on purpose**: this runs locally only, for now. Deploying it to EKS is a deliberate
-later step (see "EKS deployment" below) -- don't add Kubernetes manifests here until that's
-actually decided.
+Runs locally (see "Run locally" below) or deployed to EKS (see "EKS deployment" below).
 
 ## Why there's a backend at all, not just a static page
 
@@ -64,17 +62,59 @@ See `a2k_client.py`'s own top for the exact defaults.
 A request can take anywhere from a few seconds (cache hit) to roughly a minute (a live vendor
 lookup through the agent) -- the UI shows a loading state for this, it's expected, not a bug.
 
-## EKS deployment (not done here -- for when that's actually next)
+## EKS deployment
 
-This is a single FastAPI process serving both the API and the static/template files -- one
-container is enough, no split frontend/backend services needed. When that step comes, mirror the
-root `Dockerfile` + `deploy/*.yaml` pattern already proven for a2k-box itself: a `Deployment`
-(one or two replicas) + a `Service`, pointed at an image built from this directory instead of
-`a2k/`. Given this is an internal/test tool, not a production surface, skip
-`hpa.yaml`/`configmap.yaml`-style extras unless a real need for them shows up -- don't build
-that ahead of time.
+Single FastAPI process serving both the JSON API and the static/template files -- one container,
+no split frontend/backend services. Uses Santander's standard base image/pipenv build (`Dockerfile`,
+`produban/python-313-ubi9` -- **not** the root `Dockerfile`'s `python-314-ubi9`/multi-stage-wheel
+pattern; the two are deliberately different images, don't conflate them), and a `Deployment` +
+`Service` under `deploy/`. Given this is an internal/test tool, not a production surface, there's
+no `ConfigMap`/`HPA` here -- `a2k_client.py`'s own env-var defaults (`AGENT_RUNTIME_ARN`, region)
+are already correct for the currently-deployed a2k-box Runtime, and traffic doesn't need
+autoscaling.
 
-The one thing that *does* carry over from local dev to EKS: however the pod's IAM identity is
-set up (IRSA), it needs the same `bedrock-agentcore:InvokeAgentRuntime` permission on a2k-box's
-Runtime that your local AWS credentials already need above -- no code change, `boto3`'s default
-credential chain picks either up the same way.
+**Build and push the image** (context is this directory, not the repo root):
+
+```bash
+cd frontend
+docker build -t a2k-frontend:latest .
+docker tag a2k-frontend:latest <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/a2k-frontend:latest
+aws ecr get-login-password --region <REGION> | docker login --username AWS --password-stdin <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com
+docker push <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/a2k-frontend:latest
+```
+
+**IAM role for IRSA** -- the one thing that *does* carry over from local dev to EKS: however the
+pod's IAM identity is set up, it needs the same `bedrock-agentcore:InvokeAgentRuntime` permission
+on a2k-box's Runtime that your local AWS credentials already need above -- no code change,
+`boto3`'s default credential chain picks either up the same way. Create a role trusted by this
+cluster's OIDC provider, scoped to exactly that one action on a2k-box's Runtime ARN, then fill
+its ARN into `deploy/serviceaccount.yaml`'s `eks.amazonaws.com/role-arn` annotation before
+applying it.
+
+**Apply the manifests** (`deploy/`):
+
+```bash
+kubectl apply -f deploy/namespace.yaml
+kubectl apply -f deploy/serviceaccount.yaml   # edit the role-arn annotation first
+kubectl apply -f deploy/deployment.yaml       # edit the `image:` field first
+kubectl apply -f deploy/service.yaml
+```
+
+Reachable inside the cluster at `http://a2k-frontend.a2k-frontend.svc.cluster.local:8080` --
+front it with whatever this cluster's usual ingress/route mechanism is for a human-facing tool
+(not set up here, cluster-specific).
+
+**What's already handled in the manifests:** non-root container user (matching a2k-box's own
+`runAsUser: 10001` convention on this cluster), `readOnlyRootFilesystem` with an `emptyDir` for
+`/tmp`, resource requests/limits, and readiness/liveness probes against `/health`
+(`app.py`'s own -- a shallow "is this process up" check, deliberately not a live a2k-box MCP
+round trip; see that endpoint's docstring).
+
+Not verified in this environment: the Docker image was not actually built here (no Docker daemon
+available), and the manifests were not applied against a real cluster. What *was* verified: all
+four YAML files parse and carry the required `apiVersion`/`kind`/`metadata.name` fields, and
+`frontend/Pipfile.lock` was generated for real (against public PyPI, since the corporate Nexus
+mirror this Dockerfile points at isn't reachable from outside Santander's network) -- re-lock it
+(`pipenv lock`) from an environment with Nexus access before trusting it in production, though
+Nexus's own `pypi-public` naming suggests it's a pull-through cache of the same public index, so
+the resolved versions/hashes should already match.

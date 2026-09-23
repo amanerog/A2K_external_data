@@ -1,0 +1,82 @@
+# Prereqs before applying this file (see ../README.md "EKS deployment"):
+#   kubectl apply -f namespace.yaml
+#   kubectl apply -f serviceaccount.yaml   # edit the role-arn annotation first
+#   replace `image:` below with your pushed image
+#
+# Single FastAPI process serving both the JSON API and the static/template
+# files -- one container, no split frontend/backend services, same reasoning
+# as ../README.md's "EKS deployment" section. No ConfigMap/HPA here on
+# purpose -- this is an internal/test tool, not a production surface, and
+# a2k_client.py's own env-var defaults (AGENT_RUNTIME_ARN, REGION) are
+# already correct for the currently-deployed a2k-box Runtime; override below
+# only if that ever changes.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: a2k-frontend
+  namespace: a2k-frontend
+  labels:
+    app: a2k-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: a2k-frontend
+  template:
+    metadata:
+      labels:
+        app: a2k-frontend
+    spec:
+      serviceAccountName: a2k-frontend
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+      containers:
+        - name: a2k-frontend
+          image: <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/a2k-frontend:latest
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: A2K_FRONTEND_HOST
+              value: "0.0.0.0"
+            - name: A2K_FRONTEND_PORT
+              value: "8080"
+            - name: AWS_REGION
+              value: "eu-west-1"
+            # Uncomment only if a2k-box is ever redeployed under a different
+            # Runtime -- a2k_client.py's own default already matches the
+            # Runtime currently live.
+            # - name: A2K_BOX_RUNTIME_ARN
+            #   value: "arn:aws:bedrock-agentcore:eu-west-1:<ACCOUNT_ID>:runtime/<runtime-id>"
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: tmp
+          emptyDir: {}
