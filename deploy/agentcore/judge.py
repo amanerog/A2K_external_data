@@ -35,9 +35,12 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 
-# Same example model used throughout agent/README.md's "Run locally" -- override with
-# --judge-model on either caller script if your account's Bedrock access differs.
-DEFAULT_JUDGE_MODEL_ID = "eu.anthropic.claude-sonnet-4-5-20250929-v1:0"
+# The bare model ID doesn't work -- Bedrock rejects on-demand throughput for this model
+# (confirmed live: ValidationException asking for an inference profile instead), same as
+# Claude Sonnet 4.5 before it. Cross-region inference profile ID (arn:aws:bedrock:eu-west-1:
+# 396961015428:inference-profile/eu.anthropic.claude-sonnet-5), account-agnostic form --
+# override with --judge-model on either caller script if your account's Bedrock access differs.
+DEFAULT_JUDGE_MODEL_ID = "eu.anthropic.claude-sonnet-5"
 
 # dimension -> weight, and the threshold the weighted score (on the model's native
 # 1-5 scale) must clear to avoid NOT_ACCEPTABLE on its own. 4.0 on a 1-5 scale is
@@ -177,6 +180,19 @@ class JudgeResult:
     justification: str = ""
 
 
+def _extract_text(response: dict) -> str:
+    """Converse's `output.message.content` is a list of typed blocks, not
+    always a single text block at index 0 -- confirmed live with
+    DEFAULT_JUDGE_MODEL_ID's Claude Sonnet 5: it returns a `reasoningContent`
+    block before the `text` block (extended thinking), which `content[0]
+    ["text"]` doesn't account for and fails with a bare KeyError. Scan for
+    the first block that actually has `text` instead of assuming position."""
+    for block in response["output"]["message"]["content"]:
+        if "text" in block:
+            return block["text"]
+    raise KeyError(f"no text block in Converse response content: {response['output']['message']['content']!r}")
+
+
 def _parse_json_response(text: str) -> dict:
     text = text.strip()
     # Models occasionally wrap the JSON in a ```json fence despite the
@@ -204,9 +220,21 @@ def judge(bedrock_client, model_id: str, query: str, source: str, expected_answe
         # on a long expected_answer with several critical_omission findings to
         # enumerate in missing_facts/justification, raising JSONDecodeError
         # instead of a real grade.
-        inferenceConfig={"maxTokens": 1500, "temperature": 0},
+        # No `temperature` here -- confirmed live with DEFAULT_JUDGE_MODEL_ID's
+        # Claude Sonnet 5: Converse rejects it outright ("`temperature` is
+        # deprecated for this model"), unlike every earlier judge model this
+        # was tested against. Omit rather than guess at a replacement
+        # parameter Bedrock hasn't documented here.
+        # 1500 -> 6000: confirmed live that Sonnet 5 spends part of maxTokens
+        # on an internal `reasoningContent` block before the actual text --
+        # at 1500 that reasoning alone consumed the whole budget, leaving no
+        # text block at all (_extract_text's KeyError) or a JSON response
+        # truncated mid-string. Not disabling reasoning outright (no
+        # documented Bedrock field confirmed for this model yet) -- just
+        # giving enough headroom for both the reasoning and the JSON to fit.
+        inferenceConfig={"maxTokens": 6000},
     )
-    text = response["output"]["message"]["content"][0]["text"]
+    text = _extract_text(response)
     parsed = _parse_json_response(text)
 
     result = JudgeResult(
@@ -274,14 +302,17 @@ the question asked for. You do not evaluate wording, tone, length or style — c
 INPUTS you will receive for each case:
 - question: the original question text.
 - expected_answer: the reference answer (ground truth).
-- text_to_score: the text you must score (this may be a vendor's raw tool output, or an
-  already-consolidated final answer — you will be told which one it is).
+- text_to_score: the text you must score. For the raw-output pass, this is the concatenation
+  of ALL of the vendor's tool-call outputs for this question, unsummarized (see RAW OUTPUT
+  DEFINITION below). For the final-answer pass, this is the already-consolidated final answer.
+  You will be told which one it is.
 
 SCALE (use exactly these three labels, verbatim, including capitalization):
-- "Cubierta": the requested information is present in substance in text_to_score.
-- "Parcial": a non-trivial part of what was requested is missing or incomplete.
-- "No cubierta": the requested information is missing, or the data type does not match what
-  was asked.
+- "Cubierta": all substantive requested elements are present in text_to_score.
+- "Parcial": at least one substantive requested element is present, but one or more other
+  substantive requested elements are missing or incomplete.
+- "No cubierta": none of the substantive requested elements are present, or the returned
+  information is of a fundamentally different type from what is expected.
 (These three labels are kept in Spanish on purpose — they are the canonical values the
 existing scoring pipeline expects. Do not translate them, and do not use any other label.)
 
@@ -293,6 +324,31 @@ organized differently than expected_answer — that never counts against it. Do 
 length for its own sake either — a long text that does not contain the requested substance is
 still "No cubierta".
 
+ROLE OF QUESTION AND EXPECTED ANSWER:
+expected_answer is the primary reference for the substantive content that should be found in
+text_to_score. Use question only to interpret the scope and explicit constraints of that
+reference — for example, the requested entity, an explicitly specified time period, whether
+multiple items are requested, or the type of information being asked for.
+
+Do not independently redefine, expand or improve the expected content based on your own view
+of what a better or more complete answer to the question should contain. Do not add
+requirements that are not represented in expected_answer.
+
+If question and expected_answer are imperfectly aligned, follow the substantive interpretation
+represented by expected_answer unless doing so would violate an explicit and unambiguous
+constraint stated in question.
+
+RAW OUTPUT DEFINITION — MULTI-CALL CONCATENATION:
+When scoring the raw-output pass, text_to_score is the totality of the vendor's tool-call
+outputs for that question, concatenated in full and unsummarized — never a single call
+judged in isolation. If the requested substance is present anywhere across that concatenated
+set (even if split across several different tool responses), treat it as present for this
+pass. This means the raw-output verdict can legitimately be "Cubierta" even when no single
+tool call, read alone, would have earned that verdict. Any loss of that information that
+happens later — when the agent condenses these raw outputs into its final answer — is not
+scored here; it shows up as a lower verdict on the final-answer pass instead (see
+CONSOLIDATION LOSS in the usage notes).
+
 EXCEPTION — ANONYMIZED OR CONCRETE VALUES:
 Ignore discrepancies in concrete values that may be anonymized or vary for security or
 test-data reasons (proper names, IDs, exact figures, specific dates), as long as the TYPE of
@@ -302,13 +358,39 @@ data matches. Examples of "same type, different value, do not penalize":
 - Both give a date (even if the exact day differs).
 - Both cite an applicable regulation, rate or law (even if the exact article number or
   percentage differs).
+This includes cases where expected_answer itself may not be up to date (e.g. the ground
+truth's figures are older than the vendor's live data). Do not require the exact number to
+match. If the question asks for more than one type of figure (e.g. a profit figure and a
+loss figure), check that each requested TYPE of figure is present, not that its value
+matches expected_answer.
 Only lower the verdict when:
 (a) an ENTIRE category of requested information is missing (not a different value, but the
     data point is absent altogether),
 (b) a different type of data is given than what was asked for (e.g. the question asks for an
     amount and only a date is given),
-(c) there is a substantively incorrect claim (not just a different value of the correct type,
-    but a claim that contradicts the underlying facts).
+(c) there is a substantively incorrect claim that contradicts expected_answer or an explicit
+    and unambiguous constraint in question — not merely a different concrete value allowed by
+    the exceptions above.
+
+EXCEPTION — VAGUE OR UNSPECIFIED TIME PERIOD:
+If the question does not pin an exact or concrete time period (it does not name a specific
+year, quarter, date range, or "as of" point), do not penalize text_to_score solely for
+reporting a different time window than expected_answer — for example, more recent data —
+as long as the substance requested is otherwise covered. If the question DOES specify an
+exact time period, grade that period strictly: a mismatch on that axis is scored normally
+under the containment criterion above (missing or wrong-period data is treated like any
+other missing or incorrect element).
+
+EXCEPTION — EPHEMERAL OR POINT-IN-TIME CONTENT:
+Some requested content is inherently time-drifting by nature — live job postings, current
+pricing, recent reviews, today's open positions, and similar real-world content that
+changes continuously and is not expected to stay fixed. When expected_answer is anchored to
+one specific (and by now possibly stale) instance of this kind of content, and the question
+itself does not ask for that literal historical snapshot, do not penalize text_to_score for
+citing a different but equally valid instance that was current at the time of the answer.
+Judge whether the right KIND of content is present (e.g. a live job posting from the
+relevant company, a recent review, current pricing), not whether it is the exact same
+instance recorded in expected_answer.
 
 OUT-OF-SCOPE QUESTIONS AND CLARIFYING RESPONSES:
 If text_to_score is an explanation of why the tool cannot answer that question, or a
@@ -323,6 +405,84 @@ question, score each one independently, without letting one influence the other.
 and expected for the raw tool output to score differently from the final answer on the same
 question.
 
+OUTPUT FORMAT — respond with ONLY this JSON, no additional text:
+{{
+  "verdict": "Cubierta" | "Parcial" | "No cubierta",
+  "justification": "1-2 sentences citing which specific element of expected_answer is or is
+    not present, and why any exception (anonymized values, time period, ephemeral content)
+    does or does not apply.",
+  "elements_requested": ["short list of the substantive elements represented in expected_answer, interpreted in the context of question"],
+  "elements_found": ["from that list, which ones appear in text_to_score"],
+  "elements_missing": ["from that list, which ones do not appear"]
+}}
+
+CALIBRATION — worked examples of how to apply the criterion:
+1. The question asks for "account holder, amount and date of the transaction". text_to_score
+   gives a different (anonymized) holder, a different (anonymized) amount, but DOES give the
+   correct exact date → "Cubierta" (all three data types are present, the concrete values
+   don't matter).
+2. Same question, but text_to_score does not mention the date at all → "Parcial" (an entire
+   category out of the three requested is missing).
+3. The question asks "who is the ultimate beneficial owner of company X" and text_to_score
+   says "I don't have enough information to answer — can you tell me the country of
+   incorporation?" → "No cubierta" (the requested substance — the beneficial owner's
+   identity — is not present).
+4. The question asks for a list of connected companies and text_to_score gives 4 of the 6
+   that appear in expected_answer, without indicating the list is partial → "Parcial".
+5. text_to_score is three times longer than expected_answer, with extra context that wasn't
+   asked for, but it fully includes what the question asked for → "Cubierta" (the extra
+   length is not penalized).
+6. The question asks "what is the company's current registered address" with no date or
+   period named. expected_answer gives an address as of 2022; text_to_score gives a
+   different, more recent address with no 2022 address mentioned at all → "Cubierta" (no
+   exact period was requested, so a different — and more current — time window is not
+   penalized; the substance, a registered address, is present).
+7. The question asks "what were the company's Q1 2023 revenue and net loss" (an exact period
+   is named). text_to_score gives revenue and net loss figures for Q3 2024 only, with no
+   Q1 2023 data → "No cubierta" (the question pins a concrete period, so a different period
+   does not satisfy it — this is not covered by the vague-period exception).
+8. The question asks for "the company's total revenue and its reported net loss for the most
+   recent period available". Across three tool calls, the first call returns only the
+   revenue figure, the second call (a different search) returns only the net loss figure, and
+   the third is unrelated. Scored on the concatenation of all three raw outputs → "Cubierta"
+   (both figures are present somewhere in the totality of tool outputs). The agent's final
+   answer, however, only restates the revenue figure and omits the net loss → final-answer
+   pass scores "Parcial", producing a consolidation-loss case attributable to the
+   consolidation step, not to the underlying tool results.
+9. The question asks "show me a current open position at company X" with no reference to a
+   specific posting ID or date. expected_answer cites a specific job listing that has since
+   been taken down. text_to_score cites a different job listing at the same company, live at
+   the time of the answer, with a plausible role and location → "Cubierta" (the ephemeral-
+   content exception applies: the question did not ask for that literal listing, only for a
+   current opening).
+10. The question asks, openly, "what are the company's main risk factors?" (no categories
+    named). expected_answer covers three specific categories: regulatory risk, credit risk
+    and reputational risk. text_to_score gives a substantive, well-argued discussion of
+    market risk and operational risk instead, never touching regulatory, credit or
+    reputational risk → "No cubierta" (per ROLE OF QUESTION AND EXPECTED ANSWER: text_to_score
+    is a reasonable answer to the open question in the abstract, but the judge must check it
+    against the categories actually represented in expected_answer, not against its own idea
+    of what a good risk-factors answer would include; none of the three requested categories
+    are present).
+    Contrast: question asks "excluding subsidiaries, which countries does company X operate
+    directly in?" (an explicit and unambiguous constraint: exclude subsidiaries).
+    expected_answer lists five countries, two of which are in fact subsidiary-only
+    operations. text_to_score lists only the three genuinely-direct countries, correctly
+    omitting the two subsidiary-only ones → "Cubierta" (the explicit constraint stated in
+    question governs the reading of expected_answer here; omitting elements that the
+    question explicitly excludes is not a missing element).
+11. The question asks "what is company X's registered business activity code (CNAE)?".
+    expected_answer gives only the code, e.g. "6201 - Programming activities". text_to_score
+    gives the correct code AND adds, in passing, an unrelated and factually wrong aside (e.g.
+    a founding year that does not match reality), on a detail expected_answer says nothing
+    about and question never asked for → "Cubierta" (per the narrowed exception (c): only a
+    claim that contradicts expected_answer or an explicit constraint in question lowers the
+    verdict; a false but tangential claim outside what was requested and outside what
+    expected_answer covers is not evaluated here — this judge scores containment of the
+    requested substance, not general fact-checking of everything text_to_score says).
+
+Now grade this case:
+
 Question: {question}
 
 Expected answer (ground truth):
@@ -330,16 +490,6 @@ Expected answer (ground truth):
 
 This is the {pass_label}. text_to_score:
 {text_to_score}
-
-OUTPUT FORMAT — respond with ONLY this JSON, no additional text:
-{{
-  "verdict": "Cubierta" | "Parcial" | "No cubierta",
-  "justification": "1-2 sentences citing which specific element of expected_answer is or is
-    not present, and why the anonymized-value exception does (or does not) apply.",
-  "elements_requested": ["short list of the sub-elements the question asked for"],
-  "elements_found": ["from that list, which ones appear in text_to_score"],
-  "elements_missing": ["from that list, which ones do not appear"]
-}}
 """
 
 _CONTAINMENT_RANK = {"No cubierta": 0, "Parcial": 1, "Cubierta": 2}
@@ -420,9 +570,12 @@ def judge_containment(bedrock_client, model_id: str, question: str, expected_ans
     response = bedrock_client.converse(
         modelId=model_id,
         messages=[{"role": "user", "content": [{"text": prompt}]}],
-        inferenceConfig={"maxTokens": 1000, "temperature": 0},
+        # No `temperature`, and 1000 -> 5000 -- see judge()'s own
+        # inferenceConfig comment (same reasoningContent-eats-the-budget
+        # issue, confirmed live on this pass too).
+        inferenceConfig={"maxTokens": 5000},
     )
-    text = response["output"]["message"]["content"][0]["text"]
+    text = _extract_text(response)
     parsed = _parse_json_response(text)
     return ContainmentResult(
         verdict=parsed["verdict"],
