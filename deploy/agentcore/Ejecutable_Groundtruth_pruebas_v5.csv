@@ -1,0 +1,896 @@
+﻿ID,Use case,Client quesiton,Expected answer,Source
+1,Internal Governance e Internal Audit,¿Qué responsabilidades atribuye la EBA al órgano de administración respecto a la cultura de riesgos?,"Las EBA Guidelines on Internal Governance (EBA/GL/2021/05), publicadas el 2 de julio de 2021 y aplicables desde el 31 de diciembre de 2021, establecen que el órgano de administración es responsable de aprobar, supervisar y ser plenamente responsable del marco de gobierno interno de la entidad. Debe promover una cultura de riesgos sólida, garantizar que el apetito al riesgo aprobado se refleje en la toma de decisiones y asegurar que los sistemas de remuneración, control y conducta sean coherentes con una gestión prudente del riesgo (Título V, apartados 17 a 31 y sección ""Risk Culture"").",EBA
+2,Internal Governance e Internal Audit,¿Qué normativa europea establece requisitos de idoneidad para miembros del Consejo de Administración?,"La Directiva 2013/36/UE (CRD IV), de 26 de junio de 2013, establece en su artículo 91 que los miembros del órgano de administración deben poseer en todo momento suficiente honorabilidad, conocimientos, capacidades y experiencia para ejercer sus funciones. Estos requisitos fueron reforzados posteriormente mediante la Directiva (UE) 2019/878 (CRD V).",EUR-Lex
+3,Internal Governance e Internal Audit,¿Qué principios recomienda la OCDE para garantizar la independencia del Consejo?,"Los G20/OECD Principles of Corporate Governance (2023) establecen en el Principio VI.E que el Consejo debe poder ejercer un juicio objetivo e independiente. Recomiendan la presencia de consejeros independientes, procedimientos para gestionar conflictos de interés y la existencia de comités especializados, especialmente en auditoría, riesgos y remuneraciones.",OECD
+4,Internal Governance e Internal Audit,¿Qué exige la EBA respecto a la función de Compliance?,"Las EBA Guidelines on Internal Governance (EBA/GL/2021/05) exigen una función de cumplimiento normativo permanente, independiente y eficaz. Esta función debe disponer de autoridad suficiente, acceso a toda la información relevante y recursos adecuados para identificar, evaluar, monitorizar y reportar riesgos de cumplimiento al órgano de administración y a la alta dirección.",EBA
+5,Internal Governance e Internal Audit,¿Qué papel atribuye el Comité de Basilea a la función de auditoría interna?,"El documento Corporate Governance Principles for Banks, publicado por el Basel Committee on Banking Supervision (julio de 2015), establece en su Principio 13 que la auditoría interna constituye una función independiente que proporciona aseguramiento al Consejo y a la alta dirección sobre la eficacia del sistema de gobierno corporativo, gestión de riesgos y control interno.",BIS
+6,Internal Governance e Internal Audit,¿Qué organismo publica la versión oficial vigente de los reglamentos y directivas europeas?,"La legislación oficial de la Unión Europea se publica en el Diario Oficial de la Unión Europea (DOUE). Su consulta electrónica se realiza a través del portal EUR-Lex, gestionado por la Oficina de Publicaciones de la Unión Europea. EUR-Lex permite acceder tanto a la versión original como a las versiones consolidadas vigentes de reglamentos y directivas.",Comisión Europea
+7,Internal Governance e Internal Audit,¿Qué expectativas supervisoras tiene el BCE sobre governance arrangements de entidades significativas?,"El European Central Bank Guide on Internal Governance and Risk Culture (2021) establece que las entidades significativas deben contar con una estructura organizativa clara, segregación adecuada de funciones, procesos robustos de toma de decisiones y una supervisión efectiva del riesgo por parte del órgano de administración. El BCE considera la gobernanza interna como un elemento clave dentro del proceso supervisor SREP.",ECB
+8,Internal Governance e Internal Audit,¿Qué indica el Banco de España sobre la responsabilidad del Consejo en la gestión de riesgos?,"En línea con la Ley 10/2014, el Real Decreto 84/2015 y las directrices de EBA incorporadas al marco supervisor español, el Banco de España establece que el órgano de administración es responsable de aprobar la estrategia de riesgos, el marco de apetito al riesgo y supervisar la eficacia de los sistemas de control interno y gestión de riesgos de la entidad.",Banco de España
+9,Internal Governance e Internal Audit,¿Qué requisitos establece la EBA para la externalización de funciones críticas o importantes?,"Las EBA Guidelines on Outsourcing Arrangements (EBA/GL/2019/02), aplicables desde el 30 de septiembre de 2019, establecen que la entidad mantiene la responsabilidad plena sobre cualquier función externalizada. Debe realizar una evaluación previa de riesgos, mantener un registro de externalizaciones, garantizar derechos de acceso y auditoría y disponer de planes de salida para funciones críticas o importantes.",EBA
+10,Internal Governance e Internal Audit,¿Qué establece el modelo de las Tres Líneas respecto al gobierno y gestión de riesgos?,"El IIA Three Lines Model, publicado por el Institute of Internal Auditors en julio de 2020, establece que el órgano de gobierno es responsable de la supervisión y rendición de cuentas; la primera línea gestiona riesgos y controles operativos; la segunda línea supervisa y monitoriza riesgos y cumplimiento; y la tercera línea, auditoría interna, proporciona aseguramiento independiente.",IIA
+11,Internal Governance e Internal Audit,¿Cuáles son los objetivos de un sistema eficaz de control interno según el Comité de Basilea?,"El documento Framework for Internal Control Systems in Banking Organisations, publicado por el Comité de Basilea en septiembre de 1998, establece tres objetivos principales: eficiencia y eficacia operativa, fiabilidad e integridad de la información financiera y de gestión, y cumplimiento de leyes, regulaciones y políticas internas.",BIS
+12,Internal Governance e Internal Audit,¿Qué información debe divulgar una entidad sobre gobierno corporativo según la CNMV?,"El Código de Buen Gobierno de las Sociedades Cotizadas, actualizado por la CNMV en junio de 2020, recomienda divulgar información sobre la estructura accionarial, composición y funcionamiento del Consejo, comisiones, políticas de remuneración, sistemas de control interno, gestión de riesgos y cumplimiento del propio código mediante el Informe Anual de Gobierno Corporativo (IAGC).",CNMV
+13,Internal Governance e Internal Audit,¿Cuál es la finalidad del proceso SREP realizado por supervisores europeos?,"El Supervisory Review and Evaluation Process (SREP), regulado por las EBA Guidelines on SREP (EBA/GL/2022/03), tiene como finalidad evaluar la viabilidad del modelo de negocio, la gobernanza interna, los riesgos para capital y liquidez, y determinar si la entidad necesita medidas supervisoras adicionales o requerimientos prudenciales específicos.",EBA
+14,Internal Governance e Internal Audit,¿Qué criterios utiliza la FCA para evaluar la responsabilidad individual de directivos?,"La Financial Conduct Authority (FCA) aplica el régimen Senior Managers and Certification Regime (SM&CR), introducido para bancos en 2016 y ampliado posteriormente. Exige la asignación clara de responsabilidades mediante los denominados Statements of Responsibilities y permite exigir responsabilidades individuales cuando no se hayan tomado medidas razonables para evitar incumplimientos regulatorios.",FCA
+15,Internal Governance e Internal Audit,¿Qué recomienda la OCDE sobre la gestión de conflictos de interés en el Consejo?,"Los G20/OECD Principles of Corporate Governance (2023) establecen que los consejeros deben revelar de forma oportuna cualquier interés material en operaciones o asuntos que afecten a la sociedad. El Consejo debe disponer de mecanismos transparentes para identificar, gestionar y mitigar conflictos de interés, preservando la independencia de criterio.",OECD
+16,Internal Governance e Internal Audit,¿Qué FAQs ha publicado la EBA para interpretar requisitos de la CRD sobre governance?,"La EBA mantiene el repositorio EBA Single Rulebook Q&A, creado para proporcionar interpretaciones supervisoras consistentes de CRD y CRR. Entre las consultas publicadas existen aclaraciones sobre idoneidad (""fit and proper""), diversidad del órgano de administración, funciones de control interno, gobierno corporativo y responsabilidades del management body.",EBA
+17,Internal Governance e Internal Audit,¿Qué recomendaciones sectoriales ha publicado CECA sobre evolución regulatoria en gobierno corporativo?,"CECA publica periódicamente informes regulatorios, observatorios normativos y documentos de análisis en los que aborda la evolución de las exigencias derivadas de CRD V, sostenibilidad ESG, cultura de riesgos, digitalización y gobierno corporativo en entidades financieras. Sus documentos suelen centrarse en el impacto de nuevas iniciativas europeas sobre las cajas y bancos asociados.",CECA
+18,Internal Governance e Internal Audit,¿Qué estudios recientes relacionan gobierno corporativo y estabilidad financiera?,"El Fondo Monetario Internacional (IMF) ha publicado diversos estudios, entre ellos trabajos incluidos en la serie IMF Working Papers y evaluaciones FSAP (Financial Sector Assessment Program), que concluyen que marcos sólidos de gobernanza, supervisión efectiva y consejos de administración independientes contribuyen a aumentar la resiliencia bancaria y reducir riesgos sistémicos.",IMF
+19,Internal Governance e Internal Audit,¿Qué recomendaciones empresariales publica CEOE sobre buen gobierno y sostenibilidad?,"La CEOE, a través de sus guías y documentos de gobierno corporativo y sostenibilidad publicados especialmente desde 2020, recomienda reforzar la supervisión del Consejo, integrar factores ESG en la estrategia empresarial, fortalecer los mecanismos de control interno y mejorar la transparencia ante inversores y grupos de interés.",CEOE
+20,Internal Governance e Internal Audit,¿Qué análisis económicos sobre regulación financiera y gobernanza publica FEDEA?,"La Fundación de Estudios de Economía Aplicada (FEDEA) publica documentos de trabajo y estudios de economía financiera que analizan el impacto de la regulación prudencial, la gobernanza corporativa, los mecanismos de supervisión bancaria y las reformas institucionales sobre la eficiencia económica, la estabilidad financiera y el crecimiento de largo plazo.",FEDEA
+21,Adverse Media,Isabel José dos Santos tem relações com entidades offshore?,"Empresas e vínculos encontrados:
+ALCEA HOLDING LIMITED
+Vínculo: acionista
+Constituição: 20 de abril de 2012
+Jurisdição: Malta
+Fonte: Paradise Papers
+
+KENTO HOLDING LIMITED
+Vínculo: acionista
+Constituição: 27 de novembro de 2009
+Jurisdição: Malta
+Fonte: Paradise Papers
+
+WISE INTELLIGENCE SOLUTIONS HOLDING LIMITED
+Vínculo: acionista
+Constituição: 21 de junho de 2010
+Jurisdição: Malta
+Fonte: Paradise Papers
+
+WINTERFELL 2 LIMITED
+Vínculos: diretora, representante legal e representante judicial
+Constituição: 10 de março de 2015
+Jurisdição: Malta
+Fonte: Paradise Papers
+
+WINTERFELL INDUSTRIES LIMITED
+Vínculos: diretora, representante legal e representante judicial
+Constituição: 12 de janeiro de 2015
+Jurisdição: Malta
+Fonte: Paradise Papers
+
+FINISANTORO HOLDING LIMITED
+Vínculos: acionista, diretora, representante legal e representante judicial
+Constituição: 31 de janeiro de 2014
+Jurisdição: Malta
+Fonte: Paradise Papers
+
+Endereços associados:
+FUTUNFO DE BELAS ZONA 3, BAIRRO FUTUNGO DE BELAS SAMBA LUANDA
+BAIRRO MAIANGA RUA NARCISO DO ESPIRITO SANTO, NO.54 LUANDA
+RUA DO KUANGO NO. 43, ZONA 3, CONDOMINIO MORRO BENTO, SAMBA
+BAIRRO MAIANGA RUA NARCISO DO ESPIRITO SANTO, NO. 54, LUANDA
+
+1. ALCEA HOLDING LIMITED
+Tipo de registo: entidade
+Jurisdição: Malta
+País associado: Malta
+Data de constituição: 20 de abril de 2012
+Fonte: Paradise Papers, registo societário de Malta
+Pessoas e organizações associadas
+SINDIKA DOKOLO: acionista.
+ISABEL JOSE DOS SANTOS: acionista.
+JORGE MANUEL DE BRITO PEREIRA: secretário.
+KONEMA MWENENGE: diretor, representante legal e representante judicial.
+LEADING EDGE (MALTA) LIMITED: auditor.
+Endereço associado
+ARAGON HOUSE - BUSINESS CENTRE, DRAGONARA ROAD, ST. JULIANSSTJ3140, MALTA. 
+2. KENTO HOLDING LIMITED
+Tipo de registo: entidade
+Jurisdição: Malta
+País associado: Malta
+Data de constituição: 27 de novembro de 2009
+Fonte: Paradise Papers, registo societário de Malta
+Pessoas e organizações associadas
+SINDIKA DOKOLO: acionista.
+ISABEL JOSE DOS SANTOS: acionista.
+JORGE MANUEL DE BRITO PEREIRA: secretário.
+MARIO FILIPE MOREIRA LEITE DA SILVA: diretor, representante legal e representante judicial.
+JOHN CARBONE: diretor, representante legal e representante judicial.
+NOEL BUTTIGIEG SCICLUNA: diretor, representante legal e representante judicial.
+PRICEWATERHOUSECOOPERS: auditor.
+Endereço associado
+ARAGON HOUSE - BUSINESS CENTRE, DRAGONARA ROAD, ST. JULIANSSTJ3140, MALTA. 
+3. WISE INTELLIGENCE SOLUTIONS HOLDING LIMITED
+Tipo de registo: entidade
+Jurisdição: Malta
+País associado: Malta
+Data de constituição: 21 de junho de 2010
+Fonte: Paradise Papers, registo societário de Malta
+Pessoas e organizações associadas
+SINDIKA DOKOLO: acionista.
+ISABEL JOSE DOS SANTOS: acionista.
+JORGE MANUEL DE BRITO PEREIRA: secretário.
+MARIO FILIPE MOREIRA LEITE DA SILVA: diretor, representante legal e representante judicial.
+JOHN CARBONE: diretor, representante legal e representante judicial.
+NOEL BUTTIGIEG SCICLUNA: diretor, representante legal e representante judicial.
+MERCIECA, AZZOPARDI & CO: auditor.
+Endereço associado
+ARAGON BUSINESS CENTRE, DRAGONARA ROAD, ST. JULIANSSTJ3140, MALTA. 
+4. WINTERFELL 2 LIMITED
+Tipo de registo: entidade
+Jurisdição: Malta
+País associado: Malta
+Data de constituição: 10 de março de 2015
+Fonte: Paradise Papers, registo societário de Malta
+Pessoas e organizações associadas
+WINTERFELL INDUSTRIES LIMITED: acionista.
+JORGE MANUEL DE BRITIO PEREIRA: secretário.
+MARIO FILIPE MOREIRA LEITE DA SILVA: diretor, representante legal e representante judicial.
+ISABEL JOSE DOS SANTOS: diretora, representante legal e representante judicial.
+NOEL BUTTIGIEG SCICLUNA: diretor, representante legal e representante judicial.
+EDWARD CARBONE: diretor, representante legal e representante judicial.
+Endereço associado
+ARAGON HOUSE - BUSINESS CENTRE, DRAGONARA ROAD, ST. JULIANSSTJ3140, MALTA. 
+5. WINTERFELL INDUSTRIES LIMITED
+Tipo de registo: entidade
+Jurisdição: Malta
+País associado: Malta
+Data de constituição: 12 de janeiro de 2015
+Fonte: Paradise Papers, registo societário de Malta
+Pessoas e organizações associadas
+NIARA HOLDING, SGPS LDA: acionista.
+ENDE-E.P. EMPRESA NACIONAL DE DISTRIBUICAO DE ELECTRICIDADE- EMPRESA PUBLICA: acionista.
+JORGE MANUEL DE BRITO PEREIRA: secretário.
+MARIO FILIPE MOREIRA LEITE DA SILVA: diretor, representante legal e representante judicial.
+ISABEL JOSE DOS SANTOS: diretora, representante legal e representante judicial.
+NOEL BUTTIGIEG SCICLUNA: diretor, representante legal e representante judicial.
+EDWARD CARBONE: diretor, representante legal e representante judicial.
+Endereço associado
+ARAGON HOUSE - BUSINESS CENTRE, DRAGONARA ROAD, ST. JULIANSSTJ3140, MALTA.
+6. FINISANTORO HOLDING LIMITED
+Tipo de registo: entidade
+Jurisdição: Malta
+País associado: Malta
+Data de constituição: 31 de janeiro de 2014
+Fonte: Paradise Papers, registo societário de Malta
+Pessoas associadas
+SINDIKA DOKOLO: acionista.
+ISABEL JOSE DOS SANTOS: acionista, diretora, representante legal e representante judicial.
+JORGE MANUEL DE BRITO PEREIRA: secretário.
+NOEL BUTTIGIEG SCICLUNA: diretor, representante legal e representante judicial.
+EDWARD CARBONE: diretor, representante legal e representante judicial.
+Endereço associado
+ARAGON HOUSE - BUSINESS CENTRE, DRAGONARA ROAD, ST. JULIANSSTJ3140, MALTA.",ICIJ Offshore Leaks
+22,Adverse Media,"Que informação pública existe sobre Isabel José dos Santos e existem referências materiais, judiciais ou reputacionais?","Página 1 dos resultados
+1. “Isabel dos Santos: uma fortuna sem passado”
+Fonte: Expresso.
+Data: 8 de julho de 2022.
+Excerto apresentado: “Isabel dos Santos, a mulher mais rica de África, tem feito tudo para deixar para trás a ideia de que a sua fortuna se deve ao pai.”
+2. “Isabel dos Santos: Supremo angolano retira quatro dos 11 crimes de que era acusada em fase de instrução”
+Fonte: Observador.
+Data: 18 de novembro de 2025.
+Excerto apresentado: “A filha mais velha do ex-Presidente angolano, José Eduardo dos Santos fica livre das acusações de associação criminosa, abuso de poder,...”
+3. “Isabel dos Santos acusada de 11 crimes no processo Sonangol”
+Fonte: Público.
+Data: 16 de janeiro de 2024.
+Excerto apresentado: “A empresária angolana é acusada de 11 crimes no processo que envolve a sua gestão na petrolífera estatal angolana, entre 2016 e 2017,...”
+4. “Angola: Processo-crime contra Isabel dos Santos em tribunal”
+Fonte: Deutsche Welle.
+Data: 14 de maio de 2025.
+Excerto apresentado: “O processo-crime contra Isabel dos Santos chegou finalmente a tribunal, devendo seguir para a fase de instrução contraditória a 22 de maio.”
+5. “Isabel dos Santos revela dias de descanso, mas fãs preocupam-se: ‘Que semblante de tristeza’”
+Fonte: Flash.pt.
+Data: 29 de julho de 2022.
+Excerto apresentado: “A empresária angolana retomou as férias na praia após toda a polémica envolvendo a morte do pai, José Eduardo dos Santos.”
+6. “Isabel dos Santos e Manuel Vicente têm imóveis de luxo em Londres”
+Fonte: Jornal de Negócios.
+Data: 25 de fevereiro de 2023.
+Excerto apresentado: “As novas regras de transparência introduzidas pelo Reino Unido para identificar quem possui imobiliário no país revelam que a empresária que...”
+7. “Isabel dos Santos prepara resposta legal ao tribunal”
+Fonte: VOA Português.
+Data: 7 de janeiro de 2020.
+Excerto apresentado: “A empresária Isabel dos Santos prepara uma resposta legal contra o que ela alega ser uma ‘caça às bruxas motivada politicamente’ pelo...”
+8. “José Eduardo dos Santos: Filomeno presente no funeral. Tchizé e Isabel dão os parabéns ao pai nas redes sociais”
+Fonte: CNN Portugal.
+Data: 28 de agosto de 2022.
+Excerto apresentado: “José Eduardo dos Santos: Filomeno presente no funeral. Tchizé e Isabel dão os parabéns ao pai nas redes sociais · José Filomeno dos Santos tinha...”
+9. “ISABEL DOS SANTOS: A primeira mulher bilionária da África e seu império em expansão”
+Fonte: SuperYachtFan.
+Data: 27 de junho de 2024.
+Excerto apresentado: “Isabel Dos Santos, a filha do antigo Presidente angolano José Eduardo dos Santos, é uma figura emblemática no panorama económico de África.”
+10. “Isabel dos Santos: Polícia Judiciária impede transferência de 10 milhões de euros do BCP para a Rússia”
+Fonte: Expresso.
+Data: 30 de dezembro de 2019.
+Excerto apresentado: “Tribunal em Angola decreta o arresto dos principais ativos da filha de José Eduardo dos Santos, do marido Sindika Dokolo e do gestor...”
+Página 2 dos resultados
+11. “British court rejects Isabel dos Santos’ appeal against asset freeze”
+Fonte: The Portugal News.
+Data: 30 de setembro de 2024.
+Excerto apresentado: “Angolan businesswoman Isabel dos Santos has seen her appeal against the global asset freeze of £580 million imposed last year rejected by...”
+12. “Angola: Presidente exonera Isabel dos Santos”
+Fonte: Esquerda.net.
+Data: 15 de novembro de 2017.
+Excerto apresentado: “João Lourenço exonerou a filha de José Eduardo dos Santos de presidente do conselho de administração da Sonangol.”
+13. “Interpol confirma emissão de aviso vermelho para Isabel dos Santos”
+Fonte: Público.
+Data: 30 de novembro de 2022.
+Excerto apresentado: “Filha de José Eduardo dos Santos é procurada pelas autoridades angolanas por alegados crimes de desvio de fundos, tráfico de influências,...”
+14. “Isabel dos Santos acusa justiça de se recusar a ouvi-la”
+Fonte: DW.com.
+Data: 20 de novembro de 2025.
+Excerto apresentado: “Isabel dos Santos acusa a justiça angolana de ignorar provas e testemunhas no processo da Sonangol e diz que o Tribunal Supremo já tem uma...”
+15. “As mensagens misteriosas de Isabel dos Santos e da irmã Tchizé, as duas filhas que não saem do lado do antigo presidente de Angola”
+Fonte: Flash.pt.
+Data: 5 de julho de 2022.
+Excerto apresentado: “José Eduardo dos Santos está internado há quase duas semanas nos cuidados intensivos. Estas são as difíceis mensagens das suas filhas.”
+16. “Caso Isabel dos Santos: Questiona-se o impacto dos atrasos”
+Fonte: Deutsche Welle.
+Data: 15 de maio de 2025.
+Excerto apresentado: “Processo-crime contra filha do ex-Presidente de Angola está finalmente no tribunal. ‘Demora pode alimentar a narrativa de que a justiça está...’”
+17. “Relações Angola e Rússia: Que lugar para Isabel dos Santos?”
+Fonte: DW.com.
+Data: 4 de abril de 2019.
+Excerto apresentado: “O poder de Isabel dos Santos em Angola deveu-se principalmente ao fato de ser filha do ex-Presidente do país, José Eduardo dos Santos,...”
+18. “Amnistia para filhos de José Eduardo dos Santos?”
+Fonte: DW.com.
+Data: 14 de julho de 2022.
+Excerto apresentado: “Enquanto a família de José Eduardo dos Santos e o Governo negoceiam a trasladação dos restos mortais do ex-Presidente, um jurista ouvido...”
+19. “Moscovo reafirma Isabel dos Santos como ponta de lança?”
+Fonte: DW.com.
+Data: 25 de outubro de 2019.
+Excerto apresentado: “Juntar o Presidente de Angola, João Lourenço, e a empresária Isabel dos Santos no mesmo evento ‘cheira a provocação’, diz especialista em...”
+20. “Isabel dos Santos ‘atira-se’ a jornalista da CNN Portugal”
+Fonte: A Televisão.
+Data: 14 de julho de 2025.
+Excerto apresentado: “Isabel dos Santos acusa António José Vilela de promover uma ‘campanha de desinformação e falsidades’ contra ela.”",Google / Web Search / News
+23,Adverse Media,Existe comunicação oficial relacionada com José Sócrates?,"Operação Marquês. Acusação
+11-10-2017
+imprensa a
+O Ministério Público, do Departamento Central de Investigação e Ação Penal, deduziu acusação contra 28 arguidos, 19 pessoas singulares e 9 pessoas coletivas, no âmbito da designada Operação Marquês.
+
+Assim, foram acusados:
+
+JOSÉ SÓCRATES CARVALHO PINTO DE SOUSA, pela prática de crimes de corrupção passiva de titular de cargo político (3), branqueamento de capitais (16), falsificação de documento (9) e fraude fiscal qualificada (3)
+
+CARLOS MANUEL DOS SANTOS SILVA, pela prática de crimes de corrupção passiva de titular de cargo político (1), corrupção ativa de titular de cargo político (1), branqueamento de capitais (17), falsificação de documento (10), fraude fiscal (1) e fraude fiscal qualificada (3).
+
+JOAQUIM BARROCA VIEIRA RODRIGUES, pela prática de crimes de corrupção ativa de titular de cargo político (1), corrupção ativa (1), branqueamento de capitais (7), falsificação de documento (3) e fraude fiscal qualificada (2).
+
+LUÍS MANUEL FERREIRA DA SILVA MARQUES, pela prática de crimes de corrupção passiva (1) e branqueamento de capitais (1).
+
+JOSÉ LUÍS RIBEIRO DOS SANTOS, pela prática de crimes de corrupção ativa (1) e branqueamento de capitais (1).
+
+RICARDO ESPÍRITO SANTO SALGADO, pela prática de crimes de corrupção ativa de titular de cargo político (1), corrupção ativa (2) branqueamento de capitais (9), abuso de confiança (3) falsificação de documento (3) e fraude fiscal qualificada (3).
+
+ZEINAL ABEDIN MOHAMED BAVA, pela prática de crimes de corrupção passiva (1), branqueamento de capitais (1), falsificação de documento (1) e fraude fiscal qualificada (2).
+
+HENRIQUE MANUEL FUSCO GRANADEIRO, pela prática de crimes de corrupção passiva (1), branqueamento de capitais (2), peculato (1), abuso de confiança (1) e fraude fiscal qualificada (3).
+
+ARMANDO ANTÓNIO MARTINS VARA, pela prática de crimes de corrupção passiva de Titular de Cargo Político (1), branqueamento de capitais (2) e fraude fiscal qualificada (2).
+
+BÁRBARA CATARINA FIGUEIRA VARA, pela prática de crimes de branqueamento de capitais (2).
+
+RUI MIGUEL DE OLIVEIRA HORTA E COSTA, pela prática de crimes de corrupção ativa de titular de cargo político (1), branqueamento de capitais (1) e fraude fiscal qualificada (2).
+
+JOSÉ DIOGO DA ROCHA VIEIRA GASPAR FERREIRA, pela prática de crimes de corrupção ativa de titular de cargo político (1), branqueamento de capitais (2) e fraude fiscal qualificada (3).
+
+JOSÉ PAULO BERNARDO PINTO DE SOUSA, pela prática de crimes de branqueamento de capitais (2).
+
+HÉLDER JOSÉ BATAGLIA DOS SANTOS, pela prática de crimes de branqueamento de capitais (5), falsificação de documento (2), abuso de confiança (1) e fiscal qualificada (2).
+
+GONÇALO NUNO MENDES DA TRINDADE FERREIRA, pela prática de crimes de branqueamento de capitais (3) e falsificação de documento (1).
+
+INÊS MARIA CARRUSCA PONTES DO ROSÁRIO, pela prática de crime de branqueamento de capitais (1).
+
+JOÃO PEDRO SOARES ANTUNES PERNA, pela prática de crimes de branqueamento de capitais (1) e detenção de arma proibida (1).
+
+SOFIA MESQUITA CARVALHO FAVA, pela prática de crimes de branqueamento de capitais (1) e falsificação de documento (1).
+
+RUI MANUEL ANTUNES MÃO DE FERRO, pela prática de crimes de branqueamento de capitais (1) e falsificação de documento (4).
+
+LENA ENGENHARIA E CONSTRUÇÕES, SA, pela prática de crimes de corrupção ativa (2) branqueamento de capitais (3) e fraude fiscal qualificada (2).
+
+LENA ENGENHARIA E CONSTRUÇÃO SGPS, pela prática de crimes de corrupção ativa (2) e branqueamento de capitais (1).
+
+LENA SGPS, pela prática de crimes de corrupção ativa (2) e branqueamento de capitais (1).
+
+XLM-SOCIEDADE DE ESTUDOS E PRJECTOS LDA, pela prática de crimes de branqueamento de capitais (3) e fraude fiscal qualificada (2).
+
+RMF-CONSULTING, GESTÃO E CONSULTORIA ESTRATÉGICA, Lda, pela prática de crime de branqueamento de capitais (1)
+
+XMI – MANAGEMENT & INVESTMENTS SA, pela prática de crimes de corrupção ativa (1) e branqueamento de capitais (1).
+
+OCEANO CLUBE – EMPREENDIMENTOS TURÍSTICOS DO ALGARVE SA, pela prática de crimes de fraude fiscal qualificada (3).
+
+VALE DO LOBO RESORT TURÍSTICO DE LUXO SA, pela prática de crimes de fraude fiscal qualificada (3).
+
+PEPELAN – CONSULTORIA E GESTÃO SA, pela prática de crimes de fraude fiscal qualificada (1) branqueamento de capitais (1).
+
+Os factos em investigação tiveram lugar entre 2006 e 2015. Segundo a acusação, em síntese, ficou indiciado que os arguidos que exerciam funções públicas ou equiparadas, tendo em vista a obtenção de vantagens, agiram em violação dos deveres funcionais, designadamente em relação às seguintes matérias:
+
+A atuação do arguido JOSÉ SÓCRATES, na qualidade de primeiro-ministro e também após a cessação dessas funções, permitiu a obtenção, por parte do Grupo LENA, de benefícios comerciais. O arguido CARLOS SANTOS SILVA interveio como intermediário de JOSÉ SÓCRATES em todos os contactos com o referido grupo.
+
+A troco desses benefícios e em representação do Grupo LENA, o arguido JOAQUIM BARROCA aceitou efetuar pagamentos, em primeiro lugar para a esfera de CARLOS SANTOS SILVA mas que eram destinados a JOSÉ SÓCRATES. Por outro lado, JOAQUIM BARROCA veio ainda a disponibilizar a utilização de contas bancárias abertas em seu nome na Suíça para movimentar fundos que se destinavam a JOSÉ SÓCRATES.
+
+Acresce que CARLOS SANTOS SILVA, tendo em vista receber outros montantes destinados a JOSÉ SÓCRATES disponibilizou sociedades por si detidas para receber quantias provenientes do Grupo LENA, com base em pretensos contratos de prestação de serviços.
+
+Os fundos acumulados na Suíça integravam também pagamentos determinados pelo arguido RICARDO SALGADO, com a mobilização de quantias oriundas de entidades em offshore que pertenciam ao Grupo Espírito Santo. Tais pagamentos estavam relacionados com intervenções de JOSÉ SÓCRATES, enquanto primeiro-ministro, em favor da estratégia definida por RICARDO SALGADO para o grupo Portugal Telecom, do qual o BES era acionista.
+
+Para ocultar essa finalidade, RICARDO SALGADO utilizou o arguido HÉLDER BATAGLIA para fazer circular fundos por contas no estrangeiro controladas por este último. Todos esses pagamentos eram justificados com contratos fictícios em que era interveniente HÉLDER BATAGLIA.
+
+JOSÉ SÓCRATES conluiado com o arguido ARMANDO VARA, à data administrador da Caixa Geral de Depósitos, recebeu também pagamentos com origem em receitas desviadas do grupo VALE DE LOBO. Tais pagamentos foram determinados por administradores de sociedade desse grupo, tendo em vista facilitar a concessão de financiamentos por parte da CGD.
+
+Com origem nos grupos LENA, Espírito Santo e VALE DE LOBO foi acumulado na Suíça, entre 2006 e 2009, um montante superior a 24 milhões de euros
+
+Este dinheiro foi, num primeiro momento, recebido em contas controladas pelo arguido JOSÉ PAULO PINTO DE SOUSA e, mais tarde, em contas de CARLOS SANTOS SILVA (neste caso, com prévia passagem por contas de JOAQUIM BARROCA).
+
+CARLOS SANTOS SILVA veio depois a transferir o dinheiro para Portugal, através de uma pretensa adesão ao RERT II, visando a sua posterior colocação em contas por si tituladas mas para utilizações no interesse de JOSÉ SÓCRATES.
+
+Tal utilização passava, designadamente, por levantamentos e entregas de quantias em numerário a JOSÉ SÓCRATES, as quais eram efetuadas com a intervenção de CARLOS SANTOS SILVA mas também dos arguidos INÊS DO ROSÁRIO, JOÃO PERNA e GONÇALO FERREIRA.
+
+Esses fundos foram, igualmente, utilizados para aquisição de imóveis, obras de arte, pagamento de viagens, aquisições de exemplares do livro de JOSÉ SÓCRATES e para fazer chegar dinheiro a pessoas das relações deste arguido.
+
+Também a arguida SOFIA FAVA aceitou figurar como adquirente de um imóvel designado “Monte das Margaridas”, sito em Montemor-o-Novo. O imóvel foi adquirido com um financiamento bancário garantido por CARLOS SANTOS SILVA, suportado nos fundos trazidos da Suíça.
+
+Para além dos pagamentos acima referidos em benefício de JOSÉ SÓCRATES, RICARDO SALGADO determinou também que fossem efetuados pagamentos aos arguidos ZEINAL BAVA e HENRIQUE GRANADEIRO. Nesse período, entre 2006 e 2010, estes arguidos exerceram funções na administração da Portugal Telecom, tendo aceitado esses pagamentos para agir em conformidade com interesses definidos por RICARDO SALGADO para o BES enquanto acionista da PT.
+
+Ainda com origem no Grupo Espírito Santo, e por determinação de RICARDO SALGADO, já em 2010 e 2011, CARLOS SANTOS SILVA terá montado um esquema, em conjunto com JOAQUIM BARROCA e HÉLDER BATAGLIA, com vista à atribuição de nova quantia a favor de JOSÉ SÓCRATES. Esse esquema passava pela produção de um contrato promessa de compra e venda de um edifício em Angola. Através do incumprimento dessa contrato promessa e consequentemente perda do sinal, foi justificada a transferência de uma quantia para as contas do grupo LENA que ficou com o encargo de devolver o mesmo montante a CARLOS SANTOS SILVA ou a sociedades do mesmo, para este, por sua vez, fazer chegar o dinheiro a JOSÉ SÓCRATES.
+
+O Ministério Público, do Departamento Central de Investigação e Ação Penal, proferiu nove despachos de arquivamento, nomeadamente em relação ao arguidos João Abrantes Serra, Joaquim Paulo da Conceição e Paulo Lalanda e Castro. Todavia, no que a este último diz respeito foi extraída uma certidão para investigação de factos relativos a sociedades que controlava.
+
+No total, o Ministério Público decidiu extrair 15 certidões, para posterior investigação em processo autónomo.
+
+O despacho final tem mais de 4 mil páginas.
+
+Ao longo do inquérito foram efetuadas cerca de duas centenas de buscas, inquiridas mais de 200 testemunhas e recolhidos dados bancários sobre cerca de 500 contas, quer domiciliadas em Portugal quer no Estrangeiro. Foi igualmente recolhida vasta documentação quer em suporte de papel, quer digital.
+
+Nesta investigação, o Ministério Público foi coadjuvado pela Autoridade Tributária.
+
+
+NUIPC: 122/13.8TELSB
+
+Data da acusação: 09.10.2017",Official Sources: Public Prosecutor / DCIAP / Judicial Police / Courts / Regulators
+24,Adverse Media,"Qual é o percurso profissional público de Ana Botín, segundo o LinkedIn?","Ana Botín
+Executive Chair at Banco Santander
+Santander, Cantabria, Spain
+Experience:
+Executive Chair - Banco Santander - Sep 2014 - Present 
+CEO - Santander UK - 2010 - 2014",LinkedIn
+25,Adverse Media,A REVOLUT LTD está registada no Reino Unido e qual é o seu histórico societário?,"Identificação da empresa
+Nome registado: REVOLUT LTD.
+Número da empresa: 08804411.
+Estado da empresa: ativa.
+Tipo de empresa: sociedade privada limitada, apresentada no registo como “Private limited Company”.
+Data de constituição: 6 de dezembro de 2013.
+Sede social registada
+Endereço: 30 South Colonnade, London, United Kingdom, E14 5HX.
+Cidade: London.
+País indicado: United Kingdom.
+Código postal: E14 5HX.
+Contas da empresa
+Próximas contas referentes ao período terminado em: 31 de dezembro de 2026.
+Prazo indicado para apresentação das próximas contas: 30 de setembro de 2027.
+Últimas contas apresentadas referentes ao período terminado em: 31 de dezembro de 2025.
+Declaração de confirmação
+Data de referência da próxima declaração: 30 de agosto de 2026.
+Prazo indicado para apresentação: 13 de setembro de 2026.
+Data da última declaração apresentada: 30 de agosto de 2025.
+Natureza da atividade empresarial
+Código SIC: 62090.
+Descrição registada: “Other information technology service activities”.",Companies House
+26,Adverse Media,Qual é o estado atual da ALCEA HOLDING LIMITED e que informação societária está disponível?,"ALCEA HOLDING LIMITED
+Identificação da empresa
+Denominação social: ALCEA HOLDING LIMITED.
+Número da empresa: C56036.
+Número nativo no registo: C 56036.
+Estado registado: ativa.
+Jurisdição: Malta.
+Tipo societário: “Limited Liability Company - Private Exempt Single Member”.
+Classificação textual da atividade empresarial: “No Activity”.
+Endereço registado
+Endereço completo consolidado: ARAGON HOUSE BUSINESS CENTRE, DRAGONARA ROAD, SAN GILJAN, STJ 3140, MALTA.
+Endereço adicional da empresa
+Endereço: 171, Old Bakery Street, VLT 1455 Valletta, MT.
+
+Registos de marcas
+Marca “LUANDINA - NASCIDA EM ANGOLA - CERVEJA PREMIUM”
+Texto da marca: “LUANDINA - NASCIDA EM ANGOLA - CERVEJA PREMIUM”.
+Registo ou organismo: World Intellectual Property Organisation.
+Classificação de Nice: classe 32.
+Data de registo: 8 de maio de 2018.
+Data de expiração indicada: 8 de maio de 2028.
+Marca “LUANDINA”
+Texto da marca: “LUANDINA”.
+Registo ou organismo: World Intellectual Property Organisation.
+Classificações de Nice: classes 32 e 33.
+Data de registo: 8 de julho de 2015.
+Data de expiração indicada: 8 de julho de 2025.",OpenCorporates
+27,Corporate structure,"O BANCO SANTANDER TOTTA, S.A. possui LEI e qual é a sua estrutura de relacionamento societário declarada?","Identificação da entidade
+Nome jurídico principal: BANCO SANTANDER TOTTA, S.A..
+Código LEI: 549300URJH9VSI58CS32.
+País: Portugal.
+Estado da entidade: ativo, apresentado como “ACTIVE”.
+Forma jurídica: Sociedade Anónima.
+Código BIC/SWIFT: TOTAPTPLXXX.
+S&P Capital IQ Company ID: 873927.
+Códigos ISIN associados
+PTBSRCOM0038.
+PTSTOEOM0021.
+PTSTOFOM0004.
+PTBSPAOM0008.
+PTSTOGOM0003.
+Endereço da sede: Rua do Ouro, 88, Santa Maria Maior, 1100-053 Lisboa, Portugal.
+Endereço legal: Rua do Ouro, 88, Santa Maria Maior, 1100-053 Lisboa, PT-11, Portugal.
+
+Relações societárias
+Entidade-mãe direta
+Nome: BANCO SANTANDER S.A..
+Tipo de relação: entidade-mãe direta, apresentada como “Direct Parent”.
+Entidade-mãe final
+Nome: BANCO SANTANDER S.A..
+Tipo de relação: entidade-mãe final, apresentada como “Ultimate Parent”.
+Entidades-filhas
+Quantidade indicada de filhas diretas: 1.
+Quantidade indicada de filhas finais: 1.
+Entidade apresentada como filha direta: ESTORES BANDARRA, LDA.
+Entidade apresentada como filha final: ESTORES BANDARRA, LDA.
+Classificação da primeira relação: “Direct”.
+Classificação da segunda relação: “Ultimate”.",GLEIF / LEI
+28,Corporate structure,A THE PORTUGUESE TRADE LTD está registada no Reino Unido e qual é o seu histórico societário?,"Identificação da empresa
+Denominação social: THE PORTUGUESE TRADE LTD.
+Número da empresa: 10054836.
+Tipo societário: sociedade privada limitada, apresentada no registo como “Private limited Company”.
+Data de constituição: 10 de março de 2016.
+Estado da empresa: dissolvida.
+Data da dissolução: 1 de maio de 2018.
+Endereço completo: C/o, Charles Burrell Centre Room 72, Staniforth Road, Thetford, Norfolk, United Kingdom, IP24 3LN.
+
+Natureza das atividades empresariais
+Código SIC: 58130.
+Descrição oficial: “Publishing of newspapers”.
+Código SIC: 68320.
+Descrição oficial: “Management of real estate on a fee or contract basis”.
+Código SIC: 82301.
+Descrição oficial: “Activities of exhibition and fair organisers”.",Companies House
+29,Corporate structure,Qual é o estado atual da KENTO HOLDING LIMITED e que informação societária está disponível?,"Identificação da empresa
+Denominação social: KENTO HOLDING LIMITED.
+Número da empresa: C48291.
+Número nativo no registo: C48291.
+Estado registado: ativa.
+Jurisdição: Malta.
+Tipo societário: “Limited Liability Company - Private Exempt Single Member”.
+Classificação textual da atividade empresarial: “No Activity”.
+
+Endereço registado
+Endereço completo consolidado: ARAGON HOUSE BUSINESS CENTRE, DRAGONARA ROAD, SAN GILJAN, STJ 3140, MALTA.",OpenCorporates
+30,Risk CORAI,"¿La empresa FRIGOL: 68067446/0012-20, sus controladores o empresas del grupo tienen recuperación judicial, quiebra, insolvencia o ejecuciones relevantes?","La empresa FRIGOL identificada con el CNPJ 68.067.446/0012-20, figura con situación registral activa en Brasil y corresponde a la matriz del grupo en Lençóis Paulista (SP). 
+Antecedentes de recuperación judicial
+•	El grupo Frigol solicitó recuperación judicial en 2010 debido a dificultades financieras. La deuda informada en ese momento superaba los R$ 140 millones. 
+•	La empresa ejecutó un plan de reestructuración y la Justicia de São Paulo concluyó que cumplió las obligaciones asumidas frente a los acreedores. 
+•	El proceso fue definitivamente cerrado en octubre de 2019, tras verificarse el cumplimiento del plan de recuperación. Más del 99% de los acreedores habían cobrado sus créditos. 
+•	Diversas publicaciones posteriores indican que la compañía salió de la recuperación judicial y retomó un proceso de expansión y crecimiento operativo. 
+Controladores y empresas del grupo
+No he encontrado evidencia pública reciente de que:
+•	los controladores de Frigol,
+•	ni las principales empresas del grupo,
+se encuentren actualmente en recuperación judicial, quiebra o insolvencia activa. 
+",0
+31,Risk CORAI,"¿Quiénes son los socios, administradores, beneficiarios finales y empresas relacionadas con el grupo económico COTRISEL: 97225346/0001-20?","La entidad consultada es , que opera bajo la marca , con sede en São Sepé, RS (Brasil). Es una cooperativa agroindustrial fundada en 1957 y mantiene situación registral activa. 
+Socios y administradores
+Al tratarse de una cooperativa, no existe un accionista controlador único ni socios con participaciones societarias equivalentes a una sociedad mercantil. Los propietarios son sus asociados/cooperativistas. La cooperativa informa contar con más de 7.400 asociados. 
+Administradores registrados ante Receita Federal
+Los registros públicos muestran como principales administradores:
+•	– Presidente. 
+•	– Director / Vicepresidente. 
+Dirección ejecutiva
+La propia cooperativa publica además los siguientes ejecutivos:
+•	José Paulo Kraemer Salerno – Presidente. 
+•	Giancarlo Müller Pozzebon Director Industrial. 
+Consejo de Administración (mandato 2024-2026)
+Además del presidente y vicepresidente, forman parte del consejo:
+•	José Luiz Furlan Roso",0
+32,Risk CORAI,"¿Hubo cambios recientes en la estructura societaria, administradores o capital social? SIPAL: (CNPJ 1: 2937632/0001-01 y CNPJ 2: 7670089/0001-42)","SIPAL Indústria e Comércio Ltda (CNPJ 02.937.632/0001-01, matriz en Paranaguá/PR) figura con situación registral activa y capital social de R$ 1.901.428,00 replicado en sus establecimientos. El CNPJ 07.670.089/0001-42 no fue localizado en las fuentes públicas consultadas; conviene confirmarlo mediante certidão de inteiro teor en la Junta Comercial (JUCEPAR).
+Cambios societarios relevantes
+•	Entrada de Verde WM Participações en el cuadro societario el 13/12/2022 — ingreso de socio inversor y principal alteración reciente de la estructura de control.
+•	Scholl & Scholl Ltda como socia desde 10/11/2017 y Sipal Assessoria e Participações Ltda desde 14/09/2004; la familia Scholl (Ricardo, Renate, Cláudia y Marilise) permanece en la base societaria desde 12/01/1999.
+Administración
+•	Ricardo Scholl – socio-administrador (desde 12/01/1999).
+•	Willian Scholl – administrador (desde 17/07/2020).
+Movimientos de estructura y capital
+•	Baja de la filial de Marmeleiro/PR el 13/04/2022 por extinción/liquidación voluntaria.
+•	Apertura de filial en Sinop/MT el 11/12/2023 (insumos agrícolas), además de unidades en Cuiabá y Sorriso/MT.
+•	Constitución de PNS Administradora de Bens SPE Ltda (CNPJ 63.208.254/0001-10) el 15/10/2025, con capital social de R$ 35 millones y SIPAL como socia — señal de reorganización patrimonial a monitorear.
+Lectura para riesgo de crédito: el ingreso de socio inversor y la creación de una SPE patrimonial pueden alterar el perímetro del grupo y el paquete de garantías; revisar cláusulas de cambio de control y el alcance de avales y fianzas vigentes.",0
+33,Risk CORAI,"¿Existen deudas tributarias, protestos, contingencias o pasivos públicos relevantes? FRIGOL: 68067446/0012-20","No se identificaron, en fuentes públicas abiertas, deudas tributarias inscritas, protestos vigentes o pasivos públicos relevantes en nombre de FRIGOL S.A. (raíz de CNPJ 68.067.446), que mantiene situación registral activa. La confirmación formal depende de consulta puntual en las bases oficiales.
+Indicadores indirectos de regularidad
+•	Moody's Local Brasil afirmó el 15/09/2026 el Rating de Emisor A-.br (perspectiva estable) y A.br para la 3ª y la 4ª emisiones de debêntures, ambas con garantía real.
+•	En febrero/marzo de 2026 captó R$ 250 millones en su 4ª emisión de CRA (securitizadora Opea, rating A.br sf), destinada al alargamiento del perfil de deuda — operaciones que exigen certidões fiscales y refuerzan la ausencia de pendencias impeditivas.
+Puntos de atención
+•	La agencia señala presión sobre rentabilidad, generación de caja y métricas de crédito en el corto plazo, con recuperación gradual esperada a partir de 2027 y necesidad de gestión activa de pasivos.
+•	Concentración en proteína bovina y exposición al mercado chino amplifican la volatilidad de márgenes y, por consiguiente, el riesgo de formación de pasivos fiscales en escenarios de estrés.
+Fuentes a validar: Lista de Devedores y Regularize (PGFN), CENPROT (protestos), CNDT (TST), CRF/FGTS (Caixa) y e-CAC, consultando por la raíz del CNPJ para consolidar todos los establecimientos y evitar duplicidad entre bases.",0
+34,Risk CORAI,"¿Hay gravámenes, prendas, alienaciones fiduciarias u otros cargos sobre activos relevantes? SIPAL: (CNPJ 1: 2937632/0001-01 y CNPJ 2: 7670089/0001-42)","No existe una base pública única que consolide gravámenes. En las fuentes abiertas consultadas no se identificaron prendas, hipotecas ni alienaciones fiduciarias registradas a nombre de SIPAL; la verificación exige consulta registral específica por CNPJ y por bien.
+Dónde buscar (Agro)
+•	CPR y barter: entidades registradoras autorizadas (B3/CERC) y Registro de Imóveis de la circunscripción del inmueble rural, para penhor agrícola y CPR con garantía real.
+•	Maquinaria y vehículos: alienación fiduciaria en SNG/Detran. Inmuebles rurales: matrícula (hipoteca, alienación fiduciaria, servidumbres).
+•	Existencias y cuentas por cobrar: CDA/WA y warrants emitidos por almacenes generales, además de cesiones fiduciarias vinculadas a contratos de comercialización.
+Particularidad del caso
+•	SIPAL opera comercio de insumos y cereales y almacenamiento con emisión de warrant (CNAE 5211-7/01 en la unidad de Sorriso/MT), por lo que tiende a figurar también como acreedora de CPR/barter y no solo como deudora — la lectura debe separar ambas posiciones.
+•	Marco jurídico en evolución: el Provimento CNJ n.º 216/2026 mantuvo la CPR con liquidación física y el barter fuera de los efectos de la recuperación judicial, mientras decisiones recientes vienen reconociendo naturaleza concursal a la CPR con liquidación exclusivamente financiera — factor decisivo para la exigibilidad de las garantías.
+Lectura para riesgo de crédito: informar acreedor, bien gravado, valor, vigencia y grado de prioridad, y verificar duplicidad de garantía sobre la misma safra o sobre existencias ya comprometidas.",0
+35,Risk CORAI,"¿Existen alertas de integridad, ambientales, agrarias, laborales o regulatorias? FRIGOL: 68067446/0012-20","En la verificación socioambiental más reciente, FRIGOL presenta resultado favorable, sin alertas materiales confirmadas de integridad, ambientales o laborales.
+Auditoría del MPF – TAC de la Carne (divulgada el 20/08/2026)
+•	FriGol alcanzó 100% de conformidad por cuarta vez consecutiva en el 3er ciclo unificado de auditorías de la Amazonia Legal, sobre compras a proveedores directos entre 2023 y 2024 (unidades de São Félix do Xingu y Água Azul do Norte, PA).
+•	El análisis, basado en Guías de Tránsito Animal (GTA), confirmó que el ganado no provino de áreas con deforestación ilegal, tierras indígenas o unidades de conservación, y que los proveedores no constan en la lista de trabajo esclavo.
+•	Referencia sectorial: el ciclo auditó 1,78 millones de animales y detectó irregularidades en 7,5% del total; Minerva y Marfrig (MBRF) también registraron 100% y JBS 97,6%.
+Puntos de atención
+•	Proveedores indirectos: meta de 100% de monitoreo hasta 2030; en Pará el índice de conformidad fue de 93% en 2025 (sistema Visipec, cruce CAR x GTA). Es el principal foco residual de riesgo reputacional y de cadena.
+•	Alineamiento a las directrices de la SARB 26 de Febraban, con divulgación de resultados de conformidad desde 2023 — relevante para el encuadre socioambiental del banco.
+•	Riesgo regulatorio y sanitario: la ampliación de plantas habilitadas para mercados como China e Israel eleva la exposición a eventuales suspensiones de habilitación.
+Fuentes a validar: IBAMA (áreas embargadas y autuaciones), Lista de Transparencia sobre Trabajo Esclavo (MTE), CEIS/CNEP, ICMBio y noticias adversas, separando ocurrencia, alegación, investigación y decisión definitiva.",0
+36,Risk CORAI antiguas,"According to BACEN's SGS API, what is Brazil's total credit portfolio balance (Series 20539) and the monthly IPCA inflation rate (Series 433) for the most recent months available?","Source: BACEN SGS (API). Series 20539 (Total credit portfolio balance, R$ MM): 01/2026=7,123,926; 02/2026=7,151,082; 03/2026=7,221,534; 04/2026=7,245,265. Series 433 (IPCA % monthly): 05/2026=0.58.",BACEN (SGS)
+37,Risk CORAI antiguas,"How can you check whether a company (identified by its CNPJ) has registered tax debt or insolvency status in Brazil's Union active-debt registry (Dívida Ativa / PGFN), and what information does that query return?","Point query by CNPJ at listadevedores.pgfn.gov.br (not a time series): returns name/business name, CPF/CNPJ, consolidated amount and type of registration. No open public API (web search).",Dívida Ativa (PGFN)
+38,Risk CORAI antiguas,"What is a company's tax-compliance status and registered address/activity in Brazil according to Receita Federal — for example, for CNPJ 18.236.120/0001-58 (Nu Pagamentos S.A.)?","Point query by CNPJ. Real e.g. (Receita Federal via BrasilAPI) CNPJ 18.236.120/0001-58 → 'NU PAGAMENTOS S.A. - INSTITUIÇÃO DE PAGAMENTO', registration status ACTIVE, CNAE 'Other auxiliary activities of financial services', São Paulo/SP.",Receita Federal (CNPJ)
+39,Risk CORAI antiguas,"How can you check a company's latest filings and capital changes at the São Paulo commercial registry (JUCESP), and what information does that query return?",Point query by company at jucesponline.sp.gov.br (requires registration/login; no public API). Returns registered corporate acts and their dates; not a time series.,JUCESP
+40,Financial Mgmt - SENDA,"According to McKinsey's Global Banking Annual Review (Featured Insights), what are the key messages on the banking sector outlook and competitive/AI dynamics?","«Global banking net income rose to $1.3 trillion in 2025, up 7% from 2024's record, even as global net interest margin slipped from 1.65% to 1.63%. Four signals are reshaping competition: fintechs now capture 17% of industry revenue (up from 10% in 2021) and are growing at 22% annually versus 5% for banks; neobanks such as Revolut, Nubank and WeBank post ROEs of roughly 30–35% with tens of millions of customers each; agentic AI is eroding traditional deposit ‘stickiness’; and younger customers are far more willing to switch to nontraditional providers (65% of Gen Z vs. 30% of boomers would use an e-wallet). McKinsey urges banks to pursue ‘precision at speed’ by operating as multispeed organizations.»",McKinsey — Global Banking Annual Review 2026: Precision with Speed (21 mayo 2026)
+41,Financial Mgmt - SENDA,"According to Eurostat, what is the recent trend of Spain's HICP inflation rate (prc_hicp_aind) and GDP growth (tec00115)?","Source: Eurostat prc_hicp_aind (HICP, annual rate). Spain: 2025-09=3.0%; 2025-10=3.2%; 2025-11=3.2%; 2025-12=3.0% (euro area 2025-12=1.9%). [GDP: Eurostat tec00115, annual volume change].",Eurostat
+42,Financial Mgmt - SENDA,"What are the ECB's main refinancing rate (MRR) and deposit facility rate (DFR), and the latest euro area HICP inflation rate?",Source: ECB Data Portal. MRR (main refinancing operations) = 2.40% and DFR (deposit facility) = 2.25% as of 2026-06-30. Euro area HICP (ICP) Dec-2025 = 1.9%.,ECB / EBA (Data Portal)
+43,Financial Mgmt - SENDA,What is the current U.S. federal funds rate (EFFR) and how has the unemployment rate (UNRATE) trended over the last few months?,Source: FRED. EFFR (Effective Federal Funds Rate) = 3.63% (2026-06-26). UNRATE (unemployment) = 4.3% (May-2026; Apr 4.3; Mar 4.3; Feb 4.4; Jan 4.3).,Fed (FRED)
+44,Financial Mgmt - SENDA,"According to the ECB/Eurosystem, how has the EUR/USD reference rate evolved over the past quarter?","Source ECB Eurosystem stadistics
+
+tipos_cambio = {
+    # Junio 2026
+    ""2026-06-01"": 1.1646,
+    ""2026-06-02"": 1.1649,
+    ""2026-06-03"": 1.1614,
+    ""2026-06-04"": 1.1640,
+    ""2026-06-05"": 1.1640,
+    ""2026-06-08"": 1.1540,
+    ""2026-06-09"": 1.1573,
+    ""2026-06-10"": 1.1539,
+    ""2026-06-11"": 1.1537,
+    ""2026-06-12"": 1.1567,
+    ""2026-06-15"": 1.1607,
+    ""2026-06-16"": 1.1594,
+    ""2026-06-17"": 1.1591,
+    ""2026-06-18"": 1.1461,
+    ""2026-06-19"": 1.1467,
+    ""2026-06-22"": 1.1456,
+    ""2026-06-23"": 1.1392,
+    ""2026-06-24"": 1.1340,
+    ""2026-06-25"": 1.1342,
+    ""2026-06-26"": 1.1401,
+    ""2026-06-29"": 1.1406,
+    ""2026-06-30"": 1.1394,
+
+    # Julio 2026
+    ""2026-07-01"": 1.1383,
+    ""2026-07-02"": 1.1399,
+    ""2026-07-03"": 1.1448,
+    ""2026-07-06"": 1.1415,
+    ""2026-07-07"": 1.1433,
+    ""2026-07-08"": 1.1404,
+    ""2026-07-09"": 1.1435,
+    ""2026-07-10"": 1.1430,
+    ""2026-07-13"": 1.1424,
+    ""2026-07-14"": 1.1405,
+    ""2026-07-15"": 1.1406,
+    ""2026-07-16"": 1.1467,
+    ""2026-07-17"": 1.1435,
+    ""2026-07-20"": 1.1426,
+    ""2026-07-21"": 1.1418,
+    ""2026-07-22"": 1.1408,
+    ""2026-07-23"": 1.1392,
+    ""2026-07-24"": 1.1377,
+    ""2026-07-27"": 1.1389,
+    ""2026-07-28"": 1.1367,
+    ""2026-07-29"": 1.1380,
+    ""2026-07-30"": 1.1476,
+    ""2026-07-31"": 1.1485,
+
+    # Agosto 2026
+    ""2026-08-03"": 1.1535,
+    ""2026-08-04"": 1.1515,
+    ""2026-08-05"": 1.1554,
+    ""2026-08-06"": 1.1542,
+    ""2026-08-07"": 1.1535,
+    ""2026-08-10"": 1.1555,
+    ""2026-08-11"": 1.1540,
+    ""2026-08-12"": 1.1545,
+    ""2026-08-13"": 1.1534,
+    ""2026-08-14"": 1.1567,
+    ""2026-08-17"": 1.1593,
+    ""2026-08-18"": 1.1576,
+    ""2026-08-19"": 1.1605,
+    ""2026-08-20"": 1.1681,
+    ""2026-08-21"": 1.1699,
+    ""2026-08-24"": 1.1664,
+    ""2026-08-25"": 1.1662,
+    ""2026-08-26"": 1.1669,
+    ""2026-08-27"": 1.1645,
+    ""2026-08-28"": 1.1643,
+    ""2026-08-31"": 1.1596,
+
+    # Septiembre 2026
+    ""2026-09-01"": 1.1590,
+    ""2026-09-02"": 1.1578,
+    ""2026-09-03"": 1.1615,
+    ""2026-09-04"": 1.1622,
+    ""2026-09-07"": 1.1622,
+    ""2026-09-08"": 1.1614,
+    ""2026-09-09"": 1.1652,
+    ""2026-09-10"": 1.1616,
+    ""2026-09-11"": 1.1592,
+    ""2026-09-14"": 1.1551,
+    ""2026-09-15"": 1.1539,
+    ""2026-09-16"": 1.1537,
+    ""2026-09-17"": 1.1481,
+    ""2026-09-18"": 1.1460,
+    ""2026-09-21"": 1.1490,
+    ""2026-09-22"": 1.1463,
+    ""2026-09-23"": 1.1411,
+    ""2026-09-24"": 1.1367,
+}",ECB / Eurosystem
+45,Financial Mgmt - SENDA,"According to STOXX, how has the SX7CA (EURO STOXX Banks Price index, CAD-denominated — Price CAD — version) evolved recently?","Date;Symbol;Indexvalue;
+24.06.2026;SX7CA;109.77;
+25.06.2026;SX7CA;110.57;
+26.06.2026;SX7CA;109.52;
+29.06.2026;SX7CA;109.71;
+30.06.2026;SX7CA;111.12;
+01.07.2026;SX7CA;110.88;
+02.07.2026;SX7CA;113.44;
+03.07.2026;SX7CA;114.21;
+06.07.2026;SX7CA;114.98;
+07.07.2026;SX7CA;114.41;
+08.07.2026;SX7CA;110.24;
+09.07.2026;SX7CA;112.30;
+10.07.2026;SX7CA;112.93;
+13.07.2026;SX7CA;112.50;
+14.07.2026;SX7CA;112.76;
+15.07.2026;SX7CA;112.33;
+16.07.2026;SX7CA;112.65;
+17.07.2026;SX7CA;110.69;
+20.07.2026;SX7CA;111.19;
+21.07.2026;SX7CA;113.40;
+22.07.2026;SX7CA;114.56;
+23.07.2026;SX7CA;110.92;
+24.07.2026;SX7CA;113.30;
+27.07.2026;SX7CA;114.86;
+28.07.2026;SX7CA;114.52;
+29.07.2026;SX7CA;112.54;
+30.07.2026;SX7CA;116.06;
+31.07.2026;SX7CA;116.75;
+03.08.2026;SX7CA;118.83;
+04.08.2026;SX7CA;120.06;
+05.08.2026;SX7CA;120.33;
+06.08.2026;SX7CA;120.76;
+07.08.2026;SX7CA;120.06;
+10.08.2026;SX7CA;120.36;
+11.08.2026;SX7CA;120.02;
+12.08.2026;SX7CA;120.40;
+13.08.2026;SX7CA;120.73;
+14.08.2026;SX7CA;120.77;
+17.08.2026;SX7CA;120.12;
+18.08.2026;SX7CA;119.07;
+19.08.2026;SX7CA;117.32;
+20.08.2026;SX7CA;117.16;
+21.08.2026;SX7CA;117.98;
+24.08.2026;SX7CA;119.33;
+25.08.2026;SX7CA;118.96;
+26.08.2026;SX7CA;120.34;
+27.08.2026;SX7CA;117.68;
+28.08.2026;SX7CA;119.08;
+31.08.2026;SX7CA;118.72;
+01.09.2026;SX7CA;118.33;
+02.09.2026;SX7CA;118.52;
+03.09.2026;SX7CA;120.09;
+04.09.2026;SX7CA;120.47;
+07.09.2026;SX7CA;120.55;
+08.09.2026;SX7CA;120.19;
+09.09.2026;SX7CA;119.12;
+10.09.2026;SX7CA;118.98;
+11.09.2026;SX7CA;121.05;
+14.09.2026;SX7CA;119.24;
+15.09.2026;SX7CA;118.20;
+16.09.2026;SX7CA;118.83;
+17.09.2026;SX7CA;120.15;
+18.09.2026;SX7CA;117.39;
+21.09.2026;SX7CA;119.55;
+22.09.2026;SX7CA;118.63;
+23.09.2026;SX7CA;118.04;",STOXX
+46,FIU,Who is Leopoldo Alejandro Betancourt López? What are his corporate affiliations and any known risks or red flags associated with him?,"Leopoldo Alejandro Betancourt López is a Venezuelan businessman also known by the aliases Alejandro Betancourt, Alejandro Betancourt López, Leopoldo Alejandro Betancourt, and the nickname ""Bolichico."" He was born on February 22, 1980, and is a Venezuelan national. His known identifiers include Venezuelan Cédula V-15394369 and Acuris Unique ID I4065110. Addresses associated with him span Venezuela (El Hatillo, Miranda State; Campo Alegre, Caracas), the United States (Olympic Tower, Fifth Avenue, New York; Florida), and Spain (Toledo).
+He holds or has held multiple corporate roles, primarily tied to the Derwick Associates group of companies. He is listed as an officer of Derwick Associates USA, LLC (Florida), and as a board member and shareholder of Derwick, Associates Corporation (Barbados). He is a legal representative, board member, and shareholder of B.G.B. Energy, C.A., and holds similar roles (legal representative, board member, and shareholder) at Inversiones Ameritile, C.A. He is a board member of Listo Shipping Co. 1 and of Energy Cargo 2000, C.A., a legal representative of Centro Tecnológico de Turbinas CTT, C.A., and is recorded as an employee, legal representative, board member, and general linked party of Derwick Associates de Venezuela. He is also directly linked to Francisco Convit Guruceaga, another Venezuelan national (born 1978) who shares similar money-laundering-related risk events in the graph.
+Betancourt López has substantial adverse media and risk event history, mostly relating to financial crime, corruption, and bribery allegations connected to Derwick Associates and Venezuela's state oil company PDVSA. In June 2026, Spain's Audiencia Nacional ordered the reopening of a money-laundering investigation against him (he is noted as the owner of the Hawkers eyewear brand). In September 2025, he was arrested in London on suspicion of corruption and money laundering, at the request of Spanish anti-corruption investigators, in connection with allegations that Derwick Associates bribed Venezuelan officials to secure power-plant construction contracts. In September 2022, Venezuela's Public Ministry issued an arrest warrant against him for alleged fraud committed during his tenure as a PDVSA-related official. Earlier records include a 2013 racketeering and bribery lawsuit filed by former U.S. Deputy Secretary of State Otto Reich, alleging that Derwick Associates (of which Betancourt was CEO/director) received PDVSA energy contracts through bribery, as well as 2019 adverse media reports describing him as one of the ""Bolichicos"" accused of profiting from Venezuela's state resources, including an alleged attempt to extract $1.2 billion from PDVSA, and links to a Miami federal investigation into Nicolás Maduro's stepsons.","Acuris Risk Intelligence - Entities & Relationships (3rd Party Data); Acuris Risk Intelligence - Risk Information and Articles (3rd Party Data); Venezuela Contractors Registry (Government Procurement Records); Venezuela SAREN-IVSS Registry; Venezuela IVSS Registry; USA Florida Corporate Registry; teleceuta.com - ""La Audiencia Nacional ordena reabrir la investigación contra el empresario venezolano dueño de Hawkers"" (https://teleceuta.com/la-audiencia-nacional-ordena-reabrir-la-investigacion-contra-el-empresario-venezolano-dueno-de-hawkers/); tippinpoint.ch - ""Alejandro Betancourt wurde in London verhaftet"" (https://www.tippinpoint.ch/artikel/78305/alejandro_betancourt_wurde_in_london_verhaftet.html); elsiglo.com.ve - ""MP designa fiscales y órdenes de aprehensión"" (https://elsiglo.com.ve/2022/09/01/mp-designa-fiscales-y-ordenes-de-aprehension/); issuu.com - Otto Reich vs Derwick (https://issuu.com/soberania.org/docs/otto_reich_vs_derwick); eltiempolatino.com - ""Alejandro Betancourt: el 'Bolichico' acusado de hacer fortuna a costa de Venezuela"" (http://eltiempolatino.com/news/2019/may/30/alejandro-betancourt-el-bolichico-acusado-de-hacer/); el-carabobeno.com - ""El empresario Alejandro Betancourt implicado en lavado de dinero"" (https://www.el-carabobeno.com/el-empresario-alejandro-betancourt-implicado-en-lavado-de-dinero/); univision.com - ""Ex-subsecretario de Estado denuncia pago de sobornos"" (http://noticias.univision.com/article/1623524/2013-08-01/univision-investiga/ex-subsecretario-de-estado-de); courthousenews.com - ""Ex-Ambassador Accuses 'ChavezKids' of Bribery"" (http://www.courthousenews.com/2013/07/31/59868.htm); petroleumworld.com - ""U.S. Attorney asks Switzerland for Records in Widening PDVSA Investigation"" (http://www.petroleumworld.com/storyt16032502.htm); justice.gov (DOJ) - ""Two Members of Billion-Dollar Venezuelan Money Laundering Scheme Arrested"" (https://www.justice.gov/usao-sdfl/pr/two-members-billion-dollar-venezuelan-money-laundering-scheme-arrested)"
+47,FIU,"Who owns and controls Allwyn Investments Cyprus Ltd, and what companies is it connected to?","Allwyn Investments Cyprus Ltd is a Cyprus-registered limited company (Cyprus Registration Number HE 432870), based at Neocleous House, 195 Arch. Makariou III Avenue, Limassol, Cyprus. It was formerly known as Rubidium Holding 2 Ltd and is currently listed as registered/active.
+The company has four recorded directors: Katerina Jagiello Brandysova, Dimitris Rotis (Δημήτρης Ρώτης), and Androulla Papadopoulou (Ανδρούλλα Παπαδοπούλου), a Cypriot national born April 14, 1957, who also holds addresses in Limassol and London and appears with multiple passport and Cyprus ID identifiers across different filings. In addition, the corporate entity Montrago Services Limited (registered in Cyprus, with UK and Malta ties, Cyprus Registration Number HE 52239, status active/registered) is listed as an officer of Allwyn Investments Cyprus Ltd.
+On the ownership side, Allwyn Investments Cyprus Ltd is a shareholder of Kaizen Gaming Holding Ltd., a Malta-registered holding company (Malta Company Registration Number C-104894, registered capital €280,612.50, with two classes of ordinary shares — 550,000 Class A and 11,225 Class B shares). Kaizen Gaming Holding is described as a holding/head-office entity and also has a registered presence in Brazil (Brazil CNPJ 52.810.540/0001-34, active status) and a recorded beneficial ownership filing in Austria.
+No adverse media, litigation, or risk events are recorded for Allwyn Investments Cyprus Ltd or its associated individuals and companies in this data set; all records are standard corporate registry filings.",Cyprus Department of Registrar of Companies and Official Receiver (Company Record); Malta Companies Register (Company Record); UK Corporate Registry (Company Record); UK Persons with Significant Control (Company Record); Infocredit Cyprus Company Shareholders Database (3rd Party Data); Brazil Receita Federal (Company Record); Austria Auszug.at Firmenbuch - Active Entities (Company Record); Austria Beneficial Ownership (Company Record)
+48,FIU,"Who is Ali Ansari? What sanctions or watchlist designations apply to him, and what companies is he connected to?","Ali Ansari (also recorded as Ali Aliakbar Ansari, Aliakbar Ansari, and علی انصاری) is an Iranian businessman, born December 26, 1968, associated with Iran, the United Arab Emirates (Dubai), Cyprus, the United Kingdom, Saint Kitts and Nevis, Luxembourg, and Germany. He holds multiple passports (Iranian, Cypriot, and one from St Kitts and Nevis) and an Iranian national ID number.
+He is currently sanctioned by several authorities. The U.S. Treasury's OFAC added him to the Specially Designated Nationals (SDN) List under Executive Order 13224 (terrorism), with secondary-sanctions exposure and links to the IRGC and Iran-related programs. The UK Consolidated Sanctions List designates him under the Iran (Sanctions) Regulations 2023, citing support for hostile Iranian government activity via economic resources to the IRGC, with an asset freeze, travel ban, and director disqualification. He also appears on the EU sanctions list (via the Official Journal of the EU / OpenSanctions), France's National Asset Freeze Register, Switzerland's SECO sanctions list, and the U.S. Consolidated Screening List for export controls.
+The stated rationale across these listings is consistent: Ansari is described as the former owner of Bank Ayandeh (Ayandeh Bank) and of the Iran Mall, who used a network of companies and foreign banking channels — funded in part by Iranian oil sales — to move money abroad in support of Iran's military and the IRGC. He is also said to have acquired real estate and other assets in the EU and UK on behalf of individuals connected to Iran's leadership, including Mojtaba Khamenei, who is directly linked to him in the sanctions data.
+His corporate network spans several jurisdictions. In Germany, he is a shareholder of Allsco GmbH (real estate/hospitality-related activities) and a beneficial owner, director, and shareholder of German ETD GmbH (construction-materials wholesale and R&D). In Luxembourg, he is the beneficial owner of Leopard Germany Bero 1 S.à r.l. and Leopard Germany Bero 2 S.à r.l. (holding companies) and of Tidalwave Holdings I S.à r.l. (a financial holding/""Soparfi""). In the UK/Isle of Man, he is the beneficial owner of Birch Ventures Limited, which owns UK real estate per the UK's Overseas Companies Ownership Data register. In the UAE, he is listed as beneficial owner, manager, and shareholder of TAT Building Materials Trading L.L.C. in Dubai. He is also linked to Ziba Leisure Limited (also known as Smart Global Limited), a Saint Kitts and Nevis/UK-registered holding company that is separately OFAC-sanctioned.
+The data also shows a set of former (historical) roles in Iran, including director of and links to Bank Ayandeh, and board membership or links to a group of Iranian ""TAT"" companies and charitable foundations — among them Towse'e Sakhtemani Saman, Ansar Zarandieh Industrial Town Company, Tehran Pipe and Profile Manufacturing Company, Tat Ansar Investment Group, and several Tat-affiliated charitable foundations — reflecting his earlier business network inside Iran before his current sanctioned status.",Sanction Record from USA Treasury OFAC Specially Designated Nationals (SDN) List; Sanction Record from UK Consolidated Sanctions List; Sanction Record from OpenSanctions - Global Sanctions List (Official Journal of the EU / EU-IRN program); Sanction Record from France National Asset Freeze Register; Sanction Record from Switzerland SECO Sanctions List; Supply Chain Screening Record from USA Consolidated Screening List; Risk Intelligence Record from Acuris Risk Intelligence - Entities & Relationships (3rd Party Data); Adverse Media Record from Acuris Risk Intelligence - Risk Information and Articles (3rd Party Data); Company Record from Germany Validatis Shareholder Lists (3rd Party Data); Company Record from Germany Beneficial Ownership; Company Record from Luxembourg Registry of Beneficial Owners; Company Record from Luxembourg Beneficial Ownership; Luxembourg RESA (Recueil Électronique des Sociétés et Associations) company filings; Company Record from UK Persons with Significant Control; Company Record from UK Corporate Registry; Company Record from Isle of Man Corporate Registry; Land/property Record from UK Land Overseas Company Ownership Data (OCOD); Company Record from Legal Entity Identifier (LEI) Registry (3rd Party Data); Company Record from UAE Cedar Rose Company Database (3rd Party Data); Iranian company gazette filings (آگهی تاسیس/تغییرات) for TAT-group companies and Bank Ayandeh
+49,Internal Governance,What is the governance procedure in force and its latest version regulating the suitability and composition of a credit institution's management body?,"«Institutions, financial holding companies and mixed financial holding companies shall have the primary responsibility for ensuring that members of the management body are at all times of sufficiently good repute and possess sufficient knowledge, skills and experience to perform their duties. Members of the management body shall, in particular, fulfil the requirements set out in paragraphs 2 to 8.»",EU-Lex
+50,Internal Governance,"According to CEOE's public website, how does it describe its membership scope, and what are its two most recent conferences or events?","«The Spanish Confederation of Employers' Organizations (CEOE) brings together two million companies and self-employed workers across all sectors of activity.» Recent activity: conferences 'Digital sovereignty, Europe's path to autonomy' (CEOE-Kyndryl) and 'Business proposals in the negotiation of the university system'.",CEOE
+51,Internal Governance,What is the sector's stance (CECA) on banking regulation in Spain?,«Simplifying regulation would increase the Spanish banking sector's financing capacity by €250 billion» (ES: 'Simplificar la regulación aumentaría en 250.000 millones la capacidad de financiación del sector bancario en España'). Another release: the social welfare program (Obra Social) of member institutions exceeds €1 billion in investment.,CECA
+52,Internal Governance,"According to the EBA Risk Dashboard (Q1 2026 Data Annex), what is the NPL ratio for non-financial corporations by sector/country breakdown for EU banks (e.g., Austria, 'Information and communication' sector)?","Recognised source: EBA Risk Dashboard – Data Annex Q1 2026 (.xlsx), tab ""Exposures and NPLs by Sector_1"" (Non-trading loans and advances to non-financial corporations by sector). Columns [lbl][Period][NSA][Custom][Value]. E.g. series lbl=T2410 · NSA=AT · Custom=""J Information and communication"": 202509→0.0213; 202512→0.0208; 202603→0.0215.",EBA (Risk Dashboard)
+53,Internal Governance,"What CET1 capital ratio, total capital ratio and return on equity (RoE) do significant institutions supervised by the ECB report (per the ECB's Supervisory Banking Statistics)?",Source: ECB Supervisory Banking Statistics (significant institutions). Q3 2025: aggregate CET1 16.10% (Q2 2025: 16.12%; a year earlier: 15.73%); total capital 20.24%; annualised RoE 9.88%.,ECB (Banking Supervision)
+54,OpenBank Board,"How did Nubank's quarterly amount lent, interest-earning portfolio (IEP), Ultraviolet credit card purchase volume and NuMEX deposits evolve from Q4 2022 to Q4 2023, and what regulatory milestone (e.g., NuCOL's financing license) did it achieve?",«Quarterly amount lent increased from $0.9B in Q4'22 to $2B in Q4'23 (+100% FXN YoY) and IEP climbed from $2.0B in Q4'22 to $3.7B in Q4'23 (+76% FXN YoY). Quarterly Ultraviolet Credit Card Purchase Volume increased from $0.5B in Q4'22 to $1.1B in Q4'23 (+104% FXN YoY)... NuMEX deposits increased from $0 to $1B+ within 7 months from public launch; NuCOL was granted Financing Company License.»,Nubank (Results Center)
+55,OpenBank Board,What new products and account features does the competitor (N26) offer?,"«N26 Smart: Mastercard debit card, up to 10 sub-accounts (Spaces), budgeting tools, free ATM withdrawals and commission-free purchase of stocks and ETFs. Requirements: over 18, residence in an eligible country and a valid ID.»",N26 (Product)
+56,OpenBank Board,"What are the competitor's (Revolut) plans, prices and fee changes and how do they differ by tier?","«Standard — Free; Plus — £3.99/month; Premium — £7.99/month; Metal — £14.99/month; Ultra — £55/month (introductory offer). Declared annual benefits: Plus ~£100, Premium ~£1,750, Metal ~£3,750, Ultra >£9,000.»",Revolut (Pricing)
+57,OpenBank Board,What new products and features has the competitor (Revolut) recently announced?,"«Revolut reveals 2025 vision, with AI assistant, mortgages, and ATMs on the horizon» and «Revolut reports record profit of $2.3bn for 2025 as revenue surges to $6bn».",Revolut (Newsroom)
+58,OpenBank Board,What do users value and complain about in the competitor's (Revolut) app reviews?,"«4.7 out of 5 (69K Ratings). Featured review: 'Optionality for $160 year unbeatable' (praising the investment section and the high-yield account), alongside criticism such as 'Extremely Glitchy Compared to TransferWise' and 'One of the absolute worst apps I ever used'.»",Revolut (App Store reviews)
+59,OpenBank Board,How many new cars were registered in the EU and what is the battery-electric market share in the latest period?,"Source: ACEA / ECB Data Portal (dataset CAR). EU Jan-May 2026: 4,748,801 registrations (+4.0% YoY); battery-electric 950,521 (20% share). May 2026: EU 955,013 (+3.2%); BEV 203,417.",ACEA · ECB (CAR registrations)
+60,OpenBank Board,What are the competitor's (Nubank) annual revenue and net income from its financial filings?,"Source: SEC EDGAR CompanyFacts API (CIK 0001691493, ifrs-full). Revenue (USD): 2022=4,792.2M; 2023=8,029.0M; 2024=11,517.1M. Net income (ProfitLoss): 2022=−364.6M; 2023=1,030.5M; 2024=1,972.1M.",SEC EDGAR (Nu Holdings)
+61,ORAI External Intelligence & Media Awareness,¿Qué temas relacionados con Santander han recibido mayor cobertura mediática durante los últimos 30 días?,"Ranking: 1) Transformación digital y banca móvil (28%), 2) Resultados trimestrales (24%), 3) Sostenibilidad y financiación verde (18%), 4) Inteligencia artificial aplicada al negocio (15%), 5) Regulación bancaria (15%).",Signal AI
+62,ORAI External Intelligence & Media Awareness,¿Cuáles son las principales narrativas que los medios están asociando actualmente al sector bancario europeo?,"Las narrativas predominantes detectadas son: reducción de tipos de interés, digitalización bancaria, rentabilidad en entorno regulatorio exigente, financiación sostenible y adopción de IA generativa.",Signal AI
+63,ORAI External Intelligence & Media Awareness,¿Qué acontecimientos recientes han generado un incremento significativo de noticias sobre sostenibilidad en el sector financiero?,"Los eventos con mayor impacto mediático serían una nueva emisión de bonos verdes por grandes bancos europeos, la publicación de objetivos Net Zero y nuevas exigencias regulatorias de reporte ESG.",Signal AI
+64,ORAI External Intelligence & Media Awareness,¿Qué medios están generando mayor volumen de cobertura sobre Santander esta semana?,"Ranking: Financial Times (132 artículos), Reuters (118), Expansión (86), El Economista (74), Bloomberg (72).",Signal AI
+65,ORAI External Intelligence & Media Awareness,¿Cuál es el sentimiento predominante de la cobertura reciente sobre Santander?,"Distribución agregada: 62% neutral, 25% positiva y 13% negativa. Los temas positivos se asocian a resultados y digitalización; los negativos a regulación y presión competitiva.",Signal AI
+66,ORAI External Intelligence & Media Awareness,¿Qué temas relacionados con inteligencia artificial están siendo más relevantes para el sector financiero?,"Los temas con mayor crecimiento serían copilotos bancarios, automatización de procesos regulatorios, detección de fraude mediante IA, personalización comercial y gobernanza de modelos de IA.",Signal AI
+67,ORAI External Intelligence & Media Awareness,"¿Qué bancos (Santander y competidores como BBVA, ING, CaixaBank y Deutsche Bank) están recibiendo actualmente una cobertura mediática más positiva en sostenibilidad?","Comparativa: BBVA (71% sentimiento favorable ESG), ING (69%), CaixaBank (65%), Santander (63%) y Deutsche Bank (57%).",Signal AI
+68,ORAI External Intelligence & Media Awareness,¿Qué acontecimientos relevantes relacionados con regulación financiera se han detectado esta semana?,"Se detecta un aumento de cobertura sobre requisitos ESG para entidades financieras, resiliencia operacional digital, ciberseguridad y supervisión prudencial europea.",Signal AI
+69,ORAI External Intelligence & Media Awareness,¿Qué temas emergentes relacionados con banca digital están creciendo en visibilidad?,"Crecen especialmente las menciones a open finance, identidad digital, pagos instantáneos, asistentes conversacionales con IA y experiencias omnicanal.",Signal AI
+70,ORAI External Intelligence & Media Awareness,¿Qué noticias recientes relacionan a Santander con iniciativas de sostenibilidad?,"Las referencias más visibles incluyen financiación de proyectos renovables, programas de descarbonización de clientes corporativos y compromisos de reducción de emisiones financiadas.",Signal AI
+71,ORAI External Intelligence & Media Awareness,¿Qué mercados geográficos concentran actualmente la mayor cobertura sobre Santander?,"Distribución de cobertura: España 32%, Reino Unido 21%, Brasil 18%, México 11%, Estados Unidos 8%, resto de Europa 10%.",Signal AI
+72,ORAI External Intelligence & Media Awareness,¿Qué temas asociados a experiencia de empleado están generando mayor atención en el sector financiero?,"Los medios destacan trabajo híbrido, formación en IA, bienestar laboral, atracción de talento digital y reskilling tecnológico.",Signal AI
+73,ORAI External Intelligence & Media Awareness,¿Qué eventos podrían requerir una comunicación interna específica a empleados?,"Resultados financieros, cambios regulatorios relevantes, incidentes sectoriales de ciberseguridad y anuncios corporativos de transformación tecnológica.",Signal AI
+74,ORAI External Intelligence & Media Awareness,¿Qué cuestiones reputacionales aparecen con mayor frecuencia vinculadas al sector bancario?,"Las temáticas recurrentes son protección de datos, fraude financiero, sostenibilidad, prácticas comerciales responsables, gobernanza corporativa y cumplimiento normativo.",Signal AI
+75,ORAI External Intelligence & Media Awareness,¿Qué diferencias existen entre la cobertura mediática de Santander y la de sus principales competidores?,Santander concentra más cobertura en internacionalización y transformación digital; BBVA recibe más menciones relacionadas con innovación tecnológica y sostenibilidad. Sentimiento neto ligeramente superior para BBVA (+6 puntos).,Signal AI
+76,ORAI External Intelligence & Media Awareness,¿Qué tendencias relacionadas con transformación digital tienen mayor presencia en medios especializados?,"Los temas más visibles son IA generativa, cloud híbrido, automatización inteligente, open banking, analítica avanzada y modernización de plataformas core.",Signal AI
+77,ORAI External Intelligence & Media Awareness,¿Qué temas asociados a ciberseguridad están aumentando su presencia en la prensa financiera?,"Destacan fraude basado en IA, gestión de terceros, resiliencia operativa digital, ransomware financiero y protección de identidad digital.",Signal AI
+78,ORAI External Intelligence & Media Awareness,¿Qué entidades aparecen con mayor frecuencia junto a Santander en las noticias recientes?,"Las entidades más asociadas serían BBVA, CaixaBank, Banco Central Europeo, Banco de España, Mastercard, Visa y la EBA.",Signal AI
+79,ORAI External Intelligence & Media Awareness,¿Qué noticias sobre el sector financiero han registrado mayor difusión durante la última semana?,"Las noticias con mayor alcance serían decisiones de tipos de interés, resultados de grandes bancos europeos, nuevas regulaciones tecnológicas y avances en IA aplicada a servicios financieros.",Signal AI
+80,ORAI External Intelligence & Media Awareness,¿Qué tendencias de comunicación corporativa están siguiendo actualmente las principales entidades financieras?,"Predominan mensajes sobre sostenibilidad, digitalización, inteligencia artificial responsable, experiencia de cliente, resiliencia operativa y creación de valor a largo plazo.",Signal AI
+81,Corporate Website Intelligence & Risk Enrichment,¿Qué filiales declara actualmente Banco Santander en su página corporativa?,"Banco Santander identifica como principales entidades del grupo a Santander España, Santander UK, Santander Consumer Finance, Santander Brasil, Santander México, Santander Chile, Santander Argentina, Santander Portugal y Santander US Holdings. Estas sociedades forman parte del perímetro principal de consolidación del grupo bancario.",Santander.com → Accionistas e Inversores → Informe Anual → Estructura del Grupo / Grupo Santander
+82,Corporate Website Intelligence & Risk Enrichment,¿En qué países indica Telefónica que opera actualmente?,"Telefónica declara que sus principales mercados son España, Alemania, Reino Unido y Brasil, donde concentra la mayor parte de sus clientes, ingresos e infraestructuras de telecomunicaciones.",Telefonica.com → Sobre Telefónica → Nuestra Huella (Our Footprint)
+83,Corporate Website Intelligence & Risk Enrichment,¿Quiénes forman parte del Comité Ejecutivo de Siemens AG según la web corporativa?,"Siemens publica la composición de su Managing Board, presidido por Roland Busch (CEO), junto con los responsables de Finanzas, Tecnología, Recursos Humanos y las diferentes áreas industriales del grupo.",Siemens.com → Company → Corporate Governance → Managing Board
+84,Corporate Website Intelligence & Risk Enrichment,¿Qué cambios recientes en la alta dirección ha anunciado Vodafone Group?,Vodafone comunicó el nombramiento de Margherita Della Valle como CEO permanente tras ocupar previamente el cargo de forma interina. El cambio se publicó mediante comunicado oficial dirigido al mercado e inversores.,Vodafone.com → Media Centre / Investors → Press Releases
+85,Corporate Website Intelligence & Risk Enrichment,¿Cuáles son las principales líneas de negocio que declara Mercadona?,"Mercadona describe su actividad principal como distribución alimentaria de proximidad, incluyendo alimentación, frescos, droguería, perfumería, cuidado del hogar, mascotas y canal online, apoyada por una red logística propia y fabricantes especialistas.",Mercadona.es → Conócenos → Modelo de Negocio
+86,Corporate Website Intelligence & Risk Enrichment,¿Qué proveedores o partners tecnológicos estratégicos menciona Iberdrola?,"Iberdrola ha comunicado colaboraciones tecnológicas con compañías como Microsoft, Amazon Web Services (AWS), SAP y Siemens, principalmente en ámbitos de digitalización, redes inteligentes, analítica de datos y transición energética.",Iberdrola.com → Sala de Comunicación → Noticias y Notas de Prensa
+87,Corporate Website Intelligence & Risk Enrichment,¿Qué clientes de referencia publica Accenture en su web corporativa?,"Accenture presenta casos de éxito desarrollados para organizaciones como Microsoft, Airbus, Unilever, BBVA, Carrefour y Marriott, destacando proyectos de transformación digital, cloud e inteligencia artificial.",Accenture.com → Insights → Client Stories
+88,Corporate Website Intelligence & Risk Enrichment,¿Qué certificaciones vigentes declara poseer Indra Group?,"Indra informa de certificaciones corporativas como ISO 9001 (Calidad), ISO 14001 (Gestión Ambiental), ISO 27001 (Seguridad de la Información) e ISO 45001 (Seguridad y Salud Laboral) en diferentes sociedades y centros del grupo.",Indracompany.com → Sostenibilidad / Calidad y Excelencia
+89,Corporate Website Intelligence & Risk Enrichment,¿Qué sedes y oficinas mantiene Deloitte en España?,"Deloitte publica oficinas en Madrid, Barcelona, Bilbao, Valencia, Sevilla, Málaga, Zaragoza, Valladolid, Vigo y A Coruña, además de otras localizaciones de su red nacional.",Deloitte.com/es → Contacto → Oficinas
+90,Corporate Website Intelligence & Risk Enrichment,¿Ha realizado Cisco adquisiciones recientes según su página corporativa?,"Cisco anunció la adquisición de Splunk Inc. por aproximadamente 28.000 millones de dólares, con el objetivo de reforzar sus capacidades de observabilidad, análisis de datos y ciberseguridad.",Cisco.com → Newsroom → Press Releases → Splunk Acquisition
+91,Corporate Website Intelligence & Risk Enrichment,¿Qué alianzas estratégicas ha comunicado Microsoft durante el último año?,"Microsoft ha comunicado la ampliación de su colaboración estratégica con OpenAI, integrando capacidades de IA generativa en Azure, Microsoft 365 y Copilot.",Microsoft.com → News Center / Investor Relations
+92,Corporate Website Intelligence & Risk Enrichment,¿Qué información ESG publica Unilever fuera de sus informes oficiales?,"Unilever mantiene contenidos específicos sobre reducción de emisiones, economía circular, abastecimiento responsable, envases sostenibles y programas de impacto social, accesibles desde su portal de sostenibilidad.",Unilever.com → Planet & Society / Sustainability
+93,Corporate Website Intelligence & Risk Enrichment,¿Qué canales de contacto corporativo ofrece BBVA?,"BBVA ofrece formularios de contacto, atención al accionista, Investor Relations, contacto para medios de comunicación, oficinas comerciales y canales específicos para clientes y proveedores.",BBVA.com → Contacto / Accionistas e Inversores
+94,Corporate Website Intelligence & Risk Enrichment,¿Qué eventos o congresos declara SAP haber patrocinado recientemente?,"SAP promociona y organiza eventos como SAP Sapphire, considerado su principal encuentro internacional para clientes, socios y responsables tecnológicos.",SAP.com → Events → SAP Sapphire
+95,Corporate Website Intelligence & Risk Enrichment,¿Qué mercados o sectores considera AWS estratégicos para su crecimiento?,"AWS identifica como sectores prioritarios servicios financieros, sector público, salud, telecomunicaciones, automoción e inteligencia artificial generativa, con foco en migración cloud y modernización tecnológica.",AWS.amazon.com → Industries / AI & Machine Learning
+96,Corporate Website Intelligence & Risk Enrichment,¿Qué productos o servicios ha lanzado recientemente Google Cloud?,"Google Cloud ha anunciado nuevas capacidades empresariales basadas en Gemini, incluyendo asistentes de IA generativa integrados en Google Workspace y servicios avanzados para desarrolladores sobre Vertex AI.",Cloud.google.com → Blog / News & Product Announcements
+97,Corporate Website Intelligence & Risk Enrichment,¿Qué estructura societaria representa Volkswagen Group en la web del grupo?,"Volkswagen AG identifica como principales marcas y sociedades del grupo a Volkswagen Passenger Cars, Audi, Porsche, SEAT/CUPRA, Škoda, Bentley, Lamborghini, Ducati, MAN y Scania.",Volkswagen-group.com → Group → Brands & Business Areas
+98,Corporate Website Intelligence & Risk Enrichment,¿Qué políticas de compras o relación con proveedores publica Nestlé?,"Nestlé publica un Nestlé Supplier Code que establece requisitos en materia de ética empresarial, derechos humanos, sostenibilidad, cumplimiento normativo, salud y seguridad laboral aplicables a todos los proveedores.",Nestle.com → Suppliers → Nestlé Supplier Code
+99,Corporate Website Intelligence & Risk Enrichment,¿Qué premios o reconocimientos corporativos ha comunicado Salesforce?,"Salesforce ha comunicado su inclusión en rankings como Fortune World's Most Admired Companies y Fortune Best Companies to Work For, además de reconocimientos de analistas del sector CRM.",Salesforce.com → Newsroom → Awards & Recognition
+100,Corporate Website Intelligence & Risk Enrichment,¿Qué hechos relevantes recientes ha comunicado NVIDIA directamente en su web?,"NVIDIA ha publicado anuncios relacionados con nuevas arquitecturas de IA para centros de datos, acuerdos con proveedores cloud globales y resultados financieros impulsados por la demanda de soluciones de inteligencia artificial.",NVIDIA.com → Newsroom → Corporate News & Press Releases
+121,Company Name Matching,¿Qué información está registrada para la empresa 'ESTACION DE SERVICIO LA RAZA S.A.'?,"Código fiscal (CIF): A41057597
+Tipo de documento: CODIGO DE IDENTIFICACION FISCAL
+Nacionalidad: ESPAÑA
+Sector contable: OTRAS SOCIEDADES NO FINANCIERAS - OTROS SECTORES RESIDENTES
+Categoría de actividad económica: COMERCIO AL POR MENOR DE COMBUSTIBLE PARA LA AUTOM
+Dirección: AV DE LA RAZA - GASOLINERA, S/N - 41012 ESPAÑA
+CNAE: 4730 - COMERCIO AL POR MENOR DE COMBUSTIBLE PARA LA AUTOMOCION",Datos internos (companies.csv)
+122,Company Name Matching,¿Qué información está registrada para la empresa 'AYUNTAMIENTO DE LA ALBERCA'?,"Código fiscal (CIF): P3701000F
+Tipo de documento: CODIGO DE IDENTIFICACION FISCAL
+Nacionalidad: ESPAÑA
+Sector contable: CORPORACIONES LOCALES Y SUS CTAS. RECAUDACION - RESIDENTES
+Categoría de actividad económica: ACTIVIDADES GENERALES DE LA ADMINISTRACION PUBLICA
+Dirección: PZ PLAZA, 16 - 37624 ESPAÑA
+CNAE: 8411 - ACTIVIDADES GENERALES DE LA ADMINISTRACION PUBLICA",Datos internos (companies.csv)
+123,Company Name Matching,¿Qué información está registrada para la empresa 'FARMACIA DE OJEDO CB'?,"Código fiscal (CIF): E39837505
+Tipo de documento: CODIGO DE IDENTIFICACION FISCAL
+Nacionalidad: ESPAÑA
+Sector contable: OTRAS SOCIEDADES NO FINANCIERAS - OTROS SECTORES RESIDENTES
+Categoría de actividad económica: OTRAS ACTIVIDADES SANITARIAS N.C.O.P.
+Dirección: AV DEL DEVA, 1 (CILLORIGO DE LIEBANA) - 39584 ESPAÑA
+CNAE: 8699 - OTRAS ACTIVIDADES SANITARIAS N.C.O.P.",Datos internos (companies.csv)
+124,Company Name Matching,¿Qué información está registrada para la empresa 'MANGROVE LOGISTICS S.L.'?,"Código fiscal (CIF): B06692214
+Tipo de documento: CODIGO DE IDENTIFICACION FISCAL
+Nacionalidad: ESPAÑA
+Sector contable: OTRAS SOCIEDADES NO FINANCIERAS - OTROS SECTORES RESIDENTES
+Categoría de actividad económica: OTRAS ACTIVIDADES DE LIMPIEZA INDUSTRIAL Y DE EDIF
+Dirección: AV ANTONIO NEVADO GONZALEZ, 14 - 06007 ESPAÑA
+CNAE: 4941 - TRANSPORTE DE MERCANCIAS POR CARRETERA",Datos internos (companies.csv)
+125,Company Name Matching,¿Qué información está registrada para la empresa 'DREL SL.'?,"Código fiscal (CIF): B43995760
+Tipo de documento: CODIGO DE IDENTIFICACION FISCAL
+Nacionalidad: ESPAÑA
+Sector contable: OTRAS SOCIEDADES NO FINANCIERAS - OTROS SECTORES RESIDENTES
+Categoría de actividad económica: COMERCIO AL POR MENOR DE FERRETERIA, MATERIALES DE
+Dirección: AV PAISOS CATALANS, 166 - 43205 ESPAÑA
+CNAE: 4752 - COMERCIO AL POR MENOR DE FERRETERIA, MATERIALES DE CONSTRUCCION, PINTURAS Y VIDRIO",Datos internos (companies.csv)
+126,Company Name Matching,¿Qué información está registrada para la empresa 'CALATAYUD HOSTELERA S.L.'?,"Código fiscal (CIF): B50796051
+Tipo de documento: CODIGO DE IDENTIFICACION FISCAL
+Nacionalidad: ESPAÑA
+Sector contable: OTRAS SOCIEDADES NO FINANCIERAS - OTROS SECTORES RESIDENTES
+Categoría de actividad económica: HOTELES Y ALOJAMIENTOS SIMILARES
+Dirección: PZ MESONES, 4 (MESON DE LA DOLORES, BAJOS) - 50300 ESPAÑA
+CNAE: 5510 - HOTELES Y ALOJAMIENTOS SIMILARES",Datos internos (companies.csv)
+127,Company Name Matching,¿Qué información está registrada para la empresa 'ENJOY PARKING SL.'?,"Código fiscal (CIF): B75901777
+Tipo de documento: CODIGO DE IDENTIFICACION FISCAL
+Nacionalidad: ESPAÑA
+Sector contable: OTRAS SOCIEDADES NO FINANCIERAS - OTROS SECTORES RESIDENTES
+Categoría de actividad económica: ACTIVIDADES AUXILIARES DEL TRANSPORTE TERRESTRE
+Dirección: CL ADOLFO PEREZ ESQUIVEL, 3 (PLANTA 1 OFICINA 14) - 28232 ESPAÑA
+CNAE: 5221 - ACTIVIDADES AUXILIARES DEL TRANSPORTE TERRESTRE",Datos internos (companies.csv)
+128,Company Name Matching,¿Qué información está registrada para la empresa 'OPTICAS CLARAVISION ZAIDIN SL'?,"Código fiscal (CIF): B19691252
+Tipo de documento: CODIGO DE IDENTIFICACION FISCAL
+Nacionalidad: ESPAÑA
+Sector contable: OTRAS SOCIEDADES NO FINANCIERAS - OTROS SECTORES RESIDENTES
+Categoría de actividad económica: COMERCIO AL POR MENOR DE ARTICULOS MEDICOS Y ORTOP
+Dirección: AV DILAR, 12 (BAJO) - 18007 ESPAÑA
+CNAE: 4774 - COMERCIO AL POR MENOR DE ARTICULOS MEDICOS Y ORTOPEDICOS",Datos internos (companies.csv)
+129,Company Name Matching,¿Qué información está registrada para la empresa 'HIJOS DE GOMEZ JULIAN S.L.'?,"Código fiscal (CIF): B83451971
+Tipo de documento: CODIGO DE IDENTIFICACION FISCAL
+Nacionalidad: ESPAÑA
+Sector contable: OTRAS SOCIEDADES NO FINANCIERAS - OTROS SECTORES RESIDENTES
+Categoría de actividad económica: COMERCIO AL POR MENOR DE CALZADO Y ARTICULOS DE CU
+Dirección: AV FEDERICO GARCIA LORCA, 38 - 28031 ESPAÑA
+CNAE: 4772 - COMERCIO AL POR MENOR DE CALZADO Y ARTICULOS DE CUERO",Datos internos (companies.csv)
+130,Company Name Matching,¿Qué información está registrada para la empresa 'FUNDACION RESIDENCIA DE ESTUDIANTES'?,"Código fiscal (CIF): G79348793
+Tipo de documento: CODIGO DE IDENTIFICACION FISCAL
+Nacionalidad: ESPAÑA
+Sector contable: ORGANISMOS AUTONOMOS ADMINISTRATIVOS DEL ESTADO Y SUS CUENTAS DE RECAUDACION - ADM.PUBLIC.RESIDENTE
+Categoría de actividad económica: OTROS SERVICIOS DE ALOJAMIENTO
+Dirección: CL PINAR, 21 (-23) - 28006 ESPAÑA
+CNAE: 5590 - OTROS SERVICIOS DE ALOJAMIENTO",Datos internos (companies.csv)
+131,Tax ID Matching,¿Qué información está registrada para la empresa con código fiscal A41057597?,"Razón social: ESTACION DE SERVICIO LA RAZA S.A.
+Tipo de documento: CODIGO DE IDENTIFICACION FISCAL
+Nacionalidad: ESPAÑA
+Sector contable: OTRAS SOCIEDADES NO FINANCIERAS - OTROS SECTORES RESIDENTES
+Categoría de actividad económica: COMERCIO AL POR MENOR DE COMBUSTIBLE PARA LA AUTOM
+Dirección: AV DE LA RAZA - GASOLINERA, S/N - 41012 ESPAÑA
+CNAE: 4730 - COMERCIO AL POR MENOR DE COMBUSTIBLE PARA LA AUTOMOCION",Datos internos (companies.csv)
+132,Tax ID Matching,¿Qué información está registrada para la empresa con código fiscal P3701000F?,"Razón social: AYUNTAMIENTO DE LA ALBERCA
+Tipo de documento: CODIGO DE IDENTIFICACION FISCAL
+Nacionalidad: ESPAÑA
+Sector contable: CORPORACIONES LOCALES Y SUS CTAS. RECAUDACION - RESIDENTES
+Categoría de actividad económica: ACTIVIDADES GENERALES DE LA ADMINISTRACION PUBLICA
+Dirección: PZ PLAZA, 16 - 37624 ESPAÑA
+CNAE: 8411 - ACTIVIDADES GENERALES DE LA ADMINISTRACION PUBLICA",Datos internos (companies.csv)
+133,Tax ID Matching,¿Qué información está registrada para la empresa con código fiscal E39837505?,"Razón social: FARMACIA DE OJEDO CB
+Tipo de documento: CODIGO DE IDENTIFICACION FISCAL
+Nacionalidad: ESPAÑA
+Sector contable: OTRAS SOCIEDADES NO FINANCIERAS - OTROS SECTORES RESIDENTES
+Categoría de actividad económica: OTRAS ACTIVIDADES SANITARIAS N.C.O.P.
+Dirección: AV DEL DEVA, 1 (CILLORIGO DE LIEBANA) - 39584 ESPAÑA
+CNAE: 8699 - OTRAS ACTIVIDADES SANITARIAS N.C.O.P.",Datos internos (companies.csv)
+134,Tax ID Matching,¿Qué información está registrada para la empresa con código fiscal B06692214?,"Razón social: MANGROVE LOGISTICS S.L.
+Tipo de documento: CODIGO DE IDENTIFICACION FISCAL
+Nacionalidad: ESPAÑA
+Sector contable: OTRAS SOCIEDADES NO FINANCIERAS - OTROS SECTORES RESIDENTES
+Categoría de actividad económica: OTRAS ACTIVIDADES DE LIMPIEZA INDUSTRIAL Y DE EDIF
+Dirección: AV ANTONIO NEVADO GONZALEZ, 14 - 06007 ESPAÑA
+CNAE: 4941 - TRANSPORTE DE MERCANCIAS POR CARRETERA",Datos internos (companies.csv)
+135,Tax ID Matching,¿Qué información está registrada para la empresa con código fiscal B43995760?,"Razón social: DREL SL.
+Tipo de documento: CODIGO DE IDENTIFICACION FISCAL
+Nacionalidad: ESPAÑA
+Sector contable: OTRAS SOCIEDADES NO FINANCIERAS - OTROS SECTORES RESIDENTES
+Categoría de actividad económica: COMERCIO AL POR MENOR DE FERRETERIA, MATERIALES DE
+Dirección: AV PAISOS CATALANS, 166 - 43205 ESPAÑA
+CNAE: 4752 - COMERCIO AL POR MENOR DE FERRETERIA, MATERIALES DE CONSTRUCCION, PINTURAS Y VIDRIO",Datos internos (companies.csv)
+136,Tax ID Matching,¿Qué información está registrada para la empresa con código fiscal B50796051?,"Razón social: CALATAYUD HOSTELERA S.L.
+Tipo de documento: CODIGO DE IDENTIFICACION FISCAL
+Nacionalidad: ESPAÑA
+Sector contable: OTRAS SOCIEDADES NO FINANCIERAS - OTROS SECTORES RESIDENTES
+Categoría de actividad económica: HOTELES Y ALOJAMIENTOS SIMILARES
+Dirección: PZ MESONES, 4 (MESON DE LA DOLORES, BAJOS) - 50300 ESPAÑA
+CNAE: 5510 - HOTELES Y ALOJAMIENTOS SIMILARES",Datos internos (companies.csv)
+137,Tax ID Matching,¿Qué información está registrada para la empresa con código fiscal B75901777?,"Razón social: ENJOY PARKING SL.
+Tipo de documento: CODIGO DE IDENTIFICACION FISCAL
+Nacionalidad: ESPAÑA
+Sector contable: OTRAS SOCIEDADES NO FINANCIERAS - OTROS SECTORES RESIDENTES
+Categoría de actividad económica: ACTIVIDADES AUXILIARES DEL TRANSPORTE TERRESTRE
+Dirección: CL ADOLFO PEREZ ESQUIVEL, 3 (PLANTA 1 OFICINA 14) - 28232 ESPAÑA
+CNAE: 5221 - ACTIVIDADES AUXILIARES DEL TRANSPORTE TERRESTRE",Datos internos (companies.csv)
+138,Tax ID Matching,¿Qué información está registrada para la empresa con código fiscal B19691252?,"Razón social: OPTICAS CLARAVISION ZAIDIN SL
+Tipo de documento: CODIGO DE IDENTIFICACION FISCAL
+Nacionalidad: ESPAÑA
+Sector contable: OTRAS SOCIEDADES NO FINANCIERAS - OTROS SECTORES RESIDENTES
+Categoría de actividad económica: COMERCIO AL POR MENOR DE ARTICULOS MEDICOS Y ORTOP
+Dirección: AV DILAR, 12 (BAJO) - 18007 ESPAÑA
+CNAE: 4774 - COMERCIO AL POR MENOR DE ARTICULOS MEDICOS Y ORTOPEDICOS",Datos internos (companies.csv)
+139,Tax ID Matching,¿Qué información está registrada para la empresa con código fiscal B83451971?,"Razón social: HIJOS DE GOMEZ JULIAN S.L.
+Tipo de documento: CODIGO DE IDENTIFICACION FISCAL
+Nacionalidad: ESPAÑA
+Sector contable: OTRAS SOCIEDADES NO FINANCIERAS - OTROS SECTORES RESIDENTES
+Categoría de actividad económica: COMERCIO AL POR MENOR DE CALZADO Y ARTICULOS DE CU
+Dirección: AV FEDERICO GARCIA LORCA, 38 - 28031 ESPAÑA
+CNAE: 4772 - COMERCIO AL POR MENOR DE CALZADO Y ARTICULOS DE CUERO",Datos internos (companies.csv)
+140,Tax ID Matching,¿Qué información está registrada para la empresa con código fiscal G79348793?,"Razón social: FUNDACION RESIDENCIA DE ESTUDIANTES
+Tipo de documento: CODIGO DE IDENTIFICACION FISCAL
+Nacionalidad: ESPAÑA
+Sector contable: ORGANISMOS AUTONOMOS ADMINISTRATIVOS DEL ESTADO Y SUS CUENTAS DE RECAUDACION - ADM.PUBLIC.RESIDENTE
+Categoría de actividad económica: OTROS SERVICIOS DE ALOJAMIENTO
+Dirección: CL PINAR, 21 (-23) - 28006 ESPAÑA
+CNAE: 5590 - OTROS SERVICIOS DE ALOJAMIENTO",Datos internos (companies.csv)

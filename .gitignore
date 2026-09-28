@@ -10,3 +10,4 @@ deploy/secret-provider-creds.yaml
 build/
 .coverage
 coverage.xml
+.DS_Store

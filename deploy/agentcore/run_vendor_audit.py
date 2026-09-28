@@ -74,10 +74,37 @@ class AuditResult:
             self.tool_calls = []
 
 
+# Column-name aliases so this script also reads CSVs exported from a different
+# template than ground_truth_v4.csv's own (id/query) -- same fix applied to
+# run_ground_truth_eval.py's _load_rows() for Ejecutable_Groundtruth_pruebas_v3.csv,
+# which uses ID/"Client quesiton" [sic] instead. Matched case-insensitively so
+# neither file needs editing.
+_COLUMN_ALIASES = {
+    "id": {"id"},
+    "query": {"query", "client quesiton", "client question", "question"},
+}
+
+
+def _resolve_columns(fieldnames: list[str]) -> dict[str, str]:
+    lower_to_actual = {name.strip().lower(): name for name in fieldnames}
+    resolved = {}
+    for field, aliases in _COLUMN_ALIASES.items():
+        match = next((lower_to_actual[a] for a in aliases if a in lower_to_actual), None)
+        if not match:
+            raise ValueError(f"no column found for {field!r} (tried {sorted(aliases)}) in header {fieldnames!r}")
+        resolved[field] = match
+    return resolved
+
+
 def _load_rows(path: Path, ids: Optional[set[str]], limit: Optional[int]) -> list[GroundTruthRow]:
-    with path.open(encoding="utf-8") as f:
+    # utf-8-sig, not utf-8 -- Ejecutable_Groundtruth_pruebas_v3.csv (and likely any
+    # other Excel/Numbers export) ships a leading BOM, which plain utf-8 leaves
+    # attached to the first header cell ("﻿ID"), breaking _resolve_columns's
+    # lookup for that one column silently otherwise.
+    with path.open(encoding="utf-8-sig", newline="") as f:
         reader = csv.DictReader(f)
-        rows = [GroundTruthRow(id=r["id"], query=r["query"]) for r in reader]
+        columns = _resolve_columns(reader.fieldnames or [])
+        rows = [GroundTruthRow(id=r[columns["id"]], query=r[columns["query"]]) for r in reader]
     if ids:
         rows = [r for r in rows if r.id in ids]
     if limit:

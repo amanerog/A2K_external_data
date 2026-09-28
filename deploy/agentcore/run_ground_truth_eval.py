@@ -87,11 +87,45 @@ class EvalResult:
             self.grade = JudgeResult(verdict="ERROR")
 
 
+# Column-name aliases so this script also reads CSVs exported from a different
+# template than ground_truth_v4.csv's own (id/query/expected_answer/source) --
+# confirmed live against Ejecutable_Groundtruth_pruebas_v3.csv, which uses
+# ID/"Client quesiton" [sic]/"Expected answer"/Source instead, plus an unused
+# "Use case" column. Matched case-insensitively so neither file needs editing.
+_COLUMN_ALIASES = {
+    "id": {"id"},
+    "query": {"query", "client quesiton", "client question", "question"},
+    "expected_answer": {"expected_answer", "expected answer"},
+    "source": {"source"},
+}
+
+
+def _resolve_columns(fieldnames: list[str]) -> dict[str, str]:
+    lower_to_actual = {name.strip().lower(): name for name in fieldnames}
+    resolved = {}
+    for field, aliases in _COLUMN_ALIASES.items():
+        match = next((lower_to_actual[a] for a in aliases if a in lower_to_actual), None)
+        if not match:
+            raise ValueError(f"no column found for {field!r} (tried {sorted(aliases)}) in header {fieldnames!r}")
+        resolved[field] = match
+    return resolved
+
+
 def _load_rows(path: Path, ids: Optional[set[str]], limit: Optional[int]) -> list[GroundTruthRow]:
-    with path.open(encoding="utf-8") as f:
+    # utf-8-sig, not utf-8 -- Ejecutable_Groundtruth_pruebas_v3.csv (and likely any
+    # other Excel/Numbers export) ships a leading BOM, which plain utf-8 leaves
+    # attached to the first header cell ("﻿ID"), breaking _resolve_columns's
+    # lookup for that one column silently otherwise.
+    with path.open(encoding="utf-8-sig", newline="") as f:
         reader = csv.DictReader(f)
+        columns = _resolve_columns(reader.fieldnames or [])
         rows = [
-            GroundTruthRow(id=r["id"], query=r["query"], expected_answer=r["expected_answer"], source=r["source"])
+            GroundTruthRow(
+                id=r[columns["id"]],
+                query=r[columns["query"]],
+                expected_answer=r[columns["expected_answer"]],
+                source=r[columns["source"]],
+            )
             for r in reader
         ]
     if ids:
@@ -146,9 +180,18 @@ def _extract_jsonrpc_result(body: str, expected_id: int) -> dict:
     raise RuntimeError(f"no JSON-RPC response with id={expected_id} in AgentCore response body")
 
 
-def _call_a2k_ask(client, session_id: str, query: str) -> dict:
+def _call_a2k_ask(client, session_id: str, query: str, sources: Optional[list[str]] = None) -> dict:
     """Calls a2k.ask for one query within an already-initialized MCP
-    session. Returns the parsed CitedResponseEnvelope dict (or raises)."""
+    session. Returns the parsed CitedResponseEnvelope dict (or raises).
+
+    `sources` omitted/None (the default) leaves Phase 1 (direct_agent.py's
+    vendor decision) to auto-pick which vendor(s) to query, same as before
+    this parameter existed. Passing e.g. ["cala"] forces that single vendor,
+    skipping Phase 1 entirely -- same "sources" argument a2k.ask always
+    accepted, just not previously threaded through by this script."""
+    arguments: dict = {"query": query}
+    if sources:
+        arguments["sources"] = sources
     response = client.invoke_agent_runtime(
         agentRuntimeArn=AGENT_RUNTIME_ARN,
         qualifier="DEFAULT",
@@ -157,7 +200,7 @@ def _call_a2k_ask(client, session_id: str, query: str) -> dict:
                 "jsonrpc": "2.0",
                 "id": 3,
                 "method": "tools/call",
-                "params": {"name": "a2k.ask", "arguments": {"query": query}},
+                "params": {"name": "a2k.ask", "arguments": arguments},
             }
         ).encode("utf-8"),
         contentType="application/json",
@@ -181,11 +224,13 @@ def _call_a2k_ask(client, session_id: str, query: str) -> dict:
     return json.loads(text)
 
 
-def _evaluate_row(row: GroundTruthRow, mcp_client, bedrock_client, judge_model_id: str, session_id: str) -> EvalResult:
+def _evaluate_row(
+    row: GroundTruthRow, mcp_client, bedrock_client, judge_model_id: str, session_id: str, sources: Optional[list[str]] = None
+) -> EvalResult:
     result = EvalResult(row=row)
     t0 = time.monotonic()
     try:
-        envelope = _call_a2k_ask(mcp_client, session_id, row.query)
+        envelope = _call_a2k_ask(mcp_client, session_id, row.query, sources)
         result.latency_ms = (time.monotonic() - t0) * 1000
         if not envelope.get("ok", False):
             result.actual_answer = None
@@ -214,7 +259,7 @@ def _evaluate_row(row: GroundTruthRow, mcp_client, bedrock_client, judge_model_i
     return result
 
 
-def _run_sequential(rows: list[GroundTruthRow], judge_model_id: str) -> list[EvalResult]:
+def _run_sequential(rows: list[GroundTruthRow], judge_model_id: str, sources: Optional[list[str]] = None) -> list[EvalResult]:
     mcp_client = boto3.client("bedrock-agentcore", region_name=REGION)
     bedrock_client = boto3.client("bedrock-runtime", region_name=REGION)
     session_id = _new_mcp_session(mcp_client)
@@ -222,20 +267,20 @@ def _run_sequential(rows: list[GroundTruthRow], judge_model_id: str) -> list[Eva
     results = []
     for i, row in enumerate(rows, 1):
         print(f"[{i}/{len(rows)}] id={row.id} {row.query[:70]!r}", flush=True)
-        result = _evaluate_row(row, mcp_client, bedrock_client, judge_model_id, session_id)
+        result = _evaluate_row(row, mcp_client, bedrock_client, judge_model_id, session_id, sources)
         print(f"    -> {result.grade.verdict} ({result.latency_ms:.0f}ms)" + (f"  ERROR: {result.error}" if result.error and result.grade.verdict == "ERROR" else ""), flush=True)
         results.append(result)
     return results
 
 
-def _run_parallel(rows: list[GroundTruthRow], judge_model_id: str, workers: int) -> list[EvalResult]:
+def _run_parallel(rows: list[GroundTruthRow], judge_model_id: str, workers: int, sources: Optional[list[str]] = None) -> list[EvalResult]:
     def _worker(chunk: list[GroundTruthRow]) -> list[EvalResult]:
         mcp_client = boto3.client("bedrock-agentcore", region_name=REGION)
         bedrock_client = boto3.client("bedrock-runtime", region_name=REGION)
         session_id = _new_mcp_session(mcp_client)
         out = []
         for row in chunk:
-            result = _evaluate_row(row, mcp_client, bedrock_client, judge_model_id, session_id)
+            result = _evaluate_row(row, mcp_client, bedrock_client, judge_model_id, session_id, sources)
             print(f"id={row.id} -> {result.grade.verdict} ({result.latency_ms:.0f}ms)", flush=True)
             out.append(result)
         return out
@@ -328,6 +373,15 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=None, help="Only run the first N rows")
     parser.add_argument("--workers", type=int, default=1, help="Parallel MCP sessions (default: sequential)")
     parser.add_argument("--judge-model", default=DEFAULT_JUDGE_MODEL_ID, help="Bedrock model id used to grade answers")
+    parser.add_argument(
+        "--sources",
+        default=None,
+        help="Comma-separated vendor sourceId(s) to force on every a2k.ask call (e.g. cala, or "
+        "sayari), bypassing Phase 1's automatic vendor decision. Omit to let the agent decide "
+        "per question, as before this flag existed. For a per-vendor pass (run the same CSV once "
+        "per vendor, matching the vendor_audit_<vendor>_*.jsonl convention), run this script three "
+        "times with --sources cala / --sources sayari / --sources linkup and separate --output paths.",
+    )
     args = parser.parse_args()
 
     input_path = Path(args.input)
@@ -341,12 +395,13 @@ def main() -> None:
         print("error: no rows selected (check --ids/--limit)", file=sys.stderr)
         sys.exit(1)
 
-    print(f"Running {len(rows)} row(s) against {AGENT_RUNTIME_ARN} (judge model: {args.judge_model})")
+    sources = [s.strip() for s in args.sources.split(",")] if args.sources else None
+    print(f"Running {len(rows)} row(s) against {AGENT_RUNTIME_ARN} (judge model: {args.judge_model}, sources: {sources or 'auto (Phase 1 decides)'})")
     t0 = time.monotonic()
     if args.workers > 1:
-        results = _run_parallel(rows, args.judge_model, args.workers)
+        results = _run_parallel(rows, args.judge_model, args.workers, sources)
     else:
-        results = _run_sequential(rows, args.judge_model)
+        results = _run_sequential(rows, args.judge_model, sources)
     elapsed = time.monotonic() - t0
 
     # Keep output in input order regardless of worker interleaving.
