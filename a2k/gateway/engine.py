@@ -604,7 +604,14 @@ class GatewayEngine:
         # POST (not the streaming MCP path a2k-box's own callers use), so
         # nothing here keeps the connection alive the way SSE ping frames do
         # on that side -- it really is all-or-nothing up to this ceiling.
-        async with httpx.AsyncClient(timeout=240.0, verify=config.httpx_verify) as client:
+        #
+        # 600s, not 240s: the POCv3 Cala run (2026-09-29) timed out on 23 rows,
+        # and the agent Runtime's own tool-call logs show those sessions kept
+        # going after this side gave up -- 21 of the 23 would have finished
+        # within 600s (the other two ran 623s and 882s). Cala's knowledge_search
+        # alone takes 45-100s per call, plus 45-110s of model time writing the
+        # answer, so a question needing 3+ searches can't fit in 240s.
+        async with httpx.AsyncClient(timeout=600.0, verify=config.httpx_verify) as client:
             try:
                 resp = await client.post(
                     config.agent_runtime_url,
