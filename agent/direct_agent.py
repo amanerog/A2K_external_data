@@ -373,6 +373,7 @@ import time
 from dataclasses import dataclass
 from typing import Literal
 
+import httpx
 from pydantic import BaseModel, Field
 
 from strands import Agent
@@ -1081,6 +1082,47 @@ VENDOR_SKILLS: dict[str, list[str]] = {
     "linkup": LINKUP_SKILL_URLS,
 }
 
+# Skill bodies are inlined into the system prompt rather than left to AgentSkills' progressive
+# disclosure. That plugin only injects each skill's name/description and exposes a `skills` tool
+# the model has to call to read the body -- and in the POCv3 ground-truth run (2026-09-29) it
+# was called once in 118 Cala questions and once in 120 Linkup ones, so in practice neither
+# vendor's guidance was ever read. For Cala that was the costly part: its skill says to prefer
+# knowledge_query / projected entity_retrieval and reserve knowledge_search (45-100s per call,
+# measured directly) for genuinely open-ended questions; the agent chained 5+ knowledge_search
+# calls on every one of the 23 rows that hit a2k-box's 240s agent-call ceiling. Still fetched
+# from the vendor's own repository, so vendor updates keep arriving automatically; cached per
+# process so a warm Runtime doesn't re-fetch on every request.
+_skill_text_cache: dict[str, str] = {}
+
+
+def _fetch_skill_text(url: str) -> str:
+    if url not in _skill_text_cache:
+        resp = httpx.get(url, timeout=10, follow_redirects=True)
+        resp.raise_for_status()
+        _skill_text_cache[url] = resp.text
+    return _skill_text_cache[url]
+
+
+def _vendor_skills_block(source_id: str) -> str | None:
+    """Every skill in VENDOR_SKILLS[source_id], verbatim, as one block to append to the
+    system prompt -- or None if the vendor has no skills or any of them can't be fetched
+    (the caller then falls back to the AgentSkills plugin, so a GitHub blip degrades to the
+    previous behavior instead of silently dropping the skill)."""
+    urls = VENDOR_SKILLS.get(source_id)
+    if not urls:
+        return None
+    try:
+        bodies = [_fetch_skill_text(url) for url in urls]
+    except httpx.HTTPError as exc:
+        print(f"!! could not fetch {source_id} skill, falling back to AgentSkills plugin: {exc}", flush=True)
+        return None
+    sections = [f"<vendor_skill source=\"{url}\">\n{body.strip()}\n</vendor_skill>" for url, body in zip(urls, bodies)]
+    return (
+        f"\n\n## VENDOR SKILL -- {source_id} (published by the vendor, loaded verbatim; this is "
+        f"the skill referred to above -- follow it for tool choice and escalation)\n\n"
+        + "\n\n".join(sections)
+    )
+
 
 @dataclass
 class VendorCallResult:
@@ -1138,12 +1180,16 @@ def run_vendor_agent_sync(
             session_id=session_id, internal_client=internal_client, verbose=True
         )
 
-        # Per-vendor skills, unchanged mechanism from before v2 -- see VENDOR_SKILLS above.
-        # A vendor with no entry there simply gets plugins=None and runs on this file's
-        # generic TOOL PRIORITY guidance (plus its VENDOR_REINFORCEMENT block, if it has one)
-        # alone.
-        skill_urls = VENDOR_SKILLS.get(source_id)
-        plugins = [AgentSkills(skills=skill_urls)] if skill_urls else None
+        # Per-vendor skills, inlined into the system prompt -- see _vendor_skills_block above.
+        # A vendor with no entry in VENDOR_SKILLS simply runs on this file's generic TOOL
+        # PRIORITY guidance (plus its VENDOR_REINFORCEMENT block, if it has one) alone. The
+        # AgentSkills plugin is only used as a fallback when the skill can't be fetched.
+        plugins = None
+        skills_block = _vendor_skills_block(source_id)
+        if skills_block:
+            system_prompt += skills_block
+        elif VENDOR_SKILLS.get(source_id):
+            plugins = [AgentSkills(skills=VENDOR_SKILLS[source_id])]
 
         agent = Agent(
             model=model,

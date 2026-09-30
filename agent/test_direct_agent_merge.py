@@ -1,8 +1,8 @@
 """Unit tests for direct_agent.py's pure merge functions
-(_merge_ask_contents/_merge_search_contents) -- the citationIndexes
+(merge_ask_contents/merge_search_contents) -- the citationIndexes
 re-indexing across multiple vendors' results is exactly the kind of
 off-by-one-prone logic worth covering directly, and unlike phase 1/phase 2
-(_decide_vendors_sync/_run_vendor_agent_sync, which need live Bedrock) this
+(_decide_vendors_sync/run_vendor_agent_sync, which need live Bedrock) this
 needs no network access at all.
 
 Not part of the main `pytest tests/` suite (pyproject.toml's testpaths is
@@ -19,13 +19,13 @@ import pytest
 import direct_agent as da
 
 
-def test_merge_ask_contents_reindexes_citations_across_vendors(monkeypatch):
-    # Two vendors -> _merge_ask_contents runs the conflict-check pass, which
-    # normally makes a live Bedrock call (_check_conflicts_sync) -- stub it
+def testmerge_ask_contents_reindexes_citations_across_vendors(monkeypatch):
+    # Two vendors -> merge_ask_contents runs the conflict-check pass, which
+    # normally makes a live Bedrock call (check_conflicts_sync) -- stub it
     # out since this test is about citation re-indexing, not conflict
-    # detection (see test_merge_ask_contents_conflict_check_is_invoked below
+    # detection (see testmerge_ask_contents_conflict_check_is_invoked below
     # for that).
-    monkeypatch.setattr(da, "_check_conflicts_sync", lambda claims, vendor_ids, *, model_id, region: [])
+    monkeypatch.setattr(da, "check_conflicts_sync", lambda claims, vendor_ids, *, model_id, region: [])
 
     cala = da.AskContent(
         answer="Cala says X.",
@@ -40,7 +40,7 @@ def test_merge_ask_contents_reindexes_citations_across_vendors(monkeypatch):
         groundedRatio=0.8,
     )
 
-    merged = da._merge_ask_contents([cala, sayari], ["cala", "sayari"], model_id="unused", region="eu-west-1")
+    merged = da.merge_ask_contents([cala, sayari], ["cala", "sayari"], model_id="unused", region="eu-west-1")
 
     assert merged["answer"] == "Cala says X.\n\nSayari says Y."
     assert len(merged["citations"]) == 2
@@ -53,19 +53,19 @@ def test_merge_ask_contents_reindexes_citations_across_vendors(monkeypatch):
     assert merged["groundedRatio"] == pytest.approx((0.9 + 0.8) / 2)
 
 
-def test_merge_ask_contents_conflict_check_is_invoked_for_multiple_vendors(monkeypatch):
+def testmerge_ask_contents_conflict_check_is_invoked_for_multiple_vendors(monkeypatch):
     calls = []
 
     def fake_check_conflicts(claims, vendor_ids, *, model_id, region):
         calls.append((claims, vendor_ids))
         return [{"thisClaimIndex": 0, "otherClaimIndex": 1, "nature": "value-conflict", "assessment": "a", "rationale": "b"}]
 
-    monkeypatch.setattr(da, "_check_conflicts_sync", fake_check_conflicts)
+    monkeypatch.setattr(da, "check_conflicts_sync", fake_check_conflicts)
 
     cala = da.AskContent(answer="X", claims=[da.ClaimOut(text="cala claim")], citations=[], groundedRatio=1.0)
     sayari = da.AskContent(answer="Y", claims=[da.ClaimOut(text="sayari claim")], citations=[], groundedRatio=1.0)
 
-    merged = da._merge_ask_contents([cala, sayari], ["cala", "sayari"], model_id="unused", region="eu-west-1")
+    merged = da.merge_ask_contents([cala, sayari], ["cala", "sayari"], model_id="unused", region="eu-west-1")
 
     assert len(calls) == 1
     # each merged claim is tagged with the vendor it actually came from, in order
@@ -73,25 +73,25 @@ def test_merge_ask_contents_conflict_check_is_invoked_for_multiple_vendors(monke
     assert merged["conflicts"][0]["nature"] == "value-conflict"
 
 
-def test_merge_ask_contents_single_vendor_skips_conflict_check():
+def testmerge_ask_contents_single_vendor_skips_conflict_check():
     cala = da.AskContent(
         answer="Cala says X.",
         claims=[da.ClaimOut(text="claim", citationIndexes=[])],
         citations=[],
         groundedRatio=1.0,
     )
-    merged = da._merge_ask_contents([cala], ["cala"], model_id="unused", region="eu-west-1")
+    merged = da.merge_ask_contents([cala], ["cala"], model_id="unused", region="eu-west-1")
     # Only one vendor queried -- nothing to compare, and no Bedrock call should
     # be attempted (would fail/hang without real credentials if it were).
     assert merged["conflicts"] == []
 
 
-def test_merge_ask_contents_empty_input_is_safe():
-    merged = da._merge_ask_contents([], [], model_id="unused", region="eu-west-1")
+def testmerge_ask_contents_empty_input_is_safe():
+    merged = da.merge_ask_contents([], [], model_id="unused", region="eu-west-1")
     assert merged == {"answer": None, "claims": [], "citations": [], "groundedRatio": 0.0, "conflicts": []}
 
 
-def test_merge_search_contents_reindexes_citations_across_vendors():
+def testmerge_search_contents_reindexes_citations_across_vendors():
     cala = da.SearchContent(
         passages=[da.PassageOut(text="p1", citationIndexes=[0])],
         citations=[da.CitationOut(title="Cala doc")],
@@ -100,7 +100,7 @@ def test_merge_search_contents_reindexes_citations_across_vendors():
         passages=[da.PassageOut(text="p2", citationIndexes=[0])],
         citations=[da.CitationOut(title="Sayari doc")],
     )
-    merged = da._merge_search_contents([cala, sayari])
+    merged = da.merge_search_contents([cala, sayari])
 
     assert len(merged["citations"]) == 2
     assert merged["passages"][0]["citationIndexes"] == [0]
