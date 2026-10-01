@@ -57,6 +57,9 @@ class CacheStore(Protocol):
     def expiry_policy(self) -> tuple[dict[str, timedelta], str]: ...
     def retrieval_policy(self) -> dict[str, float]: ...
     def search(self, vector: list[float], *, min_cosine: float, embedding_model: str, limit: int) -> list[dict[str, Any]]: ...
+    def deprecate(self, entry_id: str, reason: str) -> bool: ...
+    def last_turn(self, session_id: str, *, window_seconds: float) -> dict[str, Any] | None: ...
+    def record_turn(self, session_id: str, query: str, served_entry_id: str | None, *, window_seconds: float) -> None: ...
 
 
 class EvidenceStore(Protocol):
@@ -222,6 +225,51 @@ class AuroraStore:
         merged = {**default_policy(), **policy}
         return merged, ",".join(sorted(versions)) or "default"
 
+    def deprecate(self, entry_id: str, reason: str) -> bool:
+        """PENDING or ACTIVE -> DEPRECATED; never deletes (proposal Sheet 5).
+        A PENDING entry deprecated here is then dropped by admission (T6)."""
+        result = self._execute(
+            """UPDATE cache_entry SET status = 'DEPRECATED', status_reason = :reason
+               WHERE entry_id = :entry_id AND status IN ('PENDING', 'ACTIVE')""",
+            [_p("entry_id", entry_id, "UUID"), _p("reason", reason)],
+        )
+        return result.get("numberOfRecordsUpdated", 0) == 1
+
+    def last_turn(self, session_id: str, *, window_seconds: float) -> dict[str, Any] | None:
+        result = self._execute(
+            """SELECT last_query_text, served_entry_id::text, EXTRACT(EPOCH FROM now() - served_at)::float8
+               FROM session_last_turn
+               WHERE session_id = :session_id AND served_at > now() - make_interval(secs => :window)""",
+            [_p("session_id", session_id), {"name": "window", "value": {"doubleValue": float(window_seconds)}}],
+        )
+        records = result.get("records") or []
+        if not records:
+            return None
+        query, entry_id, age = (_field(c) for c in records[0])
+        return {"last_query_text": query, "served_entry_id": entry_id, "age_seconds": float(age)}
+
+    def record_turn(self, session_id: str, query: str, served_entry_id: str | None, *, window_seconds: float) -> None:
+        """One row per session, overwritten each turn. The same statement purges
+        every row already outside the window, so no session record outlives it
+        for longer than the gap between two asks (D10)."""
+        self._execute(
+            """WITH purged AS (
+                   DELETE FROM session_last_turn WHERE served_at < now() - make_interval(secs => :window)
+               )
+               INSERT INTO session_last_turn (session_id, last_query_text, served_entry_id, served_at)
+               VALUES (:session_id, :query, :served_entry_id, now())
+               ON CONFLICT (session_id) DO UPDATE SET
+                   last_query_text = EXCLUDED.last_query_text,
+                   served_entry_id = EXCLUDED.served_entry_id,
+                   served_at = EXCLUDED.served_at""",
+            [
+                _p("session_id", session_id),
+                _p("query", query),
+                _p("served_entry_id", served_entry_id, "UUID"),
+                {"name": "window", "value": {"doubleValue": float(window_seconds)}},
+            ],
+        )
+
     def retrieval_policy(self) -> dict[str, float]:
         result = self._execute("SELECT domain, min_cosine FROM retrieval_policy", [])
         return {row[0]["stringValue"]: float(_field(row[1])) for row in result.get("records") or []}
@@ -284,6 +332,7 @@ class S3EvidenceStore:
 class MemoryStore:
     def __init__(self, policy: dict[str, timedelta] | None = None, min_cosine: dict[str, float] | None = None):
         self.rows: dict[str, dict[str, Any]] = {}
+        self.turns: dict[str, dict[str, Any]] = {}
         self._policy = policy or default_policy()
         self._min_cosine = min_cosine or {}
 
@@ -315,6 +364,27 @@ class MemoryStore:
 
     def retrieval_policy(self) -> dict[str, float]:
         return dict(self._min_cosine)
+
+    def deprecate(self, entry_id: str, reason: str) -> bool:
+        row = self.rows.get(entry_id)
+        if not row or row["status"] not in ("PENDING", "ACTIVE"):
+            return False
+        row.update(status="DEPRECATED", status_reason=reason)
+        return True
+
+    def last_turn(self, session_id: str, *, window_seconds: float) -> dict[str, Any] | None:
+        turn = self.turns.get(session_id)
+        if not turn:
+            return None
+        age = (datetime.now(timezone.utc) - turn["served_at"]).total_seconds()
+        if age >= window_seconds:
+            return None
+        return {"last_query_text": turn["last_query_text"], "served_entry_id": turn["served_entry_id"], "age_seconds": age}
+
+    def record_turn(self, session_id: str, query: str, served_entry_id: str | None, *, window_seconds: float) -> None:
+        now = datetime.now(timezone.utc)
+        self.turns = {k: v for k, v in self.turns.items() if (now - v["served_at"]).total_seconds() < window_seconds}
+        self.turns[session_id] = {"last_query_text": query, "served_entry_id": served_entry_id, "served_at": now}
 
     def search(self, vector: list[float], *, min_cosine: float, embedding_model: str, limit: int) -> list[dict[str, Any]]:
         now = datetime.now(timezone.utc)

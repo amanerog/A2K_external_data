@@ -59,7 +59,7 @@ def main() -> None:
     version = run("SELECT extversion FROM pg_extension WHERE extname = 'vector'")["records"][0][0]["stringValue"]
     major, minor = (int(x) for x in version.split(".")[:2])
     print(f"\npgvector {version} {'OK' if (major, minor) >= (0, 8) else '-- TOO OLD, need >= 0.8 for HNSW filtering'}")
-    for table in ("cache_entry", "expiry_policy", "retrieval_policy"):
+    for table in ("cache_entry", "expiry_policy", "retrieval_policy", "session_last_turn"):
         count = run(f"SELECT count(*) FROM {table}")["records"][0][0]["longValue"]
         print(f"{table:17s} {count} row(s)")
 

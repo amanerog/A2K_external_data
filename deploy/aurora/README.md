@@ -12,6 +12,19 @@ code is in `a2k/cache/`; the design is the cache lifecycle proposal
 
 Only `ask` is cached (`search` returns passages, not an answer).
 
+**Reformulation (retrieval step 1).** When the caller passes `sessionId` to
+`a2k.ask` (K2: the id of the end user's conversation), the previous turn of
+that session is kept in `session_last_turn`. A question within
+`CACHE_REFORMULATION_WINDOW_SECONDS` (600, D5) of it is classified by the light
+model as reformulation / follow-up / new; a reformulation deprecates the entry
+served on the previous turn (`immediate_reformulation`) before searching. In
+Aurora rather than the proposal's DynamoDB, to keep the cache in one store;
+every write purges rows outside the window (D10). Without `sessionId`, the
+session is taken from the `mcp-session-id` header, or else from AgentCore's
+`x-amzn-bedrock-agentcore-runtime-session-id` (prefixed `mcp:` / `agentcore:`);
+the serving log's `session_source` says which, so the re-ask rate (D14) can be
+computed on caller-provided sessions only (`session_source = "caller"`).
+
 ## 1. Database
 
 - **Aurora PostgreSQL** (Serverless v2 is enough for shadow mode), engine
@@ -57,7 +70,7 @@ Environment variables:
 | `ADMISSION_JUDGE_MODEL_ID` | default `eu.anthropic.claude-sonnet-5` |
 | `VENDOR_FALLBACK_MESSAGE` | only if changed -- must match the agent Runtime's value (E4.9) |
 
-Optional: `CACHE_DOMAIN_MODES` (per-domain switch, e.g. `MED=off,RSK=shadow`;
+Optional: `CACHE_REFORMULATION_WINDOW_SECONDS` (600, D5), `CACHE_DOMAIN_MODES` (per-domain switch, e.g. `MED=off,RSK=shadow`;
 a domain never goes beyond `CACHE_MODE`; an `off` domain skips the judge at
 admission and the search at retrieval), `CACHE_TIME_BUDGET_SECONDS` (10, D15), `CACHE_CHECKER_MODEL_ID`
 (Sonnet 4.5, the Checker as tested, D4), `CACHE_EMBEDDING_MODEL_ID` (Titan v2),
@@ -100,6 +113,15 @@ vendor answer to compare a would-be hit with):
 fields @timestamp, would_hit, entry_id, cosine, threshold, total_ms, within_budget, error
 | filter event = "cache.retrieval"
 | stats count(*) as asks, sum(would_hit) as would_hits, pct(total_ms, 95) as p95_ms by bin(1d)
+```
+
+Re-ask rate (D14), from the same log -- asks with a session whose previous
+turn was a reformulation:
+
+```
+fields reformulation.kind as kind
+| filter event = "cache.retrieval" and ispresent(session_id)
+| stats count(*) as asks, sum(kind = "reformulation") as reasks, sum(kind = "reformulation") / count(*) * 100 as reask_pct by domains.0
 ```
 
 Rows in Aurora: `SELECT status, count(*) FROM cache_entry GROUP BY 1`.

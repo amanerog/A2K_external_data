@@ -43,6 +43,18 @@ CREATE INDEX IF NOT EXISTS cache_entry_status_expires ON cache_entry (status, ex
 -- Orphan PENDING cleanup (cleanup step 1, D8: older than 2 h).
 CREATE INDEX IF NOT EXISTS cache_entry_pending_created ON cache_entry (created_at) WHERE status = 'PENDING';
 
+-- Session memory for the reformulation check (proposal Sheet 5, retrieval
+-- step 1). In Aurora rather than the proposal's DynamoDB table, to keep the
+-- cache in one store. Only the last turn of each session; rows older than the
+-- reformulation window (D5) are purged by every write and never read (D10).
+CREATE TABLE IF NOT EXISTS session_last_turn (
+    session_id      text PRIMARY KEY,
+    last_query_text text NOT NULL,
+    served_entry_id uuid,
+    served_at       timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS session_last_turn_served_at ON session_last_turn (served_at);
+
 CREATE TABLE IF NOT EXISTS expiry_policy (
     domain         text PRIMARY KEY,
     validity       interval NOT NULL,

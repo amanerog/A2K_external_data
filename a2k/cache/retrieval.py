@@ -9,7 +9,9 @@ cache, and with what?
   6  hit: the original answer if the question is in that language, otherwise
      the English one, always with its sources
 
-Step 1 (reformulation check) and the session memory are not built yet.
+Step 1 (reformulation.py) runs in parallel with step 2 when the caller sent a
+session id, and finishes before the search, so an entry it deprecates is never
+returned again.
 
 `lookup()` never raises: any failure is recorded in the result and the
 caller goes to the vendor, as today. What it returns is also what the
@@ -19,11 +21,12 @@ serving log records, in shadow mode as well as when serving.
 from __future__ import annotations
 
 import time
+from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Any
 
-from . import checker
+from . import checker, reformulation
 from .bedrock import ModelOutputError, converse_json, embed
 from .normalize import LANGUAGE_RULE
 from .store import CacheStore
@@ -64,6 +67,8 @@ class RetrievalSettings:
     max_candidates: int = 5
     # Domains switched off (CACHE_DOMAIN_MODES): no search, no Checker.
     disabled_domains: tuple[str, ...] = ()
+    # D5: a previous turn older than this is not checked for reformulation.
+    reformulation_window_seconds: float = 600.0
 
 
 @dataclass
@@ -88,6 +93,7 @@ class RetrievalResult:
     checks: list[dict[str, Any]] = field(default_factory=list)
     hit: CacheHit | None = None
     skipped: str | None = None  # why the lookup stopped early on purpose
+    reformulation: dict[str, Any] | None = None  # step 1 outcome, None without a session id
     error: str | None = None
     timings_ms: dict[str, int] = field(default_factory=dict)
 
@@ -112,9 +118,35 @@ def normalize_and_classify(bedrock_client, *, model_id: str, question: str) -> t
     return str(raw.get("original_lang") or "und").lower()[:8], question_en, domains
 
 
-def lookup(question: str, *, bedrock_client, store: CacheStore, settings: RetrievalSettings) -> RetrievalResult:
+def lookup(
+    question: str,
+    *,
+    bedrock_client,
+    store: CacheStore,
+    settings: RetrievalSettings,
+    session_id: str | None = None,
+) -> RetrievalResult:
     result = RetrievalResult()
     step_start = time.monotonic()
+
+    # Step 1 in parallel with step 2 (proposal Sheet 4).
+    step1: Future | None = None
+    pool: ThreadPoolExecutor | None = None
+    if session_id:
+        pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="cache-reformulation")
+        step1 = pool.submit(
+            reformulation.check,
+            question,
+            session_id,
+            bedrock_client=bedrock_client,
+            store=store,
+            model_id=settings.light_model_id,
+            window_seconds=settings.reformulation_window_seconds,
+        )
+
+    def finish_step1() -> None:
+        if step1 is not None and result.reformulation is None:
+            result.reformulation = step1.result()
 
     def lap(name: str) -> None:
         nonlocal step_start
@@ -133,6 +165,11 @@ def lookup(question: str, *, bedrock_client, store: CacheStore, settings: Retrie
 
         vector = embed(bedrock_client, model_id=settings.embedding_model_id, text=result.question_en)
         lap("embed")
+        # Deprecate before searching, so a reformulated question never gets the
+        # answer it is reformulating. Only the wait beyond step 2 counts here.
+        finish_step1()
+        if step1 is not None:
+            lap("reformulation_wait")
 
         policy = store.retrieval_policy()
         result.threshold = max(policy.get(d, settings.default_min_cosine) for d in result.domains)
@@ -172,4 +209,10 @@ def lookup(question: str, *, bedrock_client, store: CacheStore, settings: Retrie
     except Exception as exc:  # noqa: BLE001 -- the cache must never break a request
         result.error = f"{type(exc).__name__}: {exc}"
         result.hit = None
+    finally:
+        # Also when step 2 stopped early (domain off, error): step 1 still
+        # deprecates and its outcome still belongs in the serving log.
+        finish_step1()
+        if pool is not None:
+            pool.shutdown(wait=False)
     return result

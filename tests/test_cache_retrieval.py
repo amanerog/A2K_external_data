@@ -136,7 +136,7 @@ HIT = retrieval.CacheHit(
 def gateway(monkeypatch):
     """GatewayEngine with the vendor call, retrieval and admission faked.
     `state` records what happened; set state["mode"] before calling."""
-    state = {"mode": "shadow", "vendor_calls": 0, "lookups": 0, "submitted": [], "hit": HIT, "lookup_delay": 0.0}
+    state = {"mode": "shadow", "vendor_calls": 0, "lookups": 0, "submitted": [], "hit": HIT, "lookup_delay": 0.0, "session_ids": [], "turns": []}
 
     monkeypatch.setattr(Config, "cache_ready", property(lambda self: state["mode"] in ("shadow", "serve")))
     monkeypatch.setattr(Config, "cache_serving", property(lambda self: state["mode"] == "serve"))
@@ -150,14 +150,16 @@ def gateway(monkeypatch):
         state["vendor_calls"] += 1
         return dict(VENDOR_CONTENT)
 
-    def fake_lookup_sync(self, query):
+    def fake_lookup_sync(self, query, session_id=None):
         state["lookups"] += 1
+        state["session_ids"].append(session_id)
         time.sleep(state["lookup_delay"])
         return retrieval.RetrievalResult(original_lang="es", question_en="q", domains=["REG"], threshold=0.9, hit=state["hit"], timings_ms={"embed": 5})
 
     monkeypatch.setattr(GatewayEngine, "_call_agent", fake_call_agent)
     monkeypatch.setattr(GatewayEngine, "_cache_lookup_sync", fake_lookup_sync)
     monkeypatch.setattr(admission, "submit", lambda candidate, **kw: state["submitted"].append(candidate))
+    monkeypatch.setattr(GatewayEngine, "_record_turn", lambda self, sid, q, entry: state["turns"].append((sid, q, entry)))
     return GatewayEngine(), state
 
 
@@ -310,3 +312,145 @@ async def test_serve_mode_does_not_serve_a_domain_still_in_shadow(gateway, monke
     assert state["vendor_calls"] == 1
     (log,) = _serving_log(capsys)
     assert log["would_hit"] is True and log["served_from"] == "vendor" and log["domain_mode"] == "shadow"
+
+
+# --- reformulation (retrieval step 1) and session memory ---------------------
+
+
+class ReformulationBedrock(RetrievalBedrock):
+    def __init__(self, *, kind="reformulation", **kw):
+        super().__init__(**kw)
+        self.kind = kind
+
+    def converse(self, *, modelId, messages, inferenceConfig):
+        prompt = messages[0]["content"][0]["text"]
+        if prompt.startswith("Two consecutive questions"):
+            self.calls.append("reformulation")
+            return {"output": {"message": {"content": [{"text": json.dumps({"kind": self.kind, "reason": "same ask"})}]}}, "stopReason": "end_turn"}
+        return super().converse(modelId=modelId, messages=messages, inferenceConfig=inferenceConfig)
+
+
+def test_reformulation_deprecates_the_served_entry_before_searching():
+    store, entry_id = store_with_entry()
+    store.record_turn("s1", "¿Qué responsabilidades atribuye la EBA...?", entry_id, window_seconds=600)
+    bedrock = ReformulationBedrock(kind="reformulation")
+    result = retrieval.lookup("Repito: ¿qué exige la EBA al órgano de administración?", bedrock_client=bedrock, store=store, settings=RETRIEVAL_SETTINGS, session_id="s1")
+    assert result.reformulation["kind"] == "reformulation" and result.reformulation["deprecated"] is True
+    assert store.rows[entry_id]["status"] == "DEPRECATED" and store.rows[entry_id]["status_reason"] == "immediate_reformulation"
+    # The deprecated entry is not found again for the reformulated question.
+    assert result.candidates == [] and result.hit is None
+
+
+def test_follow_up_does_not_deprecate():
+    store, entry_id = store_with_entry()
+    store.record_turn("s1", "q1", entry_id, window_seconds=600)
+    result = retrieval.lookup("q2", bedrock_client=ReformulationBedrock(kind="follow_up"), store=store, settings=RETRIEVAL_SETTINGS, session_id="s1")
+    assert result.reformulation["kind"] == "follow_up" and "deprecated" not in result.reformulation
+    assert store.rows[entry_id]["status"] == "ACTIVE" and result.hit is not None
+
+
+def test_previous_turn_outside_the_window_calls_no_model():
+    store, entry_id = store_with_entry()
+    store.record_turn("s1", "q1", entry_id, window_seconds=600)
+    store.turns["s1"]["served_at"] -= timedelta(minutes=11)
+    bedrock = ReformulationBedrock()
+    result = retrieval.lookup("q2", bedrock_client=bedrock, store=store, settings=RETRIEVAL_SETTINGS, session_id="s1")
+    assert result.reformulation == {"previous_turn": False}
+    assert "reformulation" not in bedrock.calls and store.rows[entry_id]["status"] == "ACTIVE"
+
+
+def test_without_a_session_id_nothing_is_checked():
+    store, entry_id = store_with_entry()
+    store.record_turn("s1", "q1", entry_id, window_seconds=600)
+    bedrock = ReformulationBedrock()
+    result = retrieval.lookup("q2", bedrock_client=bedrock, store=store, settings=RETRIEVAL_SETTINGS)
+    assert result.reformulation is None and "reformulation" not in bedrock.calls
+
+
+def test_reformulation_of_a_pending_candidate_keeps_it_out_of_the_cache():
+    """Shadow mode: the user saw the vendor answer, whose candidate is still
+    being admitted; the reformulation deprecates it and admission drops it (T6)."""
+    from test_cache_admission import make_candidate as mk
+
+    store = MemoryStore()
+    candidate = mk()
+    store.create_pending(candidate, "memory://x")
+    store.record_turn("s1", candidate.question, candidate.entry_id, window_seconds=600)
+    retrieval.lookup("q again", bedrock_client=ReformulationBedrock(), store=store, settings=RETRIEVAL_SETTINGS, session_id="s1")
+    assert store.rows[candidate.entry_id]["status"] == "DEPRECATED"
+    assert not store.is_pending(candidate.entry_id)  # so admission's conditional activation is a no-op (T6)
+
+
+def test_record_turn_keeps_one_row_per_session_and_purges_old_ones():
+    store = MemoryStore()
+    store.record_turn("old", "q", None, window_seconds=600)
+    store.turns["old"]["served_at"] -= timedelta(minutes=11)
+    store.record_turn("s1", "q1", "e1", window_seconds=600)
+    store.record_turn("s1", "q2", "e2", window_seconds=600)
+    assert set(store.turns) == {"s1"} and store.turns["s1"]["served_entry_id"] == "e2"
+
+
+async def test_engine_passes_the_session_and_records_the_turn(gateway):
+    from a2k.models.request import RequestMetadata
+
+    engine, state = gateway
+    req = A2KRequest(operation="ask", query="q", requestMetadata=RequestMetadata(sessionId="conv-42"))
+    await engine._ask_via_agent(req)
+    assert state["session_ids"] == ["conv-42"]
+    # Shadow: the user got the vendor answer, so the turn points at its admission candidate.
+    assert state["turns"] == [("conv-42", "q", state["submitted"][0].entry_id)]
+
+
+async def test_engine_serve_hit_records_the_served_cache_entry(gateway):
+    from a2k.models.request import RequestMetadata
+
+    engine, state = gateway
+    state["mode"] = "serve"
+    await engine._ask_via_agent(A2KRequest(operation="ask", query="q", requestMetadata=RequestMetadata(sessionId="conv-7")))
+    assert state["turns"] == [("conv-7", "q", "cached-1")]
+
+
+def test_mcp_tool_accepts_session_id(monkeypatch):
+    from a2k.mcp_server import server
+
+    seen = {}
+
+    async def fake_ask(req):
+        seen["session"] = req.requestMetadata.sessionId if req.requestMetadata else None
+
+        class _Env:
+            def model_dump(self, **kw):
+                return {}
+
+        return _Env()
+
+    monkeypatch.setattr(server.engine, "ask", fake_ask)
+    monkeypatch.setattr(server, "_dump", lambda env: {})
+    asyncio.run(server.a2k_ask(query="q", sessionId="conv-1"))
+    assert seen["session"] == "conv-1"
+    asyncio.run(server.a2k_ask(query="q"))
+    assert seen["session"] is None
+
+
+def test_session_falls_back_to_transport_headers():
+    from types import SimpleNamespace
+
+    from a2k.mcp_server.server import _session_id
+
+    def ctx(headers):
+        return SimpleNamespace(request_context=SimpleNamespace(request=SimpleNamespace(headers=headers)))
+
+    assert _session_id("conv-1", ctx({"mcp-session-id": "m1"})) == "conv-1"  # the caller's wins
+    assert _session_id(None, ctx({"mcp-session-id": "m1", "x-amzn-bedrock-agentcore-runtime-session-id": "a1"})) == "mcp:m1"
+    assert _session_id(None, ctx({"x-amzn-bedrock-agentcore-runtime-session-id": "a1"})) == "agentcore:a1"
+    assert _session_id(None, ctx({})) is None
+    assert _session_id(None, None) is None
+
+
+async def test_serving_log_says_where_the_session_came_from(gateway, capsys):
+    from a2k.models.request import RequestMetadata
+
+    engine, _ = gateway
+    for sid in ("conv-1", "mcp:abc"):
+        await engine._ask_via_agent(A2KRequest(operation="ask", query="q", requestMetadata=RequestMetadata(sessionId=sid)))
+    assert [log["session_source"] for log in _serving_log(capsys)] == ["caller", "mcp"]

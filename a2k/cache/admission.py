@@ -337,10 +337,10 @@ def _get_executor(workers: int) -> ThreadPoolExecutor:
         return _executor
 
 
-def submit(candidate: Candidate, *, settings: AdmissionSettings, deps: Callable[[], tuple[Any, CacheStore, EvidenceStore]]) -> None:
-    """Returns immediately. `deps` builds (bedrock_client, store,
-    evidence_store) lazily inside the worker, so nothing on the request path
-    touches AWS."""
+def run_in_background(fn: Callable[[], None], *, workers: int) -> None:
+    """Runs `fn` in the cache's thread pool and returns at once; counted in
+    in_flight() (so /ping reports HealthyBusy) until it finishes. `fn` must
+    handle its own errors."""
     global _in_flight
     with _executor_lock:
         _in_flight += 1
@@ -348,12 +348,24 @@ def submit(candidate: Candidate, *, settings: AdmissionSettings, deps: Callable[
     def _run() -> None:
         global _in_flight
         try:
-            bedrock_client, store, evidence_store = deps()
-            admit(candidate, bedrock_client=bedrock_client, store=store, evidence_store=evidence_store, settings=settings)
-        except Exception as exc:  # noqa: BLE001
-            log_result(AdmissionResult(candidate.entry_id, "ERROR", f"deps: {type(exc).__name__}: {exc}"), candidate=candidate, evidence_uri=None)
+            fn()
         finally:
             with _executor_lock:
                 _in_flight -= 1
 
-    _get_executor(settings.workers).submit(_run)
+    _get_executor(workers).submit(_run)
+
+
+def submit(candidate: Candidate, *, settings: AdmissionSettings, deps: Callable[[], tuple[Any, CacheStore, EvidenceStore]]) -> None:
+    """Returns immediately. `deps` builds (bedrock_client, store,
+    evidence_store) lazily inside the worker, so nothing on the request path
+    touches AWS."""
+
+    def _admit() -> None:
+        try:
+            bedrock_client, store, evidence_store = deps()
+            admit(candidate, bedrock_client=bedrock_client, store=store, evidence_store=evidence_store, settings=settings)
+        except Exception as exc:  # noqa: BLE001
+            log_result(AdmissionResult(candidate.entry_id, "ERROR", f"deps: {type(exc).__name__}: {exc}"), candidate=candidate, evidence_uri=None)
+
+    run_in_background(_admit, workers=settings.workers)

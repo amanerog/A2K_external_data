@@ -4,7 +4,8 @@ the part the unit tests cannot cover (they use MemoryStore).
 Part 1, no models: a synthetic entry through every SQL path the code uses --
 create PENDING, is_pending, conditional activate (twice: the second must be a
 no-op, that is T6), the pgvector search with its filters, the two policy
-tables, delete_pending on a non-PENDING row (must be a no-op).
+tables, delete_pending on a non-PENDING row (must be a no-op), the session
+memory (record_turn / last_turn) and deprecation by reformulation.
 
 Part 2, with models: real admission of a few POC answers (S3 evidence +
 PENDING row + classifier + judge + translation + embedding + activation),
@@ -104,6 +105,21 @@ def part1_sql(store: AuroraStore) -> list[str]:
         check("sources jsonb round-trips", r["sources"] == activation.sources)
         check("admitted_at set by the database", r["admitted_at"] is not None)
     check("search filters by embedding model", not store.search(vector, min_cosine=0.9, embedding_model="other-model", limit=5))
+
+    session = f"e2e-{uuid.uuid4()}"
+    try:
+        store.record_turn(session, "e2e question ñ", entry_id, window_seconds=600)
+        turn = store.last_turn(session, window_seconds=600)
+        check("record_turn + last_turn (session memory)", bool(turn) and turn["served_entry_id"] == entry_id and turn["last_query_text"] == "e2e question ñ")
+        store.record_turn(session, "e2e question 2", None, window_seconds=600)
+        turn = store.last_turn(session, window_seconds=600)
+        check("record_turn overwrites the session's row (null entry)", bool(turn) and turn["served_entry_id"] is None)
+        check("last_turn ignores rows outside the window", store.last_turn(session, window_seconds=0) is None)
+        check("deprecate an ACTIVE entry (reformulation)", store.deprecate(entry_id, "immediate_reformulation"))
+        check("deprecate again is a no-op", not store.deprecate(entry_id, "immediate_reformulation"))
+        check("a deprecated entry is not searchable", not [r for r in store.search(vector, min_cosine=0.9, embedding_model="e2e-synthetic", limit=5) if r["entry_id"] == entry_id])
+    finally:
+        store._execute("DELETE FROM session_last_turn WHERE session_id = :s", [{"name": "s", "value": {"stringValue": session}}])
 
     policy = store.retrieval_policy()
     check("retrieval_policy has the 7 domains (D3)", len(policy) == 7 and all(abs(v - 0.90) < 1e-6 for v in policy.values()), str(policy))

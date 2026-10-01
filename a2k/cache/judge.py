@@ -12,6 +12,13 @@ asks "is this cached answer right for this new question", the judge asks
 Each covered element must come with a verbatim quote from the tool output;
 decision.py verifies the quote is really there, so grounding (C3) does not
 rest on the model's word alone.
+
+The reading rules (containment, explicit vs. vague periods, point-in-time
+content, non-answers, the calibration cases) are adapted from the POC
+evaluation judge, Judge_System_Prompt_v5.3, minus everything that needs a
+reference answer -- with one deliberate difference: v5.3 does not penalize a
+wrong side remark outside what was asked; here every statement must be
+grounded (C3), because the cache serves all of it.
 """
 
 from __future__ import annotations
@@ -23,19 +30,20 @@ from .bedrock import ModelOutputError, converse_json
 from .models import Classification, ElementFinding, JudgeFindings
 from .taxonomy import DOMAINS
 
-CORE_VERSION = "judge-core-v5"
+CORE_VERSION = "judge-core-v6"
 MODULES_VERSION = "judge-modules-v3"
 
 CORE_CHECKS = (
     ("C1", "Every requested element of the question is covered by the answer."),
     ("C2", "The data is of the type asked for (a figure, a list, a status, a date...)."),
-    ("C3", "Every statement in the answer is grounded in the raw tool output below, not in general knowledge."),
+    ("C3", "Every statement in the answer, including details nobody asked for, is grounded in the raw tool output, not in general knowledge."),
     ("C4", "The subject is the one asked about (the right entity, person, series or period)."),
 )
 
 _PROMPT = """You decide whether an answer produced by a data vendor's agent is good enough to be \
 stored in a cache and served again to other users who ask the same question. A wrong answer in \
-the cache is served many times, so be strict: when in doubt, a check fails.
+the cache is served many times, so be strict: when in doubt, a check fails. You do not evaluate \
+wording, tone, length or style -- content only.
 
 You have no reference answer. Judge the answer only against the question, the list of requested \
 elements, and the raw output of the vendor tools the agent called (the only evidence that counts). \
@@ -62,14 +70,41 @@ answer for any check about where the answer's information comes from.
 {evidence}
 </raw_tool_output>
 
-1. For EACH requested element, in the same order, report:
+HOW TO READ THE ANSWER
+
+- Containment: the question is whether the answer CONTAINS each requested element, correctly \
+supported by the tool output. Do not require any particular wording, order or format, and do not \
+penalize an answer for being longer, more detailed or organized differently -- extra length never \
+counts against it. Do not reward length either: a long answer without the requested substance \
+does not cover it.
+- Requested elements are the reference: <requested_elements> is what the question asks for. Use \
+the question only to read the scope and explicit constraints of those elements (the entity, an \
+explicitly named period, whether several items are asked for, the type of data). Do not add \
+requirements of your own about what a better or more complete answer would contain.
+- Raw tool output is all of the agent's tool calls together: an element is supported if the \
+supporting data appears anywhere in <raw_tool_output>, even split across several calls.
+- Explicit period: if the question names a concrete period (a year, a quarter, a date range, an \
+"as of" date), grade it strictly -- data for another period does not cover the element.
+- No period: if the question names none ("current", "recent", "latest", or nothing at all), data \
+that is more recent than you would have expected is fine, as long as the tool output supports it.
+- Point-in-time content (open positions, prices and fees, product launches, reviews, recent news): \
+any instance that the tool output shows as current covers the element; the question does not ask \
+for one specific historical instance unless it says so.
+- Non-answers: an answer that says the information was not found, is not available or could not \
+be retrieved, or that asks the user for more details, does NOT cover the element. The one exception \
+is a question asking whether something exists or applies (sanctions, watchlists, litigation, \
+adverse media): there, "nothing was found" is an answer -- covered only if the tool output shows \
+that searches were actually run and returned nothing, and the answer says where it looked.
+- Grounding is stricter than containment: everything the answer states is served from the cache, \
+so EVERY statement -- including details nobody asked for -- must be supported by the tool output \
+(check C3). An unsupported or contradicted side remark fails C3 even if every requested element \
+is covered.
+
+WHAT TO REPORT
+
+1. For EACH requested element, in the same order:
    - status: "covered" (the answer gives it fully and the tool output supports it), "partial" \
-(only part of it, or only partly supported), or "missing".
-   - An answer that says the information was not found, is not available or could not be \
-retrieved does NOT cover that element: "missing". The one exception is a question asking whether \
-something exists or applies (sanctions, watchlists, litigation, adverse media): there, "nothing \
-was found" is an answer, "covered" only if the tool output shows that searches were actually run \
-and returned nothing, and the answer says where it looked.
+(only part of it -- e.g. some of the requested items -- or only partly supported), or "missing".
    - evidence_quote: for "covered" and "partial", a short passage (at most 300 characters) copied \
 VERBATIM from <raw_tool_output> that supports the answer for this element. Copy it exactly, \
 character for character, without paraphrasing, translating, joining distant fragments or \
@@ -92,6 +127,29 @@ figure for a given period.
 information the answer relies on was current -- a capture/retrieval date, a publication date, or \
 the end of the period a figure refers to. Not the date of the facts themselves (an incorporation \
 date, the date a status last changed, the year a rule was issued). null if there is none.
+
+CALIBRATION
+
+a. The answer is three times longer than needed, with context nobody asked for, but gives every \
+requested element and every statement is in the tool output -> elements covered, C3 pass.
+b. "What is X's current registered address?" The tool output and the answer give the address on \
+the registry record captured last month -> covered, data_kind "current".
+c. "What were X's Q1 2023 revenue and net loss?" The answer gives Q3 2024 figures only -> both \
+elements missing, C4 fail (an explicit period is graded strictly).
+d. "Which companies is X connected to?" The tool output returns six; the answer lists four of them \
+without saying the list is partial -> "partial".
+e. "Show me a current open position at X." The answer cites a posting the tool output shows as \
+live, with role and location -> covered (point-in-time content).
+f. "Who is the ultimate beneficial owner of X?" The answer says it could not find the information \
+and asks for the country of incorporation -> "missing".
+g. "Does Y have current sanctions?" The tool output shows searches of the OFAC, EU and UN lists \
+returning nothing; the answer says no sanctions were found on those lists -> covered.
+h. "What is X's registered activity code?" The answer gives the right code, as in the tool \
+output, and adds a founding year that appears nowhere in the tool output -> the element is \
+covered, but C3 fails: the side remark would be served from the cache unsupported.
+i. "What are X's total revenue and net loss for the latest period?" One tool call returns the \
+revenue, another the net loss; the answer states both -> both covered, each quote taken from its \
+own call.
 
 Respond with ONLY this JSON object:
 {{"elements": [{{"element": "...", "status": "covered", "evidence_quote": "..."}}],

@@ -318,7 +318,7 @@ def test_admit_fit_answer_becomes_active(capsys):
     assert activation.domain_primary == "REG"
     assert activation.data_as_of == date(2026, 9, 20)
     assert [s["sourceUrl"] for s in activation.sources] == [URL]
-    assert activation.admission_versions["judge_core"] == "judge-core-v5"
+    assert activation.admission_versions["judge_core"] == "judge-core-v6"
     assert activation.admission_versions["rule"] == "rule-v3"
     assert len(activation.question_vector) == 1024
     assert bedrock.calls == ["classify", "judge", "judge", "normalize", "normalize_classify", "embed"]  # FIT is confirmed

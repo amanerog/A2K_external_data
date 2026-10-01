@@ -248,6 +248,12 @@ class Config:
     cache_time_budget_seconds: float = field(
         default_factory=lambda: float(os.environ.get("CACHE_TIME_BUDGET_SECONDS", "10"))
     )
+    # D5: reformulation window -- a question within this many seconds of the
+    # previous turn of the same session (a2k.ask sessionId) is checked as a
+    # possible reformulation. Also how long a session record is kept (D10).
+    cache_reformulation_window_seconds: float = field(
+        default_factory=lambda: float(os.environ.get("CACHE_REFORMULATION_WINDOW_SECONDS", "600"))
+    )
 
     # Aurora PostgreSQL + pgvector, reached through the RDS Data API (see
     # a2k/cache/store.py for why not a driver connection). Schema in

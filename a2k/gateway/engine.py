@@ -70,6 +70,7 @@ def _retrieval_settings() -> retrieval.RetrievalSettings:
         checker_model_id=config.cache_checker_model_id,
         embedding_model_id=config.cache_embedding_model_id,
         disabled_domains=config.cache_disabled_domains,
+        reformulation_window_seconds=config.cache_reformulation_window_seconds,
     )
 
 
@@ -410,9 +411,9 @@ class GatewayEngine:
         lookup: retrieval.RetrievalResult | None = None
         shadow_task: asyncio.Task | None = None
         if config.cache_serving:
-            lookup = await self._cache_retrieve(req.query, budget=config.cache_time_budget_seconds)
+            lookup = await self._cache_retrieve(req.query, session_id, budget=config.cache_time_budget_seconds)
         elif config.cache_ready:
-            shadow_task = asyncio.create_task(self._cache_retrieve(req.query, budget=None))
+            shadow_task = asyncio.create_task(self._cache_retrieve(req.query, session_id, budget=None))
 
         # A hit is only served if its domain is in serve mode itself; a domain
         # still in shadow gets the vendor answer, the hit stays in the log.
@@ -506,6 +507,7 @@ class GatewayEngine:
         )
         self._cache(request_id, envelope)
         vendor_entry_id = self._submit_admission(req.query, content) if hit is None else None
+        self._record_turn(session_id, req.query, hit.entry_id if hit is not None else vendor_entry_id)
         if shadow_task is not None:
             lookup = await shadow_task
         if lookup is not None:
@@ -642,12 +644,12 @@ class GatewayEngine:
         results = await asyncio.gather(*(run(s) for s in sources))
         return dict(results)
 
-    async def _cache_retrieve(self, query: str, *, budget: float | None) -> retrieval.RetrievalResult:
+    async def _cache_retrieve(self, query: str, session_id: str | None, *, budget: float | None) -> retrieval.RetrievalResult:
         """Retrieval in a worker thread (its Bedrock and Data API calls are
         blocking). With a `budget` (serve mode, D15) a slow lookup counts as a
         miss and the request goes to the vendor; the thread is left to finish
         on its own. Never raises."""
-        call = asyncio.to_thread(self._cache_lookup_sync, query)
+        call = asyncio.to_thread(self._cache_lookup_sync, query, session_id)
         try:
             return await (asyncio.wait_for(call, timeout=budget) if budget else call)
         except asyncio.TimeoutError:
@@ -655,12 +657,12 @@ class GatewayEngine:
         except Exception as exc:  # noqa: BLE001 -- the cache must never break a request
             return retrieval.RetrievalResult(error=f"{type(exc).__name__}: {exc}")
 
-    def _cache_lookup_sync(self, query: str) -> retrieval.RetrievalResult:
+    def _cache_lookup_sync(self, query: str, session_id: str | None = None) -> retrieval.RetrievalResult:
         try:
             bedrock_client, store, _, _ = _cache_clients()
         except Exception as exc:  # noqa: BLE001
             return retrieval.RetrievalResult(error=f"clients: {type(exc).__name__}: {exc}")
-        return retrieval.lookup(query, bedrock_client=bedrock_client, store=store, settings=_retrieval_settings())
+        return retrieval.lookup(query, bedrock_client=bedrock_client, store=store, settings=_retrieval_settings(), session_id=session_id)
 
     def _content_from_cache_hit(self, hit: retrieval.CacheHit) -> dict:
         """The agent's own content shape, so the envelope is built by the same
@@ -699,6 +701,9 @@ class GatewayEngine:
             "mode": config.cache_mode,
             "request_id": request_id,
             "session_id": session_id,
+            # caller (K2's sessionId) or derived from a transport header (see
+            # mcp_server/server.py _session_id) -- filter on "caller" for D14.
+            "session_source": (session_id.split(":", 1)[0] if session_id.startswith(("mcp:", "agentcore:")) else "caller") if session_id else None,
             "served_from": served_from,
             "would_hit": hit is not None,
             "entry_id": hit.entry_id if hit else None,
@@ -709,6 +714,7 @@ class GatewayEngine:
             "original_lang": lookup.original_lang,
             "question_en": lookup.question_en,
             "domain_mode": config.domain_mode(lookup.domains[0]) if lookup.domains else None,
+            "reformulation": lookup.reformulation,
             "candidates": lookup.candidates,
             "checks": lookup.checks,
             "skipped": lookup.skipped,
@@ -719,6 +725,24 @@ class GatewayEngine:
             "vendor_entry_id": vendor_entry_id,
         }
         print(json.dumps(record, ensure_ascii=False, default=str), file=sys.stdout, flush=True)
+
+    def _record_turn(self, session_id: str | None, query: str, served_entry_id: str | None) -> None:
+        """Session memory for the next turn's reformulation check: the question
+        as asked and the entry the user got -- the cache hit, or the admission
+        candidate made from the vendor answer (None if the answer is not a
+        candidate; a reformulation of it still counts for the re-ask rate).
+        In the background, after the answer; no session id, nothing stored."""
+        if not config.cache_ready or not session_id:
+            return
+
+        def _write() -> None:
+            try:
+                _, _, store, _ = _cache_clients()
+                store.record_turn(session_id, query, served_entry_id, window_seconds=config.cache_reformulation_window_seconds)
+            except Exception as exc:  # noqa: BLE001 -- losing one turn only skips one reformulation check
+                print(f"a2k-box: cache session turn not recorded: {type(exc).__name__}: {exc}", file=sys.stdout, flush=True)
+
+        admission.run_in_background(_write, workers=config.admission_workers)
 
     def _submit_admission(self, query: str, content: dict) -> str | None:
         """Hands a live vendor answer to the cache admission pipeline

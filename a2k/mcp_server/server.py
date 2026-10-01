@@ -16,7 +16,7 @@ import json
 
 import anyio
 import uvicorn
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
@@ -25,7 +25,7 @@ from ..cards import load_card, vendor_catalogue
 from ..config import config
 from ..gateway.engine import engine
 from ..models.envelope import CitedResponseEnvelope
-from ..models.request import A2KRequest, ExplainRequest, GetDocumentRequest, Requirements
+from ..models.request import A2KRequest, ExplainRequest, GetDocumentRequest, RequestMetadata, Requirements
 
 mcp = FastMCP(
     name="a2k-box",
@@ -175,12 +175,46 @@ async def a2k_search(query: str, sources: list[str] | None = None, limit: int = 
     return _dump(await engine.search(req))
 
 
+# Transport headers a session id can be taken from when the caller sends none,
+# in order of preference, with the prefix that marks where it came from.
+_SESSION_HEADERS = (
+    ("mcp-session-id", "mcp"),
+    ("x-amzn-bedrock-agentcore-runtime-session-id", "agentcore"),
+)
+
+
+def _session_id(explicit: str | None, ctx: Context | None) -> str | None:
+    """The caller's sessionId (K2) if given. Otherwise one derived from the
+    transport -- the MCP session id or AgentCore's runtime session id --
+    prefixed with its source ("mcp:", "agentcore:") so the serving log can
+    tell the two apart. A derived session is only as good as the caller's
+    connection handling: if one connection carries several end users, their
+    consecutive questions look like one conversation. The cost is bounded --
+    a reformulation can only deprecate an entry (a lost hit), never serve a
+    wrong answer -- and the serving log's session_source lets the re-ask rate
+    be computed on caller-provided sessions only."""
+    if explicit:
+        return explicit
+    try:
+        request = ctx.request_context.request if ctx is not None else None
+    except (ValueError, AttributeError):  # no request in flight (e.g. called directly)
+        request = None
+    headers = getattr(request, "headers", None) or {}
+    for header, source in _SESSION_HEADERS:
+        value = headers.get(header)
+        if value:
+            return f"{source}:{value}"
+    return None
+
+
 @mcp.tool(name="a2k.ask")
 async def a2k_ask(
     query: str,
     sources: list[str] | None = None,
     strictGrounding: bool = False,
     reportConflicts: bool = True,
+    sessionId: str | None = None,
+    ctx: Context | None = None,
 ) -> dict:
     """Ask a question about a company; returns a cited, synthesized answer.
 
@@ -217,6 +251,12 @@ async def a2k_ask(
     ["sayari"]; omit it to fan out to both (default). If `conflicts` in the
     response is non-empty, the sources disagree on a fact -- surface both
     positions rather than picking one.
+
+    `sessionId` -- the id of the end user's conversation, the same on every
+    question of that conversation and different across users. Optional; when
+    given, a question that rephrases the previous one within a few minutes is
+    recognised as a re-ask and the answer it rephrases is not served again.
+    Without it, the MCP/AgentCore session of the connection is used.
     """
     raw = await _cala_raw_response_if_enabled(query, sources)
     if raw is not None:
@@ -226,6 +266,7 @@ async def a2k_ask(
         query=query,
         sources=sources,
         requirements=Requirements(strictGrounding=strictGrounding, reportConflicts=reportConflicts),
+        requestMetadata=RequestMetadata(sessionId=session_id) if (session_id := _session_id(sessionId, ctx)) else None,
     )
     return _dump(await engine.ask(req))
 
