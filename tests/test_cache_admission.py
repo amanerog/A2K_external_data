@@ -523,3 +523,17 @@ def test_stored_language_comes_from_the_retrieval_detector():
     retrieval (e2e, id 38), so the original answer was never served."""
     result, store, _, _ = _admit(bedrock=FakeBedrock(lang="en"))
     assert store.rows[result.entry_id]["activation"].original_lang == "en"
+
+
+def test_a_failed_model_call_keeps_the_timings_of_earlier_steps():
+    class DeniedJudge(FakeBedrock):
+        def converse(self, *, modelId, messages, inferenceConfig):
+            if messages[0]["content"][0]["text"].startswith("You decide whether an answer"):
+                raise RuntimeError("AccessDeniedException: not authorized")
+            return super().converse(modelId=modelId, messages=messages, inferenceConfig=inferenceConfig)
+
+    result, store, _, _ = _admit(bedrock=DeniedJudge())
+    assert result.outcome == "ERROR" and "AccessDenied" in result.reason
+    assert "filters" in result.timings_ms and "classify" in result.timings_ms
+    assert result.classification is not None  # what the classifier said is still logged
+    assert result.entry_id not in store.rows

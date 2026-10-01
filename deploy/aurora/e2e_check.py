@@ -128,6 +128,85 @@ def part1_sql(store: AuroraStore) -> list[str]:
     return [entry_id]
 
 
+def part3_reformulation(store_admission, store_retrieval, bedrock) -> list[str]:
+    """Retrieval step 1 with real models (Haiku classifier, Titan, the Checker):
+    a real, searchable entry is planted, then a session asks it, follows up,
+    and reformulates. Returns the entry id for cleanup."""
+    from a2k.cache.bedrock import embed
+
+    print("\n== Part 3: reformulation with real models (no admission, no S3)")
+    settings = retrieval.RetrievalSettings(
+        light_model_id=config.admission_light_model_id,
+        checker_model_id=config.cache_checker_model_id,
+        embedding_model_id=config.cache_embedding_model_id,
+    )
+    q1 = "What is the registered address of Nu Pagamentos S.A. (CNPJ 18.236.120/0001-58) according to Receita Federal?"
+    answer = (
+        "According to Receita Federal do Brasil, Nu Pagamentos S.A. (CNPJ 18.236.120/0001-58) is registered at "
+        "Rua Capote Valente, 120, Pinheiros, São Paulo/SP, CEP 05409-000. Its cadastral status is Ativa."
+    )
+    entry_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc)
+    store_admission.create_pending(
+        Candidate(entry_id=entry_id, question=q1, answer=answer, vendor="e2e", tool_calls=[], citations=[], created_at=now),
+        "s3://e2e/none.json",
+    )
+    store_admission.activate(
+        Activation(
+            entry_id=entry_id,
+            question_text=q1,
+            question_vector=embed(bedrock, model_id=config.cache_embedding_model_id, text=q1),
+            answer_text=answer,
+            original_lang="en",
+            sources=[{"title": "Receita Federal", "sourceUrl": "https://solucoes.receita.fazenda.gov.br/"}],
+            domain_primary="CRP",
+            domain_secondary=None,
+            requested_elements=["registered address"],
+            time_anchor={"type": "relative"},
+            data_as_of=None,
+            expires_at=now + timedelta(hours=1),
+            judge_findings={"e2e": True},
+            embedding_model=config.cache_embedding_model_id,
+            admission_versions={"e2e": "1"},
+            entities=["Nu Pagamentos S.A."],
+        )
+    )
+    session = f"e2e-{uuid.uuid4()}"
+    window = settings.reformulation_window_seconds
+    try:
+        first = retrieval.lookup(q1, bedrock_client=bedrock, store=store_retrieval, settings=settings, session_id=session)
+        check("first turn: no previous turn in the session", first.reformulation == {"previous_turn": False}, str(first.reformulation))
+        check("first turn: the planted entry is a hit", first.hit is not None and first.hit.entry_id == entry_id, f"error={first.error} checks={first.checks}")
+        store_admission.record_turn(session, q1, entry_id, window_seconds=window)
+
+        follow = retrieval.lookup(
+            "And what is its main registered economic activity?", bedrock_client=bedrock, store=store_retrieval, settings=settings, session_id=session
+        )
+        r = follow.reformulation or {}
+        check("follow-up is classified as such and deprecates nothing", r.get("kind") == "follow_up" and not r.get("deprecated"), str(r))
+        store_admission.record_turn(session, q1, entry_id, window_seconds=window)
+
+        reask = retrieval.lookup(
+            "That's not what I asked -- I need the address registered for Nu Pagamentos, CNPJ 18.236.120/0001-58.",
+            bedrock_client=bedrock,
+            store=store_retrieval,
+            settings=settings,
+            session_id=session,
+        )
+        r = reask.reformulation or {}
+        check("reformulation is classified as such", r.get("kind") == "reformulation", str(r))
+        check("the served entry was deprecated", r.get("deprecated") is True)
+        check("the deprecated entry is not served again", not [c for c in reask.candidates if c["entry_id"] == entry_id], str(reask.candidates))
+        status = store_admission._execute(
+            "SELECT status, status_reason FROM cache_entry WHERE entry_id = CAST(:id AS uuid)", [{"name": "id", "value": {"stringValue": entry_id}}]
+        )["records"][0]
+        check("status_reason immediate_reformulation", [c.get("stringValue") for c in status] == ["DEPRECATED", "immediate_reformulation"], str(status))
+        print(f"        timings: first {first.timings_ms} | reformulation {reask.timings_ms}")
+    finally:
+        store_admission._execute("DELETE FROM session_last_turn WHERE session_id = :s", [{"name": "s", "value": {"stringValue": session}}])
+    return [entry_id]
+
+
 def load_records(path: str, ids: list[str]) -> list[dict]:
     wanted = set(ids)
     return [r for r in map(json.loads, open(path, encoding="utf-8")) if r["id"] in wanted and r.get("ok") and r.get("answer")]
@@ -191,7 +270,8 @@ def main() -> None:
     parser.add_argument("--bucket", required=True)
     parser.add_argument("--jsonl", help="POC results .jsonl for part 2")
     parser.add_argument("--ids", default="38,1", help="POC ids to admit in part 2 (38 and 1 were FIT offline)")
-    parser.add_argument("--skip-models", action="store_true", help="run part 1 only")
+    parser.add_argument("--skip-models", action="store_true", help="skip part 2 (admission with models)")
+    parser.add_argument("--reformulation", action="store_true", help="also run part 3: reformulation with real models")
     parser.add_argument("--keep", action="store_true", help="do not delete what was created")
     parser.add_argument(
         "--no-confirm",
@@ -211,6 +291,8 @@ def main() -> None:
     created_keys: list[str] = []
     try:
         created_ids += part1_sql(store_admission)
+        if args.reformulation:
+            created_ids += part3_reformulation(store_admission, store_retrieval, boto3.client("bedrock-runtime", region_name=args.region))
         if not args.skip_models:
             if not args.jsonl:
                 parser.error("--jsonl is required unless --skip-models")

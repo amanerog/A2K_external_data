@@ -119,10 +119,34 @@ def evaluate(
     now: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
     embed_enabled: bool = True,
 ) -> Evaluation:
-    """Steps 2-8. Never touches storage; `still_pending` is the T6 hook."""
+    """Steps 2-8. Never touches storage; `still_pending` is the T6 hook.
+    Never raises: a failing step (a denied or failed model call) ends as
+    outcome ERROR, keeping the timings and findings of the steps before it."""
     result = AdmissionResult(entry_id=candidate.entry_id, outcome="ERROR", reason="")
-    timer = _Timer(result)
     evaluation = Evaluation(result=result)
+    try:
+        return _evaluate_steps(
+            candidate, evaluation, bedrock_client=bedrock_client, settings=settings,
+            expiry_policy=expiry_policy, still_pending=still_pending, now=now, embed_enabled=embed_enabled,
+        )
+    except Exception as exc:  # noqa: BLE001
+        result.outcome, result.reason = "ERROR", f"{type(exc).__name__}: {exc}"
+        return evaluation
+
+
+def _evaluate_steps(
+    candidate: Candidate,
+    evaluation: Evaluation,
+    *,
+    bedrock_client,
+    settings: AdmissionSettings,
+    expiry_policy: dict[str, timedelta],
+    still_pending: Callable[[], bool],
+    now: Callable[[], datetime],
+    embed_enabled: bool,
+) -> Evaluation:
+    result = evaluation.result
+    timer = _Timer(result)
 
     with timer.step("filters"):
         checked = filters.run(
