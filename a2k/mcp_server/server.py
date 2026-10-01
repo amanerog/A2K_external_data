@@ -20,6 +20,7 @@ from mcp.server.fastmcp import FastMCP
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
+from ..cache import admission
 from ..cards import load_card, vendor_catalogue
 from ..config import config
 from ..gateway.engine import engine
@@ -311,10 +312,13 @@ async def _ping(request):
     read `status` (Healthy/HealthyBusy) for idle-session accounting. FastMCP
     doesn't register this on its own -- added explicitly since AgentCore
     Runtime's own troubleshooting docs list a missing /ping among the
-    startup/health failure causes. This gateway has no long-running
-    background work between requests, so "Healthy" (idle, safe to reclaim
-    after the idle timeout) is always correct here -- never "HealthyBusy"."""
-    return JSONResponse({"status": "Healthy"})
+    startup/health failure causes.
+
+    "HealthyBusy" while a cache admission is still running in the background
+    (a2k/cache/admission.py): the answer has already been returned, so to the
+    platform the session looks idle and could be reclaimed mid-admission.
+    Otherwise "Healthy" -- idle, safe to reclaim after the idle timeout."""
+    return JSONResponse({"status": "HealthyBusy" if admission.in_flight() else "Healthy"})
 
 
 def main() -> None:

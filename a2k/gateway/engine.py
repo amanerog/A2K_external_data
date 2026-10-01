@@ -7,6 +7,7 @@ transportes".
 from __future__ import annotations
 
 import asyncio
+import json
 import sys
 import time
 import uuid
@@ -38,11 +39,73 @@ from ..models.envelope import (
 )
 from ..models.request import A2KRequest, ExplainRequest, GetDocumentRequest
 from . import audit as gw_audit
-from . import cache as answer_cache
 from . import conflict, synthesis, tracing
+from ..cache import admission, retrieval
+from ..cache.models import Candidate
+from ..cache.store import AuroraStore, S3EvidenceStore
 
 GATEWAY_KB_ID = "urn:a2k:gateway:k2-external-intel"
 _CACHE_MAX_SIZE = 500
+
+
+def _admission_settings() -> admission.AdmissionSettings:
+    return admission.AdmissionSettings(
+        light_model_id=config.admission_light_model_id,
+        judge_model_id=config.admission_judge_model_id,
+        embedding_model_id=config.cache_embedding_model_id,
+        min_answer_chars=config.admission_min_answer_chars,
+        max_evidence_chars=config.admission_max_evidence_chars,
+        require_verified_quotes=config.admission_require_verified_quotes,
+        fallback_messages=(config.vendor_fallback_message,),
+        allowed_vendors=config.admission_allowed_vendors,
+        workers=config.admission_workers,
+        disabled_domains=config.cache_disabled_domains,
+        confirm_fit=config.admission_confirm_fit,
+    )
+
+
+def _retrieval_settings() -> retrieval.RetrievalSettings:
+    return retrieval.RetrievalSettings(
+        light_model_id=config.admission_light_model_id,
+        checker_model_id=config.cache_checker_model_id,
+        embedding_model_id=config.cache_embedding_model_id,
+        disabled_domains=config.cache_disabled_domains,
+    )
+
+
+_cache_clients_value = None
+
+
+def _cache_clients():
+    """(bedrock-runtime, retrieval store, admission store, S3 evidence store),
+    built once on first use -- inside an admission worker or a retrieval
+    thread, never before the cache is actually turned on. boto3 clients are
+    thread-safe and shared. Two Aurora stores over the same client: only the
+    admission one waits for a paused cluster to resume (see AuroraStore)."""
+    global _cache_clients_value
+    if _cache_clients_value is None:
+        import boto3
+
+        rds_data = boto3.client("rds-data")
+        aurora = dict(
+            rds_data_client=rds_data,
+            cluster_arn=config.aurora_cluster_arn,
+            secret_arn=config.aurora_secret_arn,
+            database=config.aurora_database,
+        )
+        _cache_clients_value = (
+            boto3.client("bedrock-runtime"),
+            AuroraStore(**aurora),
+            AuroraStore(**aurora, resume_retries=9),
+            S3EvidenceStore(s3_client=boto3.client("s3"), bucket=config.cache_evidence_bucket),
+        )
+    return _cache_clients_value
+
+
+def _admission_deps():
+    bedrock_client, _, admission_store, evidence_store = _cache_clients()
+    return bedrock_client, admission_store, evidence_store
+
 
 # ConflictType's allowed values (models/envelope.py) -- the agent's own
 # self-reported `nature` string (direct_agent.py's ConflictOut) isn't
@@ -78,12 +141,6 @@ class GatewayEngine:
         self._agent_token: str | None = None
         self._agent_token_expires_at: float = 0.0
         self._response_cache: dict[str, CitedResponseEnvelope] = {}
-        # Lazily built by _get_bedrock_client() -- only ever needed when the
-        # semantic answer cache (gateway/cache.py) is enabled; this is the
-        # first thing on this Runtime that calls Bedrock directly, so don't
-        # pay for a client nobody asked for when config.answer_cache_ready
-        # is False (the common case today).
-        self._bedrock_client = None
 
     # -- operations -------------------------------------------------------
 
@@ -158,13 +215,8 @@ class GatewayEngine:
         _gather_facts()/adapters path above -- see _call_agent()'s docstring
         for the full trade-off.
 
-        Checked against the semantic answer cache (gateway/cache.py) first,
-        before any vendor is decided or contacted -- a hit means
-        _call_agent() is never invoked at all for this request. The cache is
-        vendor-blind by design (see cache.py's module docstring): `sources`
-        on `req` plays no part in matching, only `operation` does, so a hit
-        here can come from an answer originally produced by a different
-        vendor than this request's own `sources` would pick."""
+        Not cached: the cache (a2k/cache/) stores questions with a written
+        answer, and search returns passages, not an answer."""
         request_id = self._request_id(req)
         sources = req.sources or list(self.adapters)
         source_kb_id = self._source_kb_id(sources)
@@ -172,18 +224,12 @@ class GatewayEngine:
         t0 = time.monotonic()
         tracing.trace("engine.search.request", requestId=request_id, query=req.query, sources=sources, limit=limit)
 
-        cache_result = self._cache_lookup(req.query, "search")
-        if cache_result.hit is not None:
-            content = cache_result.hit.content
-            retrieved_at = cache_result.hit.cachedAt
-            decision_reason = f"served from cache, originally answered at {cache_result.hit.cachedAt}"
-        else:
-            try:
-                content = await self._call_agent("search", req.query, req.sources, request_id)
-            except A2KError as err:
-                return self._error_envelope("search", source_kb_id, err, request_id)
-            retrieved_at = None
-            decision_reason = None
+        try:
+            content = await self._call_agent("search", req.query, req.sources, request_id)
+        except A2KError as err:
+            return self._error_envelope("search", source_kb_id, err, request_id)
+        retrieved_at = None
+        decision_reason = None
 
         citations = [
             self._citation_from_agent(i, c, retrieved_at=retrieved_at)
@@ -225,8 +271,6 @@ class GatewayEngine:
             pageInfo={"nextCursor": None, "hasMore": False, "pageLimit": limit},
         )
         self._cache(request_id, envelope)
-        if cache_result.hit is None:
-            self._cache_store("search", req.query, cache_result.query_embedding, content)
         tracing.trace(
             "engine.search.response",
             requestId=request_id,
@@ -346,24 +390,45 @@ class GatewayEngine:
         conflict.py's deterministic comparison already has, which this path
         doesn't produce.
 
-        Checked against the semantic answer cache (gateway/cache.py) first,
-        before any vendor is decided or contacted -- see _search_via_agent()'s
-        own docstring for why this is vendor-blind by design."""
+        The cache (a2k/cache/, config.cache_mode):
+        - serve: retrieval runs first, within the D15 time budget; a hit is
+          served and the vendor is never called. A miss, an error or the time
+          budget running out goes to the vendor, as without a cache.
+        - shadow: retrieval runs in parallel with the vendor call, so it adds
+          no latency; the user always gets the vendor answer and the serving
+          log records what the cache would have served.
+        In both modes a vendor answer then goes to admission, in the
+        background. The cache is vendor-blind: `sources` plays no part in
+        matching."""
         request_id = self._request_id(req)
         sources = req.sources or list(self.adapters)
         source_kb_id = self._source_kb_id(sources)
         t0 = time.monotonic()
         tracing.trace("engine.ask.request", requestId=request_id, query=req.query, sources=sources)
 
-        cache_result = self._cache_lookup(req.query, "ask")
-        if cache_result.hit is not None:
-            content = cache_result.hit.content
-            retrieved_at = cache_result.hit.cachedAt
-            decision_reason = f"served from cache, originally answered at {cache_result.hit.cachedAt}"
+        session_id = req.requestMetadata.sessionId if req.requestMetadata else None
+        lookup: retrieval.RetrievalResult | None = None
+        shadow_task: asyncio.Task | None = None
+        if config.cache_serving:
+            lookup = await self._cache_retrieve(req.query, budget=config.cache_time_budget_seconds)
+        elif config.cache_ready:
+            shadow_task = asyncio.create_task(self._cache_retrieve(req.query, budget=None))
+
+        # A hit is only served if its domain is in serve mode itself; a domain
+        # still in shadow gets the vendor answer, the hit stays in the log.
+        hit = lookup.hit if lookup and lookup.domains and config.domain_mode(lookup.domains[0]) == "serve" else None
+        valid_as_of = None
+        if hit is not None:
+            content = self._content_from_cache_hit(hit)
+            retrieved_at = hit.admitted_at.strftime("%Y-%m-%dT%H:%M:%SZ") if hit.admitted_at else None
+            valid_as_of = hit.data_as_of.isoformat() if hit.data_as_of else None
+            decision_reason = f"served from cache entry {hit.entry_id}"
         else:
             try:
                 content = await self._call_agent("ask", req.query, req.sources, request_id)
             except A2KError as err:
+                if shadow_task is not None:
+                    self._log_retrieval(await shadow_task, request_id=request_id, session_id=session_id, served_from="vendor_error", vendor_entry_id=None)
                 return self._error_envelope("ask", source_kb_id, err, request_id)
             retrieved_at = None
             decision_reason = None
@@ -432,7 +497,7 @@ class GatewayEngine:
                 confidenceMethod="llm-self-report",
                 strictGroundingSatisfied=strict_satisfied,
             ),
-            freshness=self._agent_freshness(retrieved_at=retrieved_at),
+            freshness=self._agent_freshness(retrieved_at=retrieved_at, valid_as_of=valid_as_of),
             accessDecision=self._access_decision(),
             audit=audit,
             conflicts=aware_conflicts,
@@ -440,8 +505,17 @@ class GatewayEngine:
             toolCalls=self._agent_tool_calls(content),
         )
         self._cache(request_id, envelope)
-        if cache_result.hit is None:
-            self._cache_store("ask", req.query, cache_result.query_embedding, content)
+        vendor_entry_id = self._submit_admission(req.query, content) if hit is None else None
+        if shadow_task is not None:
+            lookup = await shadow_task
+        if lookup is not None:
+            self._log_retrieval(
+                lookup,
+                request_id=request_id,
+                session_id=session_id,
+                served_from="cache" if hit is not None else "vendor",
+                vendor_entry_id=vendor_entry_id,
+            )
         tracing.trace(
             "engine.ask.response",
             requestId=request_id,
@@ -568,56 +642,115 @@ class GatewayEngine:
         results = await asyncio.gather(*(run(s) for s in sources))
         return dict(results)
 
-    def _get_bedrock_client(self):
-        """Lazily built, reused across calls within this warm container --
-        same caching-a-client-not-a-token idea as _get_agent_token()'s own
-        module-level reuse, just no expiry to track since a boto3 client
-        itself doesn't expire. Only ever called when config.answer_cache_ready
-        (see _cache_lookup()/_cache_store() below) -- this is the first
-        capability on this Runtime that talks to Bedrock directly, so its
-        execution role needs bedrock:InvokeModel/Converse added (see
-        deploy/agentcore/README.md)."""
-        if self._bedrock_client is None:
-            import boto3
-
-            self._bedrock_client = boto3.client("bedrock-runtime")
-        return self._bedrock_client
-
-    def _cache_lookup(self, query: str, operation: str) -> answer_cache.LookupResult:
-        """No-op (empty miss, no Bedrock call) when the cache isn't enabled
-        -- see config.answer_cache_ready. cache.lookup() itself never raises,
-        but config.answer_cache_ready gates it here too so a disabled cache
-        costs this request nothing at all, not even an embedding call.
-
-        The try/except here is specifically for _get_bedrock_client() --
-        cache.lookup() already guards everything past that point, but
-        building the client itself happens outside cache.py, so it needs
-        its own guard for the same "cache errors must never break a live
-        request" reason (confirmed live 2026-09-18 that a gap exactly like
-        this one, in cache.lookup() itself, took down the whole a2k.ask call
-        on a Bedrock IAM error -- see cache.py's lookup() docstring)."""
-        if not config.answer_cache_ready:
-            return answer_cache.LookupResult(hit=None, query_embedding=[])
+    async def _cache_retrieve(self, query: str, *, budget: float | None) -> retrieval.RetrievalResult:
+        """Retrieval in a worker thread (its Bedrock and Data API calls are
+        blocking). With a `budget` (serve mode, D15) a slow lookup counts as a
+        miss and the request goes to the vendor; the thread is left to finish
+        on its own. Never raises."""
+        call = asyncio.to_thread(self._cache_lookup_sync, query)
         try:
-            return answer_cache.lookup(self._get_bedrock_client(), query, operation)
-        except Exception as exc:  # noqa: BLE001 -- see docstring above
-            print(f"a2k-box: answer cache lookup failed, falling through to a live call: {type(exc).__name__}: {exc}", file=sys.stdout, flush=True)
-            return answer_cache.LookupResult(hit=None, query_embedding=[])
+            return await (asyncio.wait_for(call, timeout=budget) if budget else call)
+        except asyncio.TimeoutError:
+            return retrieval.RetrievalResult(error=f"time budget exceeded ({budget}s, D15)")
+        except Exception as exc:  # noqa: BLE001 -- the cache must never break a request
+            return retrieval.RetrievalResult(error=f"{type(exc).__name__}: {exc}")
 
-    def _cache_store(self, operation: str, query: str, query_embedding: list[float], content: dict) -> None:
-        if not config.answer_cache_ready or not query_embedding:
-            return
+    def _cache_lookup_sync(self, query: str) -> retrieval.RetrievalResult:
         try:
-            answered_by_sources = sorted({tc.get("vendor") for tc in (content.get("toolCalls") or []) if tc.get("vendor")})
-            answer_cache.store(
-                operation=operation,
-                query=query,
-                query_embedding=query_embedding,
-                answered_by_sources=answered_by_sources,
-                content=content,
+            bedrock_client, store, _, _ = _cache_clients()
+        except Exception as exc:  # noqa: BLE001
+            return retrieval.RetrievalResult(error=f"clients: {type(exc).__name__}: {exc}")
+        return retrieval.lookup(query, bedrock_client=bedrock_client, store=store, settings=_retrieval_settings())
+
+    def _content_from_cache_hit(self, hit: retrieval.CacheHit) -> dict:
+        """The agent's own content shape, so the envelope is built by the same
+        code as a live answer. groundedRatio 1.0: the entry was admitted only
+        after the judge found every requested element covered, with quotes
+        verified against the raw tool output (a2k/cache/decision.py)."""
+        return {
+            "answer": hit.answer,
+            "claims": [],
+            "citations": [
+                {"title": s.get("title"), "sourceUrl": s.get("sourceUrl"), "documentId": s.get("documentId")}
+                for s in hit.sources
+            ],
+            "groundedRatio": 1.0,
+            "conflicts": [],
+            "toolCalls": [],
+        }
+
+    def _log_retrieval(
+        self,
+        lookup: retrieval.RetrievalResult,
+        *,
+        request_id: str,
+        session_id: str | None,
+        served_from: str,
+        vendor_entry_id: str | None,
+    ) -> None:
+        """The serving log (proposal Sheet 6): one JSON line per ask with the
+        cache on. In shadow mode `would_hit` is what the cache would have
+        served; `vendor_entry_id` is the admission candidate created from the
+        vendor answer, whose evidence bundle (S3) holds that answer -- so a
+        would-be hit can be compared with the fresh vendor answer afterwards."""
+        hit = lookup.hit
+        record = {
+            "event": "cache.retrieval",
+            "mode": config.cache_mode,
+            "request_id": request_id,
+            "session_id": session_id,
+            "served_from": served_from,
+            "would_hit": hit is not None,
+            "entry_id": hit.entry_id if hit else None,
+            "cosine": round(hit.cosine, 4) if hit else None,
+            "served_version": hit.served_version if hit else None,
+            "threshold": lookup.threshold,
+            "domains": lookup.domains,
+            "original_lang": lookup.original_lang,
+            "question_en": lookup.question_en,
+            "domain_mode": config.domain_mode(lookup.domains[0]) if lookup.domains else None,
+            "candidates": lookup.candidates,
+            "checks": lookup.checks,
+            "skipped": lookup.skipped,
+            "error": lookup.error,
+            "timings_ms": lookup.timings_ms,
+            "total_ms": lookup.total_ms,
+            "within_budget": lookup.total_ms <= config.cache_time_budget_seconds * 1000,
+            "vendor_entry_id": vendor_entry_id,
+        }
+        print(json.dumps(record, ensure_ascii=False, default=str), file=sys.stdout, flush=True)
+
+    def _submit_admission(self, query: str, content: dict) -> str | None:
+        """Hands a live vendor answer to the cache admission pipeline
+        (a2k/cache/admission.py), which runs in the background -- the
+        response has already been built and is returned right after this.
+
+        Only `ask` answers from a single vendor in the allowed list (D11) are
+        candidates: a fan-out answer mixes vendors whose contracts may differ,
+        and an answer with no vendor tool call has nothing to judge it against.
+        Never raises: building the candidate is pure, and everything that
+        touches AWS happens inside the worker. Returns the candidate's entry_id,
+        or None when the answer is not a candidate."""
+        if not config.cache_ready:
+            return None
+        try:
+            vendors = {tc.get("vendor") for tc in (content.get("toolCalls") or []) if tc.get("vendor")}
+            if len(vendors) != 1 or next(iter(vendors)) not in config.admission_allowed_vendors:
+                return None
+            candidate = Candidate(
+                entry_id=str(uuid.uuid4()),
+                question=query,
+                answer=content.get("answer") or "",
+                vendor=next(iter(vendors)),
+                tool_calls=list(content.get("toolCalls") or []),
+                citations=list(content.get("citations") or []),
+                created_at=datetime.now(timezone.utc),
             )
-        except Exception as exc:  # noqa: BLE001 -- same reasoning as _cache_lookup() above
-            print(f"a2k-box: answer cache store failed, this answer won't be cached: {type(exc).__name__}: {exc}", file=sys.stdout, flush=True)
+            admission.submit(candidate, settings=_admission_settings(), deps=_admission_deps)
+            return candidate.entry_id
+        except Exception as exc:  # noqa: BLE001 -- admission must never break a live request
+            print(f"a2k-box: cache admission submit failed: {type(exc).__name__}: {exc}", file=sys.stdout, flush=True)
+            return None
 
     async def _get_agent_token(self) -> str:
         """Cognito client-credentials token for the agent's own inbound-auth
@@ -701,7 +834,14 @@ class GatewayEngine:
         # POST (not the streaming MCP path a2k-box's own callers use), so
         # nothing here keeps the connection alive the way SSE ping frames do
         # on that side -- it really is all-or-nothing up to this ceiling.
-        async with httpx.AsyncClient(timeout=240.0, verify=config.httpx_verify) as client:
+        #
+        # 600s, not 240s: the POCv3 Cala run (2026-09-29) timed out on 23 rows,
+        # and the agent Runtime's own tool-call logs show those sessions kept
+        # going after this side gave up -- 21 of the 23 would have finished
+        # within 600s (the other two ran 623s and 882s). Cala's knowledge_search
+        # alone takes 45-100s per call, plus 45-110s of model time writing the
+        # answer, so a question needing 3+ searches can't fit in 240s.
+        async with httpx.AsyncClient(timeout=600.0, verify=config.httpx_verify) as client:
             try:
                 resp = await client.post(
                     config.agent_runtime_url,
@@ -730,9 +870,9 @@ class GatewayEngine:
         re-fetches the source document to hash it.
 
         `retrieved_at` defaults to now() (a live call, fetched this instant)
-        but a cache hit (gateway/cache.py) passes the original cached-at
-        timestamp instead -- same "never claim now for a replayed answer"
-        reasoning as _agent_freshness()'s own `retrieved_at` param."""
+        but a cache hit (a2k/cache/retrieval.py) passes the entry's admission
+        time instead -- same "never claim now for a replayed answer" reasoning
+        as _agent_freshness()'s own `retrieved_at` param."""
         return Citation(
             id=f"citation-{index + 1}",
             documentId=citation.get("documentId"),
@@ -771,36 +911,22 @@ class GatewayEngine:
             for tc in (content.get("toolCalls") or [])
         ]
 
-    def _agent_freshness(self, retrieved_at: str | None = None) -> Freshness:
-        """Unlike _freshness() below (still used by _insufficient_evidence,
-        which has real Facts with source_last_updated to inspect), the agent
-        doesn't report source-level update timestamps -- on a live call
-        (retrieved_at omitted) there's nothing to compute `stale` from, so
-        it's always False rather than guessed.
+    def _agent_freshness(self, retrieved_at: str | None = None, valid_as_of: str | None = None) -> Freshness:
+        """The agent doesn't report source-level update timestamps, so on a
+        live call (retrieved_at omitted) there is nothing to compute `stale`
+        from: always False, retrieved now.
 
-        A cache hit (gateway/cache.py) DOES have something to measure from:
-        the ISO timestamp the answer was originally generated at. Pass it as
-        `retrieved_at` and `stale` is computed against
-        config.answer_cache_ttl_seconds, the same way _freshness() computes
-        staleness against max_staleness_hours -- a replayed answer must never
-        just claim `retrievedAt=now()` as if it had just been fetched live."""
+        A cache hit passes the entry's admitted_at as `retrieved_at` -- a
+        replayed answer must never claim it was fetched just now -- and the
+        date the data refers to as `valid_as_of`. Still never stale: retrieval
+        only returns entries before their expires_at (a2k/cache/expiry.py)."""
         now = datetime.now(timezone.utc)
-        if retrieved_at is None:
-            return Freshness(
-                sourceLastUpdated=None,
-                reviewedAt=None,
-                retrievedAt=now.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                stale=False,
-                validAsOf=now.strftime("%Y-%m-%d"),
-            )
-        retrieved_dt = datetime.fromisoformat(retrieved_at.replace("Z", "+00:00"))
-        stale = (now - retrieved_dt) > timedelta(seconds=config.answer_cache_ttl_seconds)
         return Freshness(
             sourceLastUpdated=None,
             reviewedAt=None,
-            retrievedAt=retrieved_at,
-            stale=stale,
-            validAsOf=now.strftime("%Y-%m-%d"),
+            retrievedAt=retrieved_at or now.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            stale=False,
+            validAsOf=valid_as_of or (retrieved_at or now.strftime("%Y-%m-%dT%H:%M:%SZ"))[:10],
         )
 
     def _aware_conflicts_from_agent(self, agent_conflicts: list[dict], claims: list[Claim]) -> list[AwareConflict]:

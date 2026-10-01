@@ -58,6 +58,22 @@ def _secret_env(name: str) -> str | None:
     return os.environ.get(name) or _secrets_manager_bundle().get(name)
 
 
+def _parse_domain_modes(raw: str) -> dict[str, str]:
+    """"MED=off, RSK=shadow" -> {"MED": "off", "RSK": "shadow"}. An entry with
+    an unknown mode is ignored (and printed), never guessed."""
+    modes: dict[str, str] = {}
+    for item in raw.split(","):
+        if not item.strip():
+            continue
+        domain, _, mode = item.partition("=")
+        mode = mode.strip().lower()
+        if mode in ("off", "shadow", "serve") and domain.strip():
+            modes[domain.strip().upper()] = mode
+        else:
+            print(f"a2k-box: ignoring CACHE_DOMAIN_MODES entry {item.strip()!r}", flush=True)
+    return modes
+
+
 @dataclass(frozen=True)
 class Config:
     mode: str = field(default_factory=lambda: os.environ.get("A2K_BOX_MODE", "mock").lower())
@@ -203,41 +219,75 @@ class Config:
         default_factory=lambda: int(os.environ.get("VENDOR_CARDS_CACHE_TTL_SECONDS", "600"))
     )
 
-    # -- Semantic answer cache (a2k/gateway/cache.py) --------------------------
-    # Off by default -- same pattern as cala_raw_knowledge_search/trace_calls
-    # below: shipping this must not silently change behavior for existing
-    # deployments. Even with this true, an unset answer_cache_table still
-    # disables the cache entirely (same "no DynamoDB access configured"
-    # fallback vendor_cards_table uses) -- both must be set.
-    answer_cache_enabled: bool = field(default_factory=lambda: _bool_env("ANSWER_CACHE_ENABLED", False))
-    # DynamoDB table name, partition key `id` (uuid per cached answer). Not a
-    # _secret_env() -- a table name isn't a credential, same reasoning as
-    # vendor_cards_table above.
-    answer_cache_table: str | None = field(default_factory=lambda: os.environ.get("ANSWER_CACHE_TABLE"))
-    # How long a cached answer is trusted before a lookup ignores it and the
-    # entry is left to expire via DynamoDB's own TTL attribute. Conservative
-    # default (24h, not vendor_cards_table's 10min) -- this caches KYC/AML
-    # answers (sanctions, litigation, ownership), not read-mostly metadata;
-    # tune down per-deployment if that's still too stale for the data in
-    # question. A future refinement could tie this to _freshness()-style
-    # per-source granularity instead of one flat value -- not done for v1.
-    answer_cache_ttl_seconds: int = field(
-        default_factory=lambda: int(os.environ.get("ANSWER_CACHE_TTL_SECONDS", "86400"))
+    # -- Cache (a2k/cache/, Propuesta_cache_CdV) -------------------------------
+    # off    -- no cache at all: every ask goes to the vendor, nothing admitted.
+    # shadow -- phase 1: retrieval runs on every ask and the serving log says
+    #           what the cache would have served, but the user always gets the
+    #           vendor answer; vendor answers go through admission.
+    # serve  -- a cache hit is served; a miss goes to the vendor and admission.
+    # Anything that needs Aurora/S3 also stays off until they are configured
+    # (see cache_ready).
+    cache_mode: str = field(default_factory=lambda: os.environ.get("CACHE_MODE", "off").strip().lower())
+    # Per-domain switch (proposal Sheet 6), e.g. "MED=off,RSK=shadow". A domain
+    # not listed follows CACHE_MODE, and no domain can go beyond it: with
+    # CACHE_MODE=shadow, "REG=serve" still means shadow. See domain_mode().
+    # Environment variable for now (a restart to change it); AppConfig later.
+    cache_domain_modes: dict[str, str] = field(default_factory=lambda: _parse_domain_modes(os.environ.get("CACHE_DOMAIN_MODES", "")))
+    cache_embedding_model_id: str = field(
+        default_factory=lambda: os.environ.get("CACHE_EMBEDDING_MODEL_ID", "amazon.titan-embed-text-v2:0")
     )
-    # Cosine-similarity floor an embedding candidate must clear before the
-    # verification LLM call even runs -- deliberately generous (recall-
-    # favoring): the verification call is the real precision filter, this is
-    # just a cheap pre-filter so obviously-unrelated cache entries never reach
-    # it. See cache.py's lookup().
-    answer_cache_similarity_threshold: float = field(
-        default_factory=lambda: float(os.environ.get("ANSWER_CACHE_SIMILARITY_THRESHOLD", "0.90"))
+    # The retrieval Checker (two filters), kept as tested (D4).
+    cache_checker_model_id: str = field(
+        default_factory=lambda: os.environ.get("CACHE_CHECKER_MODEL_ID", "eu.anthropic.claude-sonnet-4-5-20250929-v1:0")
     )
-    answer_cache_embedding_model_id: str = field(
-        default_factory=lambda: os.environ.get("ANSWER_CACHE_EMBEDDING_MODEL_ID", "amazon.titan-embed-text-v2:0")
+    # D15: time the synchronous cache path may take before the question goes
+    # to the vendor. Enforced in serve mode; in shadow mode it is only recorded
+    # (within_budget). 10 s, not the proposal's provisional 3 s: the first real
+    # end-to-end run (2026-10-01) took ~5.5 s with one candidate, ~4 s of it in
+    # the Checker's two calls -- at 3 s every candidate would have timed out.
+    cache_time_budget_seconds: float = field(
+        default_factory=lambda: float(os.environ.get("CACHE_TIME_BUDGET_SECONDS", "10"))
     )
-    answer_cache_verify_model_id: str = field(
+
+    # Aurora PostgreSQL + pgvector, reached through the RDS Data API (see
+    # a2k/cache/store.py for why not a driver connection). Schema in
+    # deploy/aurora/schema.sql. ARNs are not credentials -- the DB password
+    # lives in the secret they point to.
+    aurora_cluster_arn: str | None = field(default_factory=lambda: os.environ.get("AURORA_CLUSTER_ARN"))
+    aurora_secret_arn: str | None = field(default_factory=lambda: os.environ.get("AURORA_SECRET_ARN"))
+    aurora_database: str = field(default_factory=lambda: os.environ.get("AURORA_DATABASE", "a2k_cache"))
+    cache_evidence_bucket: str | None = field(default_factory=lambda: os.environ.get("CACHE_EVIDENCE_BUCKET"))
+    # D11: only vendors whose contract allows storing and reusing their
+    # answers. Cala from the start; Sayari/Linkup once legal confirms.
+    admission_allowed_vendors: tuple[str, ...] = field(
+        default_factory=lambda: tuple(
+            v.strip().lower() for v in os.environ.get("ADMISSION_ALLOWED_VENDORS", "cala").split(",") if v.strip()
+        )
+    )
+    # Light model: classifier, translation to English, and retrieval's
+    # normalise-and-classify call.
+    admission_light_model_id: str = field(
+        default_factory=lambda: os.environ.get("ADMISSION_LIGHT_MODEL_ID", "eu.anthropic.claude-haiku-4-5-20251001-v1:0")
+    )
+    admission_judge_model_id: str = field(
+        default_factory=lambda: os.environ.get("ADMISSION_JUDGE_MODEL_ID", "eu.anthropic.claude-sonnet-5")
+    )
+    admission_min_answer_chars: int = field(default_factory=lambda: int(os.environ.get("ADMISSION_MIN_ANSWER_CHARS", "150")))
+    admission_max_evidence_chars: int = field(
+        default_factory=lambda: int(os.environ.get("ADMISSION_MAX_EVIDENCE_CHARS", "400000"))
+    )
+    admission_require_verified_quotes: bool = field(
+        default_factory=lambda: _bool_env("ADMISSION_REQUIRE_VERIFIED_QUOTES", True)
+    )
+    admission_workers: int = field(default_factory=lambda: int(os.environ.get("ADMISSION_WORKERS", "2")))
+    # Second, confirming judge call on FIT verdicts -- see AdmissionSettings.confirm_fit.
+    admission_confirm_fit: bool = field(default_factory=lambda: _bool_env("ADMISSION_CONFIRM_FIT", True))
+    # What the agent answers when a vendor is unavailable (agent/direct_agent.py,
+    # E4.9 / D17). Filter T2 discards it by exact match, so it must be the same
+    # value as the agent Runtime's own VENDOR_FALLBACK_MESSAGE.
+    vendor_fallback_message: str = field(
         default_factory=lambda: os.environ.get(
-            "ANSWER_CACHE_VERIFY_MODEL_ID", "eu.anthropic.claude-sonnet-4-5-20250929-v1:0"
+            "VENDOR_FALLBACK_MESSAGE", "Actualmente no se encuentra disponible esta información. Inténtelo más tarde."
         )
     )
 
@@ -298,8 +348,30 @@ class Config:
         return self.ca_bundle or True
 
     @property
-    def answer_cache_ready(self) -> bool:
-        return bool(self.answer_cache_enabled and self.answer_cache_table)
+    def cache_ready(self) -> bool:
+        """shadow or serve, with Aurora and the evidence bucket configured."""
+        return bool(
+            self.cache_mode in ("shadow", "serve")
+            and self.aurora_cluster_arn
+            and self.aurora_secret_arn
+            and self.cache_evidence_bucket
+        )
+
+    @property
+    def cache_serving(self) -> bool:
+        return self.cache_ready and self.cache_mode == "serve"
+
+    def domain_mode(self, domain: str) -> str:
+        """Effective mode of one data domain: the stricter of CACHE_MODE and
+        its own CACHE_DOMAIN_MODES entry."""
+        order = ("off", "shadow", "serve")
+        global_mode = self.cache_mode if self.cache_mode in order else "off"
+        own = self.cache_domain_modes.get(domain.upper(), global_mode)
+        return order[min(order.index(global_mode), order.index(own))]
+
+    @property
+    def cache_disabled_domains(self) -> tuple[str, ...]:
+        return tuple(sorted(d for d, m in self.cache_domain_modes.items() if self.domain_mode(d) == "off"))
 
 
 config = Config()
