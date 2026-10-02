@@ -87,7 +87,7 @@ class FakeBedrock:
         self.judge_queue = list(judge_queue or [])  # successive judge outputs, then self.judge
         self.lang = lang
         self.domains = domains
-        self.normalized = normalized or {"original_lang": "es", "question_en": "What responsibilities...?", "answer_en": "Under the EBA..."}
+        self.normalized = normalized or {"answer_en": "Under the EBA..."}
         self.raw_texts = list(raw_texts or [])  # overrides, consumed first
         self.calls: list[str] = []
 
@@ -103,7 +103,7 @@ class FakeBedrock:
         elif prompt.startswith("A question has just been sent"):
             text = json.dumps({"original_lang": self.lang, "question_en": "What responsibilities...?", "domain_primary": self.domains[0], "domain_secondary": self.domains[1]})
             kind = "normalize_classify"
-        elif prompt.startswith("Translate a question"):
+        elif prompt.startswith("Translate an answer"):
             text, kind = json.dumps(self.normalized), "normalize"
         else:
             raise AssertionError(f"unexpected prompt: {prompt[:60]}")
@@ -321,7 +321,7 @@ def test_admit_fit_answer_becomes_active(capsys):
     assert activation.admission_versions["judge_core"] == "judge-core-v6"
     assert activation.admission_versions["rule"] == "rule-v3"
     assert len(activation.question_vector) == 1024
-    assert bedrock.calls == ["classify", "judge", "judge", "normalize", "normalize_classify", "embed"]  # FIT is confirmed
+    assert bedrock.calls == ["classify", "judge", "judge", "normalize_classify", "normalize", "embed"]  # FIT is confirmed
     # Evidence bundle written, without the agent's own AskContent call.
     (bundle,) = evidence_store.objects.values()
     assert [tc["tool"] for tc in bundle["tool_calls"]] == ["knowledge_search"]

@@ -9,7 +9,8 @@ Steps, numbered as in the proposal:
   4  per-domain judge (judge model)
   5  decision rule in code -- NOT FIT deletes the PENDING row; a FIT
      verdict is confirmed by a second judgement (confirm_fit)
-  6  normalise question and answer to English (light model)
+  6  normalise to English (light model): the question with retrieval's own
+     normalise-and-classify call (language + question_en), then the answer
   7  embed question_en (Titan v2)
   8  expiry from expiry_policy -- already expired deletes the row
   9  activate: one conditional UPDATE, only if still PENDING
@@ -43,7 +44,7 @@ from . import classifier, decision, filters, judge, normalize, retrieval
 from .bedrock import embed
 from .evidence import bundle, evidence_key, evidence_text
 from .expiry import expires_at
-from .models import AdmissionResult, Candidate
+from .models import AdmissionResult, Candidate, Normalized
 from .store import Activation, CacheStore, EvidenceStore
 
 
@@ -78,6 +79,7 @@ class AdmissionSettings:
             "judge_core": judge.CORE_VERSION,
             "judge_modules": judge.MODULES_VERSION,
             "rule": decision.RULE_VERSION,
+            "normalize_question": retrieval.PROMPT_VERSION,
             "normalize": normalize.PROMPT_VERSION,
             "expiry_policy": expiry_policy_version,
             "light_model": self.light_model_id,
@@ -219,15 +221,17 @@ def _evaluate_steps(
         result.outcome, result.reason = "STALE", f"data already expired at admission (expires_at {result.expires_at.isoformat()})"
         return evaluation
 
-    with timer.step("normalize"):
-        result.normalized = normalize.normalize(bedrock_client, model_id=settings.light_model_id, question=candidate.question, answer=candidate.answer)
-    # The stored language decides, against the language retrieval detects for a
-    # new question, whether the original or the English answer is served -- so
-    # it comes from the very same call retrieval makes, not from translation.
-    with timer.step("detect_language"):
-        result.normalized.original_lang, _, _ = retrieval.normalize_and_classify(
+    # The question goes through retrieval's very own call: the language stored
+    # here is compared with the one detected for a new question to choose the
+    # original or the English answer, and the stored question_en is what new
+    # questions, translated the same way, are matched against.
+    with timer.step("normalize_question"):
+        original_lang, question_en, _ = retrieval.normalize_and_classify(
             bedrock_client, model_id=settings.light_model_id, question=candidate.question
         )
+    with timer.step("normalize"):
+        answer_en = normalize.translate_answer(bedrock_client, model_id=settings.light_model_id, answer=candidate.answer)
+    result.normalized = Normalized(original_lang=original_lang, question_en=question_en, answer_en=answer_en)
 
     if embed_enabled:
         with timer.step("embed"):
