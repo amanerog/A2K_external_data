@@ -78,14 +78,25 @@ _cache_clients_value = None
 
 
 def _cache_clients():
-    """(bedrock-runtime, retrieval store, admission store, S3 evidence store),
-    built once on first use -- inside an admission worker or a retrieval
-    thread, never before the cache is actually turned on. boto3 clients are
-    thread-safe and shared. Two Aurora stores over the same client: only the
-    admission one waits for a paused cluster to resume (see AuroraStore)."""
+    """(retrieval bedrock-runtime, retrieval store, admission store, S3
+    evidence store, admission bedrock-runtime), built once on first use --
+    inside an admission worker or a retrieval thread, never before the cache
+    is actually turned on. boto3 clients are thread-safe and shared. Two
+    Aurora stores over the same client: only the admission one waits for a
+    paused cluster to resume (see AuroraStore).
+
+    Two Bedrock clients, because the two sides wait very differently. A
+    judgement takes 1-5 min with no bytes until the end (non-streaming
+    Converse): with boto3's default 60 s read timeout and 4 retries, the
+    runtime re-sent every judgement up to 4 times, each one paid and each one
+    adding load -- 2 of 9 admissions ended in ReadTimeoutError and 2 more in
+    ServiceUnavailableException (shadow run, 2026-10-05). Retrieval calls
+    (Haiku, Titan, the Checker) take seconds and live inside the 10 s budget,
+    so a short timeout and a single retry are right there."""
     global _cache_clients_value
     if _cache_clients_value is None:
         import boto3
+        from botocore.config import Config as BotoConfig
 
         rds_data = boto3.client("rds-data")
         aurora = dict(
@@ -95,16 +106,17 @@ def _cache_clients():
             database=config.aurora_database,
         )
         _cache_clients_value = (
-            boto3.client("bedrock-runtime"),
+            boto3.client("bedrock-runtime", config=BotoConfig(read_timeout=30, retries={"max_attempts": 2, "mode": "standard"})),
             AuroraStore(**aurora),
             AuroraStore(**aurora, resume_retries=9),
             S3EvidenceStore(s3_client=boto3.client("s3"), bucket=config.cache_evidence_bucket),
+            boto3.client("bedrock-runtime", config=BotoConfig(read_timeout=600, retries={"max_attempts": 4, "mode": "adaptive"})),
         )
     return _cache_clients_value
 
 
 def _admission_deps():
-    bedrock_client, _, admission_store, evidence_store = _cache_clients()
+    _, _, admission_store, evidence_store, bedrock_client = _cache_clients()
     return bedrock_client, admission_store, evidence_store
 
 
@@ -659,7 +671,7 @@ class GatewayEngine:
 
     def _cache_lookup_sync(self, query: str, session_id: str | None = None) -> retrieval.RetrievalResult:
         try:
-            bedrock_client, store, _, _ = _cache_clients()
+            bedrock_client, store, _, _, _ = _cache_clients()
         except Exception as exc:  # noqa: BLE001
             return retrieval.RetrievalResult(error=f"clients: {type(exc).__name__}: {exc}")
         return retrieval.lookup(query, bedrock_client=bedrock_client, store=store, settings=_retrieval_settings(), session_id=session_id)
@@ -737,7 +749,7 @@ class GatewayEngine:
 
         def _write() -> None:
             try:
-                _, _, store, _ = _cache_clients()
+                _, _, store, _, _ = _cache_clients()
                 store.record_turn(session_id, query, served_entry_id, window_seconds=config.cache_reformulation_window_seconds)
             except Exception as exc:  # noqa: BLE001 -- losing one turn only skips one reformulation check
                 print(f"a2k-box: cache session turn not recorded: {type(exc).__name__}: {exc}", file=sys.stdout, flush=True)
