@@ -30,13 +30,33 @@ class Candidate:
 
 
 @dataclass
+class RequestedElement:
+    id: str  # "E1", "E2"... -- the judge reports coverage by this id
+    element: str
+    expected_type: str = "text"
+    constraints: str = ""
+
+
+@dataclass
 class Classification:
+    """What the admission classifier (prompts/clasificador_admision_v1.md)
+    returns. `raw` is its JSON as returned: the judge receives it as-is."""
+
     domain_primary: str
     domain_secondary: str | None
-    requested_elements: list[str]
-    entities: list[str]
-    # {"type": "none" | "relative" | "absolute", "start": "YYYY-MM-DD" | None, "end": "YYYY-MM-DD" | None}
+    requested_elements: list[RequestedElement]
+    # [{"name", "kind", "identifiers"}]
+    entities: list[dict[str, Any]]
+    # {"kind": "relative" | "absolute" | "none", "text", "from", "to", "entirely_past"}
     time_anchor: dict[str, Any]
+    # A question that depends on earlier turns ("and its LEI?") cannot be
+    # reused for other users: NOT FIT before the judge is paid.
+    self_contained: bool = True
+    question_type: str | None = None
+    depth: str | None = None
+    language: str | None = None  # informative only: the stored language comes from retrieval's detector
+    notes: str = ""
+    raw: dict[str, Any] = field(default_factory=dict)
 
     @property
     def domains(self) -> list[str]:
@@ -48,9 +68,15 @@ CheckResult = Literal["pass", "fail", "not_applicable"]
 
 @dataclass
 class ElementFinding:
+    id: str
     element: str
     status: Literal["covered", "partial", "missing"]
+    # Verbatim passage of the raw tool output (our addition to the judge
+    # prompt) -- checked in code, so grounding does not rest on the model alone.
     evidence_quote: str | None
+    # Is the data of the element's expected_type? None when missing. Feeds C2.
+    data_type_ok: bool | None = None
+    evidence: str = ""  # where the answer gives it, in the judge's words
     # Set by the decision rule, not the model: does evidence_quote really
     # appear in the raw tool output?
     quote_verified: bool | None = None
@@ -67,6 +93,8 @@ class JudgeFindings:
     # admission. "snapshot": dated (news, report, a figure for a period) --
     # expiry counts from data_as_of.
     data_kind: str = "snapshot"
+    unsupported_claims: list[str] = field(default_factory=list)
+    justification: str = ""
     raw: dict[str, Any] = field(default_factory=dict)
 
 

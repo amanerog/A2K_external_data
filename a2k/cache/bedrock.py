@@ -46,15 +46,31 @@ def parse_json_object(text: str) -> dict[str, Any]:
     return parsed
 
 
-def converse_json(bedrock_client, *, model_id: str, prompt: str, max_tokens: int, attempts: int = 2) -> dict[str, Any]:
-    """No `temperature`: Sonnet 5 rejects it (see deploy/agentcore/judge.py).
+def converse_json(
+    bedrock_client,
+    *,
+    model_id: str,
+    prompt: str,
+    max_tokens: int,
+    attempts: int = 2,
+    system: str | None = None,
+    temperature: float | None = None,
+) -> dict[str, Any]:
+    """`prompt` is the user message; `system`, if given, the system prompt.
+    `temperature` only where the model accepts it: Sonnet 5 rejects it (see
+    deploy/agentcore/judge.py), so the judge never sends it.
     `max_tokens` must leave room for the reasoning block as well as the JSON."""
+    inference: dict[str, Any] = {"maxTokens": max_tokens}
+    if temperature is not None:
+        inference["temperature"] = temperature
+    extra: dict[str, Any] = {"system": [{"text": system}]} if system else {}
     last_error: Exception | None = None
     for _ in range(attempts):
         response = bedrock_client.converse(
             modelId=model_id,
             messages=[{"role": "user", "content": [{"text": prompt}]}],
-            inferenceConfig={"maxTokens": max_tokens},
+            inferenceConfig=inference,
+            **extra,
         )
         if response.get("stopReason") == "max_tokens":
             last_error = ModelOutputError(f"model output truncated at maxTokens={max_tokens}")

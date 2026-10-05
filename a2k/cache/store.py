@@ -39,7 +39,7 @@ class Activation:
     sources: list[dict[str, Any]]
     domain_primary: str
     domain_secondary: str | None
-    requested_elements: list[str]
+    requested_elements: list[Any]  # [{"id", "element", "expected_type", "constraints"}]
     time_anchor: dict[str, Any]
     data_as_of: date | None
     expires_at: datetime

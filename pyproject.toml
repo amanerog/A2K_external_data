@@ -32,7 +32,7 @@ include = ["a2k*"]
 # non-editable `pip install .` (e.g. in the Docker image) silently omits
 # them and the app fails at startup looking for files that "exist locally"
 # but never made it into the installed wheel.
-a2k = ["adapters/fixtures/*.json", "cards/*.json"]
+a2k = ["adapters/fixtures/*.json", "cards/*.json", "cache/prompts/*.md"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

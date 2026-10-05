@@ -32,7 +32,7 @@ from .normalize import LANGUAGE_RULE
 from .store import CacheStore
 from .taxonomy import DOMAINS, taxonomy_for_prompt
 
-PROMPT_VERSION = "retrieval-normalize-classify-v2"
+PROMPT_VERSION = "retrieval-normalize-classify-v3"
 
 _PROMPT = """A question has just been sent to an external-data service for a bank. Prepare it for \
 a cache lookup. Do not answer it.
@@ -49,9 +49,10 @@ Return:
 - question_en: the question in English. If it is already in English, unchanged. Keep names of \
 people, companies, institutions and products, identifiers, codes, figures and dates exactly as \
 written.
-- domain_primary: the code of the domain the question mainly belongs to.
-- domain_secondary: a second domain code only if the question clearly also asks for data of that \
-domain, otherwise null.
+- domain_primary: the code of the domain the question mainly belongs to, applying the boundaries \
+above.
+- domain_secondary: a second domain code only if the question explicitly asks for a substantive \
+element that belongs to it, otherwise null.
 
 Respond with ONLY this JSON object:
 {{"original_lang": "es", "question_en": "...", "domain_primary": "...", "domain_secondary": null}}

@@ -5,7 +5,8 @@ Steps, numbered as in the proposal:
   1  register the candidate: evidence bundle to S3, PENDING row in Aurora
   2  technical filters T1, T2, T4, T5 (+ an evidence-size cap)
      -- T6: skip the paid steps if the row is no longer PENDING
-  3  domain classifier (light model) -- a switched-off domain stops here
+  3  domain classifier (light model) -- a switched-off domain stops here,
+     and so does a question that is not self-contained (NOT FIT)
   4  per-domain judge (judge model)
   5  decision rule in code -- NOT FIT deletes the PENDING row; a FIT
      verdict is confirmed by a second judgement (confirm_fit)
@@ -172,9 +173,16 @@ def _evaluate_steps(
         return evaluation
 
     with timer.step("classify"):
-        result.classification = classifier.classify(bedrock_client, model_id=settings.light_model_id, question=candidate.question)
+        result.classification = classifier.classify(
+            bedrock_client, model_id=settings.light_model_id, question=candidate.question, today=now().date()
+        )
     if result.classification.domain_primary in settings.disabled_domains:
         result.outcome, result.reason = "DOMAIN_OFF", f"domain {result.classification.domain_primary} is switched off"
+        return evaluation
+    # Decided 2026-10-05: a question that depends on earlier turns ("and its
+    # LEI?") is useless to other users however good its answer -- no judge.
+    if not result.classification.self_contained:
+        result.outcome, result.reason = "NOT_FIT", "question not self-contained (depends on earlier turns)"
         return evaluation
 
     with timer.step("judge"):
@@ -186,6 +194,7 @@ def _evaluate_steps(
             evidence=evidence,
             classification=result.classification,
             citations=candidate.citations,
+            today=now().date(),
         )
 
     verdict = decision.decide(result.findings, result.classification, evidence=evidence, require_verified_quotes=settings.require_verified_quotes)
@@ -203,6 +212,7 @@ def _evaluate_steps(
                 evidence=evidence,
                 classification=result.classification,
                 citations=candidate.citations,
+                today=now().date(),
             )
         confirmed = decision.decide(result.confirmation, result.classification, evidence=evidence, require_verified_quotes=settings.require_verified_quotes)
         if not confirmed.fit:
@@ -246,6 +256,8 @@ def _findings_dict(f) -> dict[str, Any]:
         "elements": [asdict(e) for e in f.elements],
         "core": f.core,
         "modules": f.modules,
+        "unsupported_claims": f.unsupported_claims,
+        "justification": f.justification,
         "data_as_of": f.data_as_of.isoformat() if f.data_as_of else None,
         "data_kind": f.data_kind,
     }
@@ -270,7 +282,8 @@ def log_result(result: AdmissionResult, *, candidate: Candidate, evidence_uri: s
         "reason": result.reason,
         "domains": c.domains if c else None,
         "original_lang": result.normalized.original_lang if result.normalized else None,
-        "requested_elements": c.requested_elements if c else None,
+        "requested_elements": [asdict(e) for e in c.requested_elements] if c else None,
+        "self_contained": c.self_contained if c else None,
         "findings": _findings_json(result),
         "expires_at": result.expires_at.isoformat() if result.expires_at else None,
         "evidence_uri": evidence_uri,
@@ -322,14 +335,15 @@ def admit(
                     sources=result.verified_sources,
                     domain_primary=c.domain_primary,
                     domain_secondary=c.domain_secondary,
-                    requested_elements=c.requested_elements,
+                    requested_elements=[asdict(e) for e in c.requested_elements],
                     time_anchor=c.time_anchor,
                     data_as_of=f.data_as_of,
                     expires_at=result.expires_at,
                     judge_findings=_findings_json(result) or {},
                     embedding_model=settings.embedding_model_id,
                     admission_versions=settings.versions(policy_version),
-                    entities=c.entities,
+                    # text[] reserved for invalidation by entity: names and identifiers.
+                    entities=[t for e in c.entities for t in (e["name"], *e["identifiers"])],
                 )
             )
             if not activated:

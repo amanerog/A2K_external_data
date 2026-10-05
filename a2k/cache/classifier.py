@@ -1,57 +1,62 @@
 """Admission step A (proposal Annex A6): a light model reads only the
 question -- never the answer -- and prepares the judge: which domain modules
 to load, the list of requested elements the judge checks one by one in place
-of a reference answer, the entities (for C4 and future invalidation) and the
-time anchor (for expiry).
+of a reference answer, the entities (for C4 and future invalidation), the
+time anchor (for expiry) and whether the question stands on its own.
+
+The prompt is prompts/clasificador_admision_v1.md, used as delivered: system
+prompt as-is, the question and today's date in the user message.
 """
 
 from __future__ import annotations
 
+from datetime import date
+from typing import Any
+
+from . import prompts
 from .bedrock import ModelOutputError, converse_json
-from .models import Classification
-from .taxonomy import DOMAINS, taxonomy_for_prompt
+from .models import Classification, RequestedElement
+from .taxonomy import CLASSIFIER_PROMPT, DOMAINS
 
-PROMPT_VERSION = "classifier-v1"
+PROMPT_VERSION = CLASSIFIER_PROMPT
 
-_PROMPT = """You classify questions sent to an external-data service for a bank. Read ONLY the \
-question below and describe what it asks for. Do not answer it.
-
-Data domains:
-{taxonomy}
-
-Question:
-<question>
-{question}
-</question>
-
-Return:
-- domain_primary: the code of the domain the question mainly belongs to.
-- domain_secondary: the code of a second domain only if the question clearly also asks for data \
-of that domain, otherwise null.
-- requested_elements: the distinct pieces of information the question asks for, each as a short \
-noun phrase in English. Split compound questions ("does X have sanctions, and where is he a \
-director?" -> two elements). Include constraints the question states (a period, a source, an \
-identifier) inside the element they apply to.
-- entities: the companies, people, institutions, products or series the question names, as \
-written.
-- time_anchor: {{"type": "none"}} if the question gives no time reference; {{"type": "relative"}} \
-for "current", "latest", "recent", "last 30 days" and similar; {{"type": "absolute", "start": \
-"YYYY-MM-DD", "end": "YYYY-MM-DD"}} for an explicit past date or period (e.g. "Q4 2023" -> \
-2023-10-01 to 2023-12-31).
-
-Respond with ONLY this JSON object:
-{{"domain_primary": "...", "domain_secondary": null, "requested_elements": ["..."], \
-"entities": ["..."], "time_anchor": {{"type": "none"}}}}
-"""
+ANCHOR_KINDS = ("relative", "absolute", "none")
 
 
-def classify(bedrock_client, *, model_id: str, question: str) -> Classification:
-    raw = converse_json(
-        bedrock_client,
-        model_id=model_id,
-        prompt=_PROMPT.format(taxonomy=taxonomy_for_prompt(), question=question),
-        max_tokens=2000,
-    )
+def user_message(question: str, today: date) -> str:
+    return f"<question>\n{question}\n</question>\n\n<today>{today.isoformat()}</today>"
+
+
+def _elements(raw: Any) -> list[RequestedElement]:
+    elements = []
+    for i, item in enumerate(raw or [], start=1):
+        if isinstance(item, dict):
+            text = str(item.get("element") or "").strip()
+            if text:
+                elements.append(
+                    RequestedElement(
+                        id=str(item.get("id") or f"E{i}"),
+                        element=text,
+                        expected_type=str(item.get("expected_type") or "text"),
+                        constraints=str(item.get("constraints") or ""),
+                    )
+                )
+        elif str(item).strip():
+            elements.append(RequestedElement(id=f"E{i}", element=str(item).strip()))
+    return elements
+
+
+def _entities(raw: Any) -> list[dict[str, Any]]:
+    out = []
+    for item in raw or []:
+        if isinstance(item, dict) and item.get("name"):
+            out.append({"name": str(item["name"]), "kind": str(item.get("kind") or "other"), "identifiers": list(item.get("identifiers") or [])})
+        elif isinstance(item, str) and item.strip():
+            out.append({"name": item.strip(), "kind": "other", "identifiers": []})
+    return out
+
+
+def parse(raw: dict[str, Any]) -> Classification:
     primary = str(raw.get("domain_primary") or "").upper()
     if primary not in DOMAINS:
         raise ModelOutputError(f"classifier returned unknown domain {primary!r}")
@@ -59,16 +64,35 @@ def classify(bedrock_client, *, model_id: str, question: str) -> Classification:
     secondary = str(secondary).upper() if secondary else None
     if secondary not in DOMAINS or secondary == primary:
         secondary = None
-    elements = [str(e).strip() for e in raw.get("requested_elements") or [] if str(e).strip()]
+    elements = _elements(raw.get("requested_elements"))
     if not elements:
         raise ModelOutputError("classifier returned no requested elements")
-    anchor = raw.get("time_anchor") or {"type": "none"}
-    if not isinstance(anchor, dict) or anchor.get("type") not in ("none", "relative", "absolute"):
-        anchor = {"type": "none"}
+    anchor = raw.get("time_anchor")
+    if not isinstance(anchor, dict) or anchor.get("kind") not in ANCHOR_KINDS:
+        anchor = {"kind": "none", "text": "", "from": None, "to": None, "entirely_past": False}
     return Classification(
         domain_primary=primary,
         domain_secondary=secondary,
         requested_elements=elements,
-        entities=[str(e) for e in raw.get("entities") or []],
+        entities=_entities(raw.get("entities")),
         time_anchor=anchor,
+        # Only an explicit false stops admission: a missing field is not a reason to drop an answer.
+        self_contained=raw.get("self_contained") is not False,
+        question_type=raw.get("question_type"),
+        depth=raw.get("depth"),
+        language=raw.get("language"),
+        notes=str(raw.get("notes") or ""),
+        raw=raw,
     )
+
+
+def classify(bedrock_client, *, model_id: str, question: str, today: date) -> Classification:
+    raw = converse_json(
+        bedrock_client,
+        model_id=model_id,
+        system=prompts.block(CLASSIFIER_PROMPT),
+        prompt=user_message(question, today),
+        temperature=0,
+        max_tokens=3000,
+    )
+    return parse(raw)

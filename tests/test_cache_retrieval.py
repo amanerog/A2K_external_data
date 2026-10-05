@@ -32,14 +32,14 @@ class RetrievalBedrock(FakeBedrock):
         self.equivalent = equivalent
         self.satisfies = satisfies
 
-    def converse(self, *, modelId, messages, inferenceConfig):
+    def converse(self, *, modelId, messages, inferenceConfig, **kw):
         prompt = messages[0]["content"][0]["text"]
         if prompt.startswith("Decide whether these two questions"):
             text, kind = json.dumps({"equivalent": self.equivalent, "reason": "r1"}), "filter1"
         elif prompt.startswith("A caller previously asked"):
             text, kind = json.dumps({"satisfies": self.satisfies, "reason": "r2"}), "filter2"
         else:
-            return super().converse(modelId=modelId, messages=messages, inferenceConfig=inferenceConfig)
+            return super().converse(modelId=modelId, messages=messages, inferenceConfig=inferenceConfig, **kw)
         self.calls.append(kind)
         return {"output": {"message": {"content": [{"text": text}]}}, "stopReason": "end_turn"}
 
@@ -322,12 +322,12 @@ class ReformulationBedrock(RetrievalBedrock):
         super().__init__(**kw)
         self.kind = kind
 
-    def converse(self, *, modelId, messages, inferenceConfig):
+    def converse(self, *, modelId, messages, inferenceConfig, **kw):
         prompt = messages[0]["content"][0]["text"]
         if prompt.startswith("Two consecutive questions"):
             self.calls.append("reformulation")
             return {"output": {"message": {"content": [{"text": json.dumps({"kind": self.kind, "reason": "same ask"})}]}}, "stopReason": "end_turn"}
-        return super().converse(modelId=modelId, messages=messages, inferenceConfig=inferenceConfig)
+        return super().converse(modelId=modelId, messages=messages, inferenceConfig=inferenceConfig, **kw)
 
 
 def test_reformulation_deprecates_the_served_entry_before_searching():

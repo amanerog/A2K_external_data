@@ -27,10 +27,12 @@ def default_policy() -> dict[str, timedelta]:
 
 
 def _is_historical(classification: Classification, today: date) -> bool:
+    # The classifier also returns entirely_past; recomputed here from the
+    # period's end so a misjudged flag cannot make live data "historical".
     anchor = classification.time_anchor
-    if anchor.get("type") != "absolute":
+    if anchor.get("kind") != "absolute":
         return False
-    end = anchor.get("end") or anchor.get("start")
+    end = anchor.get("to") or anchor.get("from")
     try:
         return date.fromisoformat(str(end)[:10]) < today
     except (TypeError, ValueError):

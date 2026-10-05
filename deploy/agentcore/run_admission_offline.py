@@ -121,7 +121,7 @@ def main() -> None:
     out_jsonl = out_csv.with_suffix(".jsonl")
     fields = [
         "vendor", "id", "outcome", "reason", "poc_good", "poc_verdict", "poc_containment",
-        "domain_primary", "domain_secondary", "n_elements", "elements_covered", "failed_checks",
+        "domain_primary", "domain_secondary", "self_contained", "question_type", "depth", "n_elements", "elements_covered", "failed_checks",
         "data_kind", "data_as_of", "expires_at", "ms_classify", "ms_judge", "ms_judge_confirm", "ms_normalize", "ms_total", "query",
     ]
     lock = Lock()
@@ -150,6 +150,9 @@ def main() -> None:
             "poc_containment": grade.get("final_verdict"),
             "domain_primary": c.domain_primary if c else None,
             "domain_secondary": c.domain_secondary if c else None,
+            "self_contained": c.self_contained if c else None,
+            "question_type": c.question_type if c else None,
+            "depth": c.depth if c else None,
             "n_elements": len(c.requested_elements) if c else None,
             "elements_covered": sum(e.status == "covered" for e in f.elements) if f else None,
             "failed_checks": ",".join(failed),

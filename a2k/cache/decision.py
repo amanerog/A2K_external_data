@@ -2,7 +2,9 @@
 findings -- the model reports, this decides. Binary: FIT or NOT FIT.
 
 FIT only if all of:
-- every requested element is "covered" (C1 at element level);
+- every requested element is "covered" (C1 recomputed from the elements);
+- no covered element has data_type_ok = false (C2 recomputed from the
+  elements) -- if the judge's own C1/C2 disagree, the stricter one wins;
 - the four core checks C1-C4 pass;
 - every loaded domain-module check passes, or is "not_applicable" -- except
   in strict domains (RSK), where every check always applies;
@@ -19,7 +21,7 @@ from .evidence import normalize_for_match
 from .models import Classification, JudgeFindings
 from .taxonomy import DOMAINS
 
-RULE_VERSION = "rule-v3"
+RULE_VERSION = "rule-v4"
 
 
 @dataclass
@@ -73,6 +75,10 @@ def decide(findings: JudgeFindings, classification: Classification, *, evidence:
     not_covered = [e.element for e in findings.elements if e.status != "covered"]
     if not_covered:
         return Decision(False, f"elements not fully covered: {'; '.join(not_covered)}")
+
+    wrong_type = [e.element for e in findings.elements if e.data_type_ok is False]
+    if wrong_type:
+        return Decision(False, f"C2 (recomputed): data of another type for: {'; '.join(wrong_type)}")
 
     failed_core = [cid for cid, check in findings.core.items() if check["result"] != "pass"]
     if failed_core:

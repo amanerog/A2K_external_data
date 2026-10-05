@@ -15,7 +15,7 @@ from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
-from a2k.cache import admission, decision, expiry, filters
+from a2k.cache import admission, classifier, decision, expiry, filters
 from a2k.cache.bedrock import ModelOutputError, converse_json, parse_json_object
 from a2k.cache.judge import parse_findings
 from a2k.cache.models import Candidate, Classification
@@ -60,19 +60,28 @@ def make_candidate(**overrides) -> Candidate:
 
 
 CLASSIFICATION = {
+    "language": "es",
+    "self_contained": True,
     "domain_primary": "REG",
     "domain_secondary": None,
-    "requested_elements": ["responsibilities of the management body regarding risk culture"],
-    "entities": ["EBA"],
-    "time_anchor": {"type": "relative"},
+    "question_type": "narrative_synthesis",
+    "depth": "direct_lookup",
+    "requested_elements": [
+        {"id": "E1", "element": "responsibilities of the management body regarding risk culture", "expected_type": "list", "constraints": "issuer: EBA"}
+    ],
+    "entities": [{"name": "EBA", "kind": "regulator", "identifiers": []}],
+    "time_anchor": {"kind": "relative", "text": "", "from": None, "to": None, "entirely_past": False},
+    "notes": "",
 }
 
 
 def judge_output(**overrides) -> dict:
     out = {
-        "elements": [{"element": "responsibilities", "status": "covered", "evidence_quote": QUOTE}],
-        "core": {c: {"result": "pass", "reason": "ok"} for c in ("C1", "C2", "C3", "C4")},
-        "modules": {m: {"result": "pass", "reason": "ok"} for m in ("REG-1", "REG-2", "REG-3")},
+        "elements": [{"id": "E1", "coverage": "covered", "data_type_ok": True, "evidence": "the answer lists them", "evidence_quote": QUOTE}],
+        "core": {c: "pass" for c in ("C1", "C2", "C3", "C4")},
+        "unsupported_claims": [],
+        "subject": {"asked": "EBA", "answered": "EBA"},
+        "modules": [{"domain": "REG", "check": m, "result": "pass", "reason": "ok"} for m in ("REG-1", "REG-2", "REG-3")],
         "data_kind": "snapshot",
         "data_as_of": "2026-09-20",
     }
@@ -90,15 +99,20 @@ class FakeBedrock:
         self.normalized = normalized or {"answer_en": "Under the EBA..."}
         self.raw_texts = list(raw_texts or [])  # overrides, consumed first
         self.calls: list[str] = []
+        self.requests: list[dict] = []
 
-    def converse(self, *, modelId, messages, inferenceConfig):
+    def converse(self, *, modelId, messages, inferenceConfig, system=None):
         prompt = messages[0]["content"][0]["text"]
+        system_text = system[0]["text"] if system else ""
+        self.last_system = system_text
+        self.last_prompt = prompt
+        self.requests.append({"system": system_text, "prompt": prompt, "inference": inferenceConfig})
         if self.raw_texts:
             text = self.raw_texts.pop(0)
             kind = "raw"
-        elif prompt.startswith("You classify questions"):
+        elif system_text.startswith("You are the admission classifier"):
             text, kind = json.dumps(self.classification), "classify"
-        elif prompt.startswith("You decide whether an answer"):
+        elif system_text.startswith("You are the admission judge"):
             text, kind = json.dumps(self.judge_queue.pop(0) if self.judge_queue else self.judge), "judge"
         elif prompt.startswith("A question has just been sent"):
             text = json.dumps({"original_lang": self.lang, "question_en": "What responsibilities...?", "domain_primary": self.domains[0], "domain_secondary": self.domains[1]})
@@ -164,7 +178,7 @@ def test_t5_rejects_answer_with_no_source():
 
 
 def _decide(judge_raw, classification=CLASSIFICATION, require_quotes=True, evidence=QUOTE):
-    cls = Classification(**classification)
+    cls = classifier.parse(classification)
     return decision.decide(parse_findings(judge_raw, cls), cls, evidence=evidence, require_verified_quotes=require_quotes)
 
 
@@ -178,7 +192,7 @@ def test_decision_not_fit_on_partial_element():
 
 
 def test_decision_not_applicable_allowed_outside_rsk_but_not_in_rsk():
-    out = judge_output()
+    out = judge_output(modules={m: {"result": "pass"} for m in ("REG-1", "REG-2", "REG-3")})
     out["modules"]["REG-2"] = {"result": "not_applicable", "reason": "no version asked"}
     assert _decide(out).fit
 
@@ -227,7 +241,7 @@ def test_quote_match_ignores_whitespace_and_case():
 
 
 def _cls(**kw):
-    return Classification(**{**CLASSIFICATION, **kw})
+    return classifier.parse({**CLASSIFICATION, **kw})
 
 
 def test_expiry_from_data_date_and_shorter_domain():
@@ -254,13 +268,13 @@ def test_admit_current_data_with_old_capture_date_is_activated():
 
 
 def test_judge_without_data_kind_counts_as_snapshot():
-    findings = parse_findings({k: v for k, v in judge_output().items() if k != "data_kind"}, Classification(**CLASSIFICATION))
+    findings = parse_findings({k: v for k, v in judge_output().items() if k != "data_kind"}, classifier.parse(CLASSIFICATION))
     assert findings.data_kind == "snapshot"
 
 
 def test_expiry_historical_and_future_dates():
     policy = expiry.default_policy()
-    hist = _cls(time_anchor={"type": "absolute", "start": "2023-10-01", "end": "2023-12-31"}, domain_primary="MED")
+    hist = _cls(time_anchor={"kind": "absolute", "text": "Q4 2023", "from": "2023-10-01", "to": "2023-12-31", "entirely_past": True}, domain_primary="MED")
     assert expiry.expires_at(hist, date(2024, 1, 15), now=NOW, policy=policy) == datetime(2025, 1, 14, tzinfo=timezone.utc)
     # A data date after now is a misread: counted from now, not from the future.
     assert expiry.expires_at(_cls(), date(2027, 1, 1), now=NOW, policy=policy) == NOW + timedelta(days=30)
@@ -270,16 +284,17 @@ def test_expiry_historical_and_future_dates():
 
 
 def test_judge_prompt_includes_the_answer_citations():
-    from a2k.cache.judge import build_prompt
+    from a2k.cache.judge import user_message
 
-    prompt = build_prompt(question="q", answer="a", evidence="e", classification=Classification(**CLASSIFICATION), citations=make_candidate().citations)
+    cls = classifier.parse(CLASSIFICATION)
+    prompt = user_message(question="q", answer="a", evidence="e", classification=cls, citations=make_candidate().citations, today=NOW.date())
     assert "EBA GL internal governance | " + URL in prompt
-    assert "(not available for this answer" in build_prompt(question="q", answer="a", evidence="e", classification=Classification(**CLASSIFICATION))
+    assert "(not available for this answer" in user_message(question="q", answer="a", evidence="e", classification=cls, citations=[], today=NOW.date())
 
 
 def test_judge_element_count_mismatch_is_an_error():
     with pytest.raises(ModelOutputError):
-        parse_findings(judge_output(elements=[]), Classification(**CLASSIFICATION))
+        parse_findings(judge_output(elements=[]), classifier.parse(CLASSIFICATION))
 
 
 def test_parse_json_object_tolerates_fences_and_prose():
@@ -318,8 +333,8 @@ def test_admit_fit_answer_becomes_active(capsys):
     assert activation.domain_primary == "REG"
     assert activation.data_as_of == date(2026, 9, 20)
     assert [s["sourceUrl"] for s in activation.sources] == [URL]
-    assert activation.admission_versions["judge_core"] == "judge-core-v6"
-    assert activation.admission_versions["rule"] == "rule-v3"
+    assert activation.admission_versions["judge_core"] == "juez_admision_v1+a2k-1"
+    assert activation.admission_versions["rule"] == "rule-v4"
     assert len(activation.question_vector) == 1024
     assert bedrock.calls == ["classify", "judge", "judge", "normalize_classify", "normalize", "embed"]  # FIT is confirmed
     # Evidence bundle written, without the agent's own AskContent call.
@@ -527,13 +542,108 @@ def test_stored_language_comes_from_the_retrieval_detector():
 
 def test_a_failed_model_call_keeps_the_timings_of_earlier_steps():
     class DeniedJudge(FakeBedrock):
-        def converse(self, *, modelId, messages, inferenceConfig):
-            if messages[0]["content"][0]["text"].startswith("You decide whether an answer"):
+        def converse(self, *, modelId, messages, inferenceConfig, system=None):
+            if system and system[0]["text"].startswith("You are the admission judge"):
                 raise RuntimeError("AccessDeniedException: not authorized")
-            return super().converse(modelId=modelId, messages=messages, inferenceConfig=inferenceConfig)
+            return super().converse(modelId=modelId, messages=messages, inferenceConfig=inferenceConfig, system=system)
 
     result, store, _, _ = _admit(bedrock=DeniedJudge())
     assert result.outcome == "ERROR" and "AccessDenied" in result.reason
     assert "filters" in result.timings_ms and "classify" in result.timings_ms
     assert result.classification is not None  # what the classifier said is still logged
     assert result.entry_id not in store.rows
+
+
+# --- prompts delivered as .md files (classifier, judge core, domain modules) --
+
+
+def test_classifier_uses_the_delivered_prompt_verbatim_with_today_and_temperature_0():
+    from a2k.cache import prompts
+
+    bedrock = FakeBedrock()
+    classifier.classify(bedrock, model_id="light", question="¿Y su LEI?", today=date(2026, 10, 5))
+    request = bedrock.requests[0]
+    assert request["system"] == prompts.block("clasificador_admision_v1")
+    assert "<question>\n¿Y su LEI?\n</question>" in request["prompt"] and "<today>2026-10-05</today>" in request["prompt"]
+    assert request["inference"]["temperature"] == 0
+
+
+def test_judge_system_prompt_is_the_core_with_the_modules_and_our_adaptations():
+    from a2k.cache import judge, prompts
+
+    cls = classifier.parse({**CLASSIFICATION, "domain_primary": "RSK", "domain_secondary": "CRP"})
+    system = judge.system_prompt(cls)
+    assert system.startswith("You are the admission judge")
+    assert "{{DOMAIN_MODULES}}" not in system
+    assert prompts.block("riesgo_admision_v1") in system and prompts.block("registro_admision_v1") in system
+    assert system.index("MODULE RSK") < system.index("MODULE CRP") < system.index("PART 4")
+    assert "evidence_quote" in system and "<answer_sources>" in system and '"data_kind"' in system
+    assert "OLDEST" not in system  # replaced by the mixed expiry rule
+
+
+def test_judge_user_message_carries_the_classifier_json_and_today():
+    from a2k.cache.judge import user_message
+
+    cls = classifier.parse(CLASSIFICATION)
+    message = user_message(question="q", answer="a", evidence="e", classification=cls, citations=[], today=date(2026, 10, 5))
+    assert '"expected_type": "list"' in message and "<today>2026-10-05</today>" in message
+    assert message.index("<final_answer>") < message.index("<raw_tool_output>") < message.index("<classification>")
+
+
+def test_judge_never_sends_temperature():
+    bedrock = FakeBedrock()
+    _admit(bedrock=bedrock)
+    judge_requests = [r for r in bedrock.requests if r["system"].startswith("You are the admission judge")]
+    assert judge_requests and all("temperature" not in r["inference"] for r in judge_requests)
+
+
+def test_question_not_self_contained_is_not_fit_without_paying_the_judge():
+    bedrock = FakeBedrock(classification={**CLASSIFICATION, "self_contained": False})
+    result, store, _, _ = _admit(bedrock=bedrock)
+    assert result.outcome == "NOT_FIT" and "self-contained" in result.reason
+    assert bedrock.calls == ["classify"]
+    assert result.entry_id not in store.rows
+
+
+def test_c2_is_recomputed_from_data_type_ok():
+    out = judge_output()
+    out["elements"][0]["data_type_ok"] = False  # the judge still says C2 pass
+    verdict = _decide(out)
+    assert not verdict.fit and "C2" in verdict.reason
+
+
+def test_judge_module_list_missing_a_check_fails_it():
+    out = judge_output()
+    out["modules"] = [m for m in out["modules"] if m["check"] != "REG-3"]
+    verdict = _decide(out)
+    assert not verdict.fit and "REG-3" in verdict.reason
+
+
+def test_judge_elements_are_matched_by_id():
+    two = {**CLASSIFICATION, "requested_elements": [
+        {"id": "E1", "element": "first", "expected_type": "text", "constraints": ""},
+        {"id": "E2", "element": "second", "expected_type": "text", "constraints": ""},
+    ]}
+    out = judge_output(elements=[
+        {"id": "E2", "coverage": "missing", "data_type_ok": None, "evidence": "", "evidence_quote": None},
+        {"id": "E1", "coverage": "covered", "data_type_ok": True, "evidence": "x", "evidence_quote": QUOTE},
+    ])
+    findings = parse_findings(out, classifier.parse(two))
+    assert [(e.id, e.element, e.status) for e in findings.elements] == [("E1", "first", "covered"), ("E2", "second", "missing")]
+
+
+def test_entities_are_stored_as_names_and_identifiers():
+    entity = {"name": "Nu Pagamentos S.A.", "kind": "company", "identifiers": ["18.236.120/0001-58"]}
+    result, store, _, _ = _admit(bedrock=FakeBedrock(classification={**CLASSIFICATION, "entities": [entity]}))
+    assert store.rows[result.entry_id]["activation"].entities == ["Nu Pagamentos S.A.", "18.236.120/0001-58"]
+
+
+def test_taxonomy_is_read_from_the_prompt_files():
+    from a2k.cache.retrieval import _PROMPT
+    from a2k.cache.taxonomy import DOMAINS, taxonomy_for_prompt
+
+    assert DOMAINS["RSK"].checks == ("RSK-1", "RSK-2", "RSK-3", "RSK-4") and DOMAINS["RSK"].strict
+    assert DOMAINS["CRP"].definition.startswith("Corporate registry and compliance status. A specific company")
+    text = taxonomy_for_prompt()
+    assert "RSK > CRP > REG > MAC > TAL > MKT > MED" in text  # the classifier's boundaries, for retrieval too
+    assert "{taxonomy}" in _PROMPT
