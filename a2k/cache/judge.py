@@ -219,7 +219,8 @@ def judge(
         prompt=user_message(
             question=question, answer=answer, evidence=evidence, classification=classification, citations=list(citations), today=today
         ),
-        # 8000 truncated one POCv3 verdict (id 81): reasoning + a long findings list.
-        max_tokens=16000,
+        # Reasoning + findings: 8000 truncated POCv3 id 81 with the old judge, 16000
+        # truncated ids 46, 48 and 81 with juez_admision_v1 (longer output per check).
+        max_tokens=32000,
     )
     return parse_findings(raw, classification)
