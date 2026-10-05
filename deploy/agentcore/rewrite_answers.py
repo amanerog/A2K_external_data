@@ -113,9 +113,19 @@ def main() -> None:
     parser.add_argument("--model", default=DEFAULT_MODEL, help="the agent's model (BEDROCK_MODEL_ID of the agent runtime)")
     parser.add_argument("--workers", type=int, default=2)
     parser.add_argument("--output", required=True, help=".jsonl to write")
+    parser.add_argument("--retry-errors", action="store_true", help="keep the rows of --output that worked, re-write only the failed ones")
     args = parser.parse_args()
 
     ids = set(args.ids.split(",")) if args.ids else None
+    out_path = Path(args.output)
+    kept: list[dict] = []
+    if args.retry_errors:
+        previous = [json.loads(line) for line in open(out_path, encoding="utf-8") if line.strip()]
+        kept = [r for r in previous if not r.get("error")]
+        ids = {r["id"] for r in previous if r.get("error")}
+        if not ids:
+            print("no failed rows to retry")
+            return
     rows = load_rows([args.ground_truth], ids)
     bedrock = boto3.client("bedrock-runtime", region_name=REGION, config=BotoConfig(read_timeout=600, retries={"max_attempts": 4, "mode": "adaptive"}))
     # Sonnet 5 rejects temperature; the agent runs older models at 0.
@@ -139,9 +149,10 @@ def main() -> None:
             out.update(ok=False, error=f"{type(exc).__name__}: {exc}")
         return out
 
-    out_path = Path(args.output)
     lock = Lock()
     with open(out_path, "w", encoding="utf-8") as fj, ThreadPoolExecutor(max_workers=args.workers) as pool:
+        for row in kept:
+            fj.write(json.dumps(row, ensure_ascii=False) + "\n")
         futures = [pool.submit(run, record) for record, _ in rows]
         for i, future in enumerate(as_completed(futures), start=1):
             row = future.result()
