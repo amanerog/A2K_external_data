@@ -729,3 +729,7 @@ def test_basic_still_requires_a_source_and_a_self_contained_question():
     assert no_source.outcome == "FILTERED" and "T5" in no_source.reason
     bedrock = FakeBedrock(classification={**CLASSIFICATION, "self_contained": False})
     assert _admit_basic(bedrock)[0].outcome == "NOT_FIT" and bedrock.calls == ["classify"]
+
+
+def test_parse_json_object_tolerates_raw_control_characters_in_strings():
+    assert parse_json_object('{"reason": "line one\nline two\tend"}') == {"reason": "line one\nline two\tend"}

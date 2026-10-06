@@ -38,7 +38,9 @@ def parse_json_object(text: str) -> dict[str, Any]:
     if start == -1 or end <= start:
         raise ModelOutputError(f"no JSON object in model output: {text[:200]!r}")
     try:
-        parsed = json.loads(text[start : end + 1])
+        # strict=False: models sometimes put a raw newline or tab inside a string
+        # (invalid control character, POCv3 id 32 in basic mode, 2026-10-06).
+        parsed = json.loads(text[start : end + 1], strict=False)
     except json.JSONDecodeError as exc:
         raise ModelOutputError(f"invalid JSON in model output: {exc}") from exc
     if not isinstance(parsed, dict):
