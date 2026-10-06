@@ -413,8 +413,12 @@ class GatewayEngine:
           no latency; the user always gets the vendor answer and the serving
           log records what the cache would have served.
         In both modes a vendor answer then goes to admission, in the
-        background. The cache is vendor-blind: `sources` plays no part in
-        matching."""
+        background -- unless the lookup found an equivalent cached entry: in
+        shadow mode (or a domain still in shadow) the vendor is called even
+        on a hit, and admitting its answer would only add a duplicate the
+        serve mode never creates (two ACTIVE entries for POCv3 ids 1 and 38
+        after the shadow run of 2026-10-06). The cache is vendor-blind:
+        `sources` plays no part in matching."""
         request_id = self._request_id(req)
         sources = req.sources or list(self.adapters)
         source_kb_id = self._source_kb_id(sources)
@@ -520,10 +524,14 @@ class GatewayEngine:
             toolCalls=self._agent_tool_calls(content),
         )
         self._cache(request_id, envelope)
-        vendor_entry_id = self._submit_admission(req.query, content) if hit is None else None
-        self._record_turn(session_id, req.query, hit.entry_id if hit is not None else vendor_entry_id)
         if shadow_task is not None:
-            lookup = await shadow_task
+            lookup = await shadow_task  # started with the vendor call; long done by now
+        # What serve mode would have served (`hit` is what was served). The
+        # session turn points at it too, so a reformulation deprecates the
+        # cached entry exactly as it would in serve mode.
+        would_hit = lookup.hit if lookup is not None else None
+        vendor_entry_id = self._submit_admission(req.query, content) if would_hit is None else None
+        self._record_turn(session_id, req.query, would_hit.entry_id if would_hit is not None else vendor_entry_id)
         if lookup is not None:
             self._log_retrieval(
                 lookup,

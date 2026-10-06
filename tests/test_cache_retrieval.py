@@ -174,11 +174,20 @@ async def test_shadow_always_answers_from_the_vendor_and_logs_the_would_be_hit(g
 
     assert envelope.answer == VENDOR_CONTENT["answer"]
     assert state["vendor_calls"] == 1 and state["lookups"] == 1
-    assert len(state["submitted"]) == 1  # the vendor answer still goes to admission
+    # An equivalent entry is already cached: its vendor answer is not admitted again.
+    assert state["submitted"] == []
     (log,) = _serving_log(capsys)
     assert log["served_from"] == "vendor" and log["would_hit"] is True
-    assert log["entry_id"] == "cached-1"
-    assert log["vendor_entry_id"] == state["submitted"][0].entry_id
+    assert log["entry_id"] == "cached-1" and log["vendor_entry_id"] is None
+
+
+async def test_shadow_miss_sends_the_vendor_answer_to_admission(gateway, capsys):
+    engine, state = gateway
+    state["hit"] = None
+    await engine._ask_via_agent(A2KRequest(operation="ask", query="q"))
+    assert len(state["submitted"]) == 1
+    (log,) = _serving_log(capsys)
+    assert log["would_hit"] is False and log["vendor_entry_id"] == state["submitted"][0].entry_id
 
 
 async def test_shadow_retrieval_runs_in_parallel_with_the_vendor_call(gateway, monkeypatch):
@@ -309,7 +318,7 @@ async def test_serve_mode_does_not_serve_a_domain_still_in_shadow(gateway, monke
     monkeypatch.setitem(config.__dict__, "cache_domain_modes", {"REG": "shadow"})
     envelope = await engine._ask_via_agent(A2KRequest(operation="ask", query="q"))
     assert envelope.answer == VENDOR_CONTENT["answer"]
-    assert state["vendor_calls"] == 1
+    assert state["vendor_calls"] == 1 and state["submitted"] == []  # no duplicate of the cached entry
     (log,) = _serving_log(capsys)
     assert log["would_hit"] is True and log["served_from"] == "vendor" and log["domain_mode"] == "shadow"
 
@@ -397,8 +406,12 @@ async def test_engine_passes_the_session_and_records_the_turn(gateway):
     req = A2KRequest(operation="ask", query="q", requestMetadata=RequestMetadata(sessionId="conv-42"))
     await engine._ask_via_agent(req)
     assert state["session_ids"] == ["conv-42"]
-    # Shadow: the user got the vendor answer, so the turn points at its admission candidate.
-    assert state["turns"] == [("conv-42", "q", state["submitted"][0].entry_id)]
+    # Shadow with a would-be hit: the turn points at the cached entry, as in serve mode.
+    assert state["turns"] == [("conv-42", "q", "cached-1")]
+    # Shadow miss: it points at the admission candidate made from the vendor answer.
+    state["hit"] = None
+    await engine._ask_via_agent(A2KRequest(operation="ask", query="q2", requestMetadata=RequestMetadata(sessionId="conv-43")))
+    assert state["turns"][-1] == ("conv-43", "q2", state["submitted"][0].entry_id)
 
 
 async def test_engine_serve_hit_records_the_served_cache_entry(gateway):
