@@ -100,3 +100,19 @@ def decide(findings: JudgeFindings, classification: Classification, *, evidence:
             return Decision(False, f"evidence quotes not found in tool output: {'; '.join(unverified)}")
 
     return Decision(True, "all checks passed")
+
+
+BASIC_RULE_VERSION = "rule-basic-v1"
+
+
+def decide_basic(findings: JudgeFindings) -> Decision:
+    """Basic mode (judge_basic.py): every element covered, the right subject,
+    and -- only where the judge was asked for it -- every statement grounded.
+    The source is T5, checked before the judge."""
+    not_covered = [e.element for e in findings.elements if e.status != "covered"]
+    if not_covered:
+        return Decision(False, f"elements not fully covered: {'; '.join(not_covered)}")
+    failed = [cid for cid, check in findings.core.items() if check["result"] != "pass"]
+    if failed:
+        return Decision(False, f"core checks failed: {', '.join(failed)}")
+    return Decision(True, "all checks passed")

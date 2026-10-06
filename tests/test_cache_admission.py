@@ -75,6 +75,18 @@ CLASSIFICATION = {
 }
 
 
+def basic_judge_output(**overrides) -> dict:
+    out = {
+        "elements": [{"id": "E1", "coverage": "covered", "evidence": "the answer lists them"}],
+        "C4": {"result": "pass", "reason": "EBA"},
+        "data_kind": "snapshot",
+        "data_as_of": "2026-09-20",
+        "justification": "answers the question",
+    }
+    out.update(overrides)
+    return out
+
+
 def judge_output(**overrides) -> dict:
     out = {
         "elements": [{"id": "E1", "coverage": "covered", "data_type_ok": True, "evidence": "the answer lists them", "evidence_quote": QUOTE}],
@@ -90,7 +102,7 @@ def judge_output(**overrides) -> dict:
 
 
 class FakeBedrock:
-    def __init__(self, classification=None, judge=None, normalized=None, raw_texts=None, judge_queue=None, lang="es", domains=("REG", None)):
+    def __init__(self, classification=None, judge=None, normalized=None, raw_texts=None, judge_queue=None, lang="es", domains=("REG", None), basic=None):
         self.classification = classification or CLASSIFICATION
         self.judge = judge or judge_output()
         self.judge_queue = list(judge_queue or [])  # successive judge outputs, then self.judge
@@ -99,6 +111,7 @@ class FakeBedrock:
         self.normalized = normalized or {"answer_en": "Under the EBA..."}
         self.raw_texts = list(raw_texts or [])  # overrides, consumed first
         self.calls: list[str] = []
+        self.basic = basic or basic_judge_output()
         self.requests: list[dict] = []
 
     def converse(self, *, modelId, messages, inferenceConfig, system=None):
@@ -112,6 +125,8 @@ class FakeBedrock:
             kind = "raw"
         elif system_text.startswith("You are the admission classifier"):
             text, kind = json.dumps(self.classification), "classify"
+        elif system_text.startswith("You check whether an answer"):
+            text, kind = json.dumps(self.basic), "judge_basic"
         elif system_text.startswith("You are the admission judge"):
             text, kind = json.dumps(self.judge_queue.pop(0) if self.judge_queue else self.judge), "judge"
         elif prompt.startswith("A question has just been sent"):
@@ -134,7 +149,8 @@ class FakeBedrock:
         return {"body": _Body()}
 
 
-SETTINGS = admission.AdmissionSettings(light_model_id="light", judge_model_id="judge", embedding_model_id="titan")
+# The strict-mode tests (the delivered judge); basic mode has its own section at the end.
+SETTINGS = admission.AdmissionSettings(light_model_id="light", judge_model_id="judge", embedding_model_id="titan", mode="strict")
 
 
 # --- filters -----------------------------------------------------------------
@@ -360,7 +376,7 @@ def test_admit_filtered_answer_never_calls_a_model():
 
 
 def test_admit_rejects_oversized_evidence_before_the_judge():
-    settings = admission.AdmissionSettings(light_model_id="l", judge_model_id="j", embedding_model_id="t", max_evidence_chars=10)
+    settings = admission.AdmissionSettings(light_model_id="l", judge_model_id="j", embedding_model_id="t", mode="strict", max_evidence_chars=10)
     bedrock = FakeBedrock()
     result = admission.admit(make_candidate(), bedrock_client=bedrock, store=MemoryStore(), evidence_store=MemoryEvidenceStore(), settings=settings)
     assert result.outcome == "FILTERED" and "too large" in result.reason
@@ -482,7 +498,7 @@ def test_ping_reports_busy_while_admitting(monkeypatch):
 
 
 def test_switched_off_domain_stops_before_the_judge():
-    settings = admission.AdmissionSettings(light_model_id="l", judge_model_id="j", embedding_model_id="t", disabled_domains=("REG",))
+    settings = admission.AdmissionSettings(light_model_id="l", judge_model_id="j", embedding_model_id="t", mode="strict", disabled_domains=("REG",))
     bedrock = FakeBedrock()
     store = MemoryStore()
     result = admission.admit(make_candidate(), bedrock_client=bedrock, store=store, evidence_store=MemoryEvidenceStore(), settings=settings)
@@ -526,7 +542,7 @@ def test_not_fit_does_not_pay_a_second_judgement():
 
 
 def test_confirmation_can_be_switched_off():
-    settings = admission.AdmissionSettings(light_model_id="l", judge_model_id="j", embedding_model_id="t", confirm_fit=False)
+    settings = admission.AdmissionSettings(light_model_id="l", judge_model_id="j", embedding_model_id="t", mode="strict", confirm_fit=False)
     bedrock = FakeBedrock()
     result = admission.admit(make_candidate(), bedrock_client=bedrock, store=MemoryStore(), evidence_store=MemoryEvidenceStore(), settings=settings)
     assert result.outcome == "ACTIVE" and bedrock.calls.count("judge") == 1
@@ -647,3 +663,69 @@ def test_taxonomy_is_read_from_the_prompt_files():
     text = taxonomy_for_prompt()
     assert "RSK > CRP > REG > MAC > TAL > MKT > MED" in text  # the classifier's boundaries, for retrieval too
     assert "{taxonomy}" in _PROMPT
+
+
+# --- basic mode (the default) ---------------------------------------------------
+
+BASIC = admission.AdmissionSettings(light_model_id="light", judge_model_id="judge", embedding_model_id="titan")
+
+
+def _admit_basic(bedrock, settings=BASIC):
+    store = MemoryStore()
+    result = admission.admit(make_candidate(), bedrock_client=bedrock, store=store, evidence_store=MemoryEvidenceStore(), settings=settings)
+    return result, store
+
+
+def test_basic_is_the_default_mode():
+    assert BASIC.mode == "basic" and BASIC.grounding_domains == ("RSK",)
+    assert Config().admission_mode == "basic"
+
+
+def test_basic_fit_is_one_judgement_with_no_modules_and_no_confirmation():
+    bedrock = FakeBedrock()
+    result, store = _admit_basic(bedrock)
+    assert result.outcome == "ACTIVE"
+    assert bedrock.calls == ["classify", "judge_basic", "normalize_classify", "normalize", "embed"]
+    versions = store.rows[result.entry_id]["activation"].admission_versions
+    assert versions["mode"] == "basic" and versions["judge_core"] == "judge-basic-v1" and versions["judge_modules"] == "none"
+
+
+def test_basic_rejects_an_element_not_covered_and_a_wrong_subject():
+    partial = basic_judge_output(elements=[{"id": "E1", "coverage": "partial", "evidence": ""}])
+    assert _admit_basic(FakeBedrock(basic=partial))[0].outcome == "NOT_FIT"
+    wrong = basic_judge_output(C4={"result": "fail", "reason": "a namesake"})
+    result, _ = _admit_basic(FakeBedrock(basic=wrong))
+    assert result.outcome == "NOT_FIT" and "C4" in result.reason
+
+
+def test_basic_skipped_subject_check_counts_as_failed():
+    out = basic_judge_output()
+    del out["C4"]
+    assert _admit_basic(FakeBedrock(basic=out))[0].outcome == "NOT_FIT"
+
+
+def test_basic_asks_for_grounding_only_in_grounding_domains():
+    bedrock = FakeBedrock()
+    _admit_basic(bedrock)
+    reg_system = next(r["system"] for r in bedrock.requests if r["system"].startswith("You check whether"))
+    assert "GROUNDING (C3)" not in reg_system
+
+    rsk = {**CLASSIFICATION, "domain_primary": "RSK"}
+    ungrounded = basic_judge_output(C3={"result": "fail", "reason": "no list named"}, unsupported_claims=["X is on the OFAC list"])
+    bedrock = FakeBedrock(classification=rsk, basic=ungrounded)
+    result, _ = _admit_basic(bedrock)
+    rsk_system = next(r["system"] for r in bedrock.requests if r["system"].startswith("You check whether"))
+    assert "GROUNDING (C3)" in rsk_system
+    assert result.outcome == "NOT_FIT" and "C3" in result.reason
+    # Grounding requested but not reported counts as failed.
+    assert _admit_basic(FakeBedrock(classification=rsk))[0].outcome == "NOT_FIT"
+    # The same C3 failure outside the grounding domains is not looked at.
+    assert _admit_basic(FakeBedrock(basic=ungrounded))[0].outcome == "ACTIVE"
+
+
+def test_basic_still_requires_a_source_and_a_self_contained_question():
+    store = MemoryStore()
+    no_source = admission.admit(make_candidate(citations=[]), bedrock_client=FakeBedrock(), store=store, evidence_store=MemoryEvidenceStore(), settings=BASIC)
+    assert no_source.outcome == "FILTERED" and "T5" in no_source.reason
+    bedrock = FakeBedrock(classification={**CLASSIFICATION, "self_contained": False})
+    assert _admit_basic(bedrock)[0].outcome == "NOT_FIT" and bedrock.calls == ["classify"]

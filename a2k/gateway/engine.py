@@ -61,6 +61,8 @@ def _admission_settings() -> admission.AdmissionSettings:
         workers=config.admission_workers,
         disabled_domains=config.cache_disabled_domains,
         confirm_fit=config.admission_confirm_fit,
+        mode=config.admission_mode,
+        grounding_domains=config.admission_grounding_domains,
     )
 
 

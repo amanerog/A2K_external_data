@@ -97,7 +97,9 @@ def main() -> None:
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--output", default="admission_offline.csv")
     parser.add_argument("--disabled-domains", default="", help="comma-separated domain codes switched off, e.g. MED")
-    parser.add_argument("--no-confirm", action="store_true", help="single judgement, no confirming second call")
+    parser.add_argument("--no-confirm", action="store_true", help="strict mode: single judgement, no confirming second call")
+    parser.add_argument("--mode", choices=("basic", "strict"), default=config.admission_mode, help="admission mode (default: ADMISSION_MODE, basic)")
+    parser.add_argument("--grounding-domains", default=",".join(config.admission_grounding_domains), help="basic mode: domains checked for grounding (C3)")
     args = parser.parse_args()
 
     ids = set(args.ids.split(",")) if args.ids else None
@@ -112,10 +114,12 @@ def main() -> None:
         check_sources=False,
         disabled_domains=tuple(d.strip().upper() for d in args.disabled_domains.split(",") if d.strip()),
         confirm_fit=not args.no_confirm,
+        mode=args.mode,
+        grounding_domains=tuple(d.strip().upper() for d in args.grounding_domains.split(",") if d.strip()),
     )
     bedrock = boto3.client("bedrock-runtime", region_name=REGION, config=BotoConfig(read_timeout=300, retries={"max_attempts": 4, "mode": "adaptive"}))
     policy = default_policy()
-    print(f"{len(rows)} answer(s), judge={settings.judge_model_id}, light={settings.light_model_id}", flush=True)
+    print(f"{len(rows)} answer(s), mode={settings.mode}, judge={settings.judge_model_id}, light={settings.light_model_id}", flush=True)
 
     out_csv = Path(args.output)
     out_jsonl = out_csv.with_suffix(".jsonl")

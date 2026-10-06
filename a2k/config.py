@@ -288,6 +288,14 @@ class Config:
     admission_workers: int = field(default_factory=lambda: int(os.environ.get("ADMISSION_WORKERS", "2")))
     # Second, confirming judge call on FIT verdicts -- see AdmissionSettings.confirm_fit.
     admission_confirm_fit: bool = field(default_factory=lambda: _bool_env("ADMISSION_CONFIRM_FIT", True))
+    # "basic" (default) or "strict" -- see a2k/cache/judge_basic.py.
+    admission_mode: str = field(default_factory=lambda: os.environ.get("ADMISSION_MODE", "basic").strip().lower())
+    # Basic mode: domains where every statement must be grounded in the tool output (C3).
+    admission_grounding_domains: tuple[str, ...] = field(
+        default_factory=lambda: tuple(
+            d.strip().upper() for d in os.environ.get("ADMISSION_GROUNDING_DOMAINS", "RSK").split(",") if d.strip()
+        )
+    )
     # What the agent answers when a vendor is unavailable (agent/direct_agent.py,
     # E4.9 / D17). Filter T2 discards it by exact match, so it must be the same
     # value as the agent Runtime's own VENDOR_FALLBACK_MESSAGE.
