@@ -42,7 +42,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
 from . import classifier, decision, filters, judge, judge_basic, normalize, retrieval
-from ..logline import emit
+from ..logline import emit, query_hash
 from .bedrock import embed
 from .evidence import bundle, evidence_key, evidence_text
 from .expiry import expires_at
@@ -324,6 +324,7 @@ def log_result(result: AdmissionResult, *, candidate: Candidate, evidence_uri: s
     record = {
         "event": "cache.admission",
         "entry_id": result.entry_id,
+        "query_sha256": query_hash(candidate.question),
         "vendor": candidate.vendor,
         "outcome": result.outcome,
         "reason": result.reason,

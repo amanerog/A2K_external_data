@@ -19,7 +19,7 @@ from ..adapters.cala_mcp import CalaMcpAdapter
 from ..adapters.sayari_mcp import SayariMcpAdapter
 from ..cards import card_revision, vendor_catalogue
 from ..config import config
-from ..logline import emit
+from ..logline import emit, query_hash
 from ..errors import A2KError, ErrorCode
 from ..models.envelope import (
     AccessDecision,
@@ -451,7 +451,7 @@ class GatewayEngine:
                 content = await self._call_agent("ask", req.query, req.sources, request_id)
             except A2KError as err:
                 if shadow_task is not None:
-                    self._log_retrieval(await shadow_task, request_id=request_id, session_id=session_id, served_from="vendor_error", vendor_entry_id=None)
+                    self._log_retrieval(await shadow_task, query=req.query, request_id=request_id, session_id=session_id, served_from="vendor_error", vendor_entry_id=None)
                 return self._error_envelope("ask", source_kb_id, err, request_id)
             retrieved_at = None
             decision_reason = None
@@ -539,6 +539,7 @@ class GatewayEngine:
         if lookup is not None:
             self._log_retrieval(
                 lookup,
+                query=req.query,
                 request_id=request_id,
                 session_id=session_id,
                 served_from="cache" if hit is not None else "vendor",
@@ -737,6 +738,7 @@ class GatewayEngine:
         self,
         lookup: retrieval.RetrievalResult,
         *,
+        query: str,
         request_id: str,
         session_id: str | None,
         served_from: str,
@@ -752,6 +754,7 @@ class GatewayEngine:
             "event": "cache.retrieval",
             "mode": config.cache_mode,
             "request_id": request_id,
+            "query_sha256": query_hash(query),
             "session_id": session_id,
             # caller (K2's sessionId) or derived from a transport header (see
             # mcp_server/server.py _session_id) -- filter on "caller" for D14.

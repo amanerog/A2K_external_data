@@ -624,3 +624,20 @@ def test_log_lines_stay_whole_under_concurrency():
             t.join()
     lines = buffer.getvalue().splitlines()
     assert len(lines) == 1600 and all(json.loads(line)["event"] == "x" for line in lines)
+
+
+async def test_serving_and_admission_logs_carry_the_query_hash(gateway, capsys):
+    import hashlib
+
+    engine, state = gateway
+    state["hit"] = None
+    await engine._ask_via_agent(A2KRequest(operation="ask", query="¿Qué dice la EBA?"))
+    (log,) = _serving_log(capsys)
+    assert log["query_sha256"] == hashlib.sha256("¿Qué dice la EBA?".encode()).hexdigest()[:16]
+    # admission.log_result uses the same fingerprint of the candidate's question
+    from a2k.cache import admission as adm
+    from a2k.cache.models import AdmissionResult
+
+    adm.log_result(AdmissionResult("e1", "NOT_FIT", "r"), candidate=state["submitted"][0], evidence_uri=None)
+    line = [json.loads(x) for x in capsys.readouterr().out.splitlines() if x.startswith("{")][-1]
+    assert line["event"] == "cache.admission" and line["query_sha256"] == log["query_sha256"]

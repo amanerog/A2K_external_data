@@ -10,6 +10,7 @@ later served) had no cache.admission line. One write per line, under a lock.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 import threading
@@ -23,3 +24,11 @@ def emit(record: dict[str, Any], *, ensure_ascii: bool = False) -> None:
     with _lock:
         sys.stdout.write(line)
         sys.stdout.flush()
+
+
+def query_hash(text: str) -> str:
+    """A short, stable fingerprint of a question exactly as the caller sent it
+    (UTF-8, no normalisation): lets an evaluation run match each log line to
+    its question without the logs carrying more of the question than the
+    English rendering they already hold. 16 hex characters (64 bits)."""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
