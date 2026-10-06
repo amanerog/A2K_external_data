@@ -107,6 +107,18 @@ def load_card(name: str) -> KBCard:
     return cards[name]
 
 
+def card_revision(name: str) -> str | None:
+    """The revision of a vendor's KB Card: `kbCardVersion` (A2K 0.1) when the
+    card has one, otherwise `enterprise.lifecycle.lastUpdated`. None for an
+    unknown vendor. The cache drops entries admitted under another revision
+    (A2K-KCP 0.1 section 9.4)."""
+    try:
+        card = load_card(name)
+    except KeyError:
+        return None
+    return card.kbCardVersion or card.enterprise.lifecycle.lastUpdated
+
+
 def vendor_catalogue() -> list[dict]:
     """The vendor list shape mcp_server/server.py's a2k.listVendors tool
     returns, factored out here so gateway/engine.py's direct-discovery-agent

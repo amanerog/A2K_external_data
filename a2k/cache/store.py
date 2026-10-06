@@ -142,8 +142,9 @@ class AuroraStore:
     def create_pending(self, candidate: Candidate, evidence_uri: str) -> None:
         self._execute(
             """INSERT INTO cache_entry (entry_id, status, created_at, question_text_original,
-                   answer_text_original, evidence_uri, vendor, data_origin)
-               VALUES (:entry_id, 'PENDING', :created_at, :question, :answer, :evidence_uri, :vendor, 'public')""",
+                   answer_text_original, evidence_uri, vendor, data_origin, card_revision, grounded_ratio)
+               VALUES (:entry_id, 'PENDING', :created_at, :question, :answer, :evidence_uri, :vendor, 'public',
+                       :card_revision, CAST(:grounded_ratio AS real))""",
             [
                 _p("entry_id", candidate.entry_id, "UUID"),
                 _p("created_at", _ts(candidate.created_at), "TIMESTAMP"),
@@ -151,6 +152,8 @@ class AuroraStore:
                 _p("answer", candidate.answer),
                 _p("evidence_uri", evidence_uri),
                 _p("vendor", candidate.vendor),
+                _p("card_revision", candidate.card_revision),
+                _p("grounded_ratio", candidate.grounded_ratio),
             ],
         )
 
@@ -279,7 +282,8 @@ class AuroraStore:
         result = self._execute(
             """SELECT entry_id::text, question_text, answer_text, answer_text_original, original_lang,
                       sources::text, 1 - (question_vector <=> CAST(:v AS vector)) AS cosine,
-                      to_char(admitted_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'), data_as_of::text
+                      to_char(admitted_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'), data_as_of::text,
+                      vendor, card_revision, grounded_ratio::float8
                FROM cache_entry
                WHERE status = 'ACTIVE'
                  AND expires_at > now()
@@ -298,6 +302,7 @@ class AuroraStore:
         for rec in result.get("records") or []:
             values = [_field(c) for c in rec]
             admitted, as_of = values[7], values[8]
+            vendor, card_revision, grounded_ratio = values[9], values[10], values[11]
             rows.append(
                 {
                     "entry_id": values[0],
@@ -309,6 +314,9 @@ class AuroraStore:
                     "cosine": float(values[6]),
                     "admitted_at": datetime.fromisoformat(admitted.replace("Z", "+00:00")) if admitted else None,
                     "data_as_of": date.fromisoformat(as_of) if as_of else None,
+                    "vendor": vendor,
+                    "card_revision": card_revision,
+                    "grounded_ratio": float(grounded_ratio) if grounded_ratio is not None else None,
                 }
             )
         return rows
@@ -342,6 +350,8 @@ class MemoryStore:
             "evidence_uri": evidence_uri,
             "vendor": candidate.vendor,
             "answer_text_original": candidate.answer,
+            "card_revision": candidate.card_revision,
+            "grounded_ratio": candidate.grounded_ratio,
         }
 
     def is_pending(self, entry_id: str) -> bool:
@@ -408,6 +418,9 @@ class MemoryStore:
                         "cosine": cosine,
                         "admitted_at": row.get("admitted_at"),
                         "data_as_of": a.data_as_of,
+                        "vendor": row.get("vendor"),
+                        "card_revision": row.get("card_revision"),
+                        "grounded_ratio": row.get("grounded_ratio"),
                     }
                 )
         return sorted(found, key=lambda r: -r["cosine"])[:limit]

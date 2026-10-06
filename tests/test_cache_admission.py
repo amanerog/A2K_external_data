@@ -22,6 +22,7 @@ from a2k.cache.models import Candidate, Classification
 from a2k.cache.store import MemoryEvidenceStore, MemoryStore
 import a2k.config as config_module
 from a2k.config import Config
+from a2k.models.request import A2KRequest
 
 NOW = datetime(2026, 10, 1, 12, 0, tzinfo=timezone.utc)
 URL = "https://www.eba.europa.eu/guidelines/internal-governance"
@@ -476,10 +477,10 @@ def _content(vendors):
 def test_engine_submits_single_allowed_vendor_answers_only(admission_on):
     from a2k.gateway.engine import engine
 
-    entry_id = engine._submit_admission("q", _content(["cala"]))
-    assert engine._submit_admission("q", _content(["sayari"])) is None  # not allowed (D11)
-    assert engine._submit_admission("q", _content(["cala", "sayari"])) is None  # fan-out
-    assert engine._submit_admission("q", _content([])) is None  # no vendor data
+    entry_id = engine._submit_admission(A2KRequest(operation="ask", query="q"), _content(["cala"]))
+    assert engine._submit_admission(A2KRequest(operation="ask", query="q"), _content(["sayari"])) is None  # not allowed (D11)
+    assert engine._submit_admission(A2KRequest(operation="ask", query="q"), _content(["cala", "sayari"])) is None  # fan-out
+    assert engine._submit_admission(A2KRequest(operation="ask", query="q"), _content([])) is None  # no vendor data
     assert [c.vendor for c in admission_on] == ["cala"]
     assert admission_on[0].question == "q"
     assert entry_id == admission_on[0].entry_id

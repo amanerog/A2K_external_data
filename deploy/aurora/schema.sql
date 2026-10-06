@@ -32,8 +32,15 @@ CREATE TABLE IF NOT EXISTS cache_entry (
     -- reserved for later stages
     entities               text[],
     vendor                 text,
-    data_origin            text NOT NULL DEFAULT 'public' CHECK (data_origin IN ('public', 'private'))
+    data_origin            text NOT NULL DEFAULT 'public' CHECK (data_origin IN ('public', 'private')),
+    -- A2K-KCP 0.1 section 9.4: an entry is invalidated when its vendor's KB Card revision changes.
+    card_revision          text,
+    -- The groundedRatio the agent self-reported for the answer, served back with it.
+    grounded_ratio         real
 );
+-- Columns added after the first deployment (CREATE TABLE IF NOT EXISTS does not add them).
+ALTER TABLE cache_entry ADD COLUMN IF NOT EXISTS card_revision text;
+ALTER TABLE cache_entry ADD COLUMN IF NOT EXISTS grounded_ratio real;
 
 -- Retrieval only ever searches ACTIVE entries (Annex A3).
 CREATE INDEX IF NOT EXISTS cache_entry_vector_active

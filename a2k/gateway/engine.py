@@ -18,7 +18,7 @@ import httpx
 from ..adapters.base import Fact, ProviderAdapter
 from ..adapters.cala_mcp import CalaMcpAdapter
 from ..adapters.sayari_mcp import SayariMcpAdapter
-from ..cards import vendor_catalogue
+from ..cards import card_revision, vendor_catalogue
 from ..config import config
 from ..errors import A2KError, ErrorCode
 from ..models.envelope import (
@@ -428,10 +428,14 @@ class GatewayEngine:
         session_id = req.requestMetadata.sessionId if req.requestMetadata else None
         lookup: retrieval.RetrievalResult | None = None
         shadow_task: asyncio.Task | None = None
-        if config.cache_serving:
-            lookup = await self._cache_retrieve(req.query, session_id, budget=config.cache_time_budget_seconds)
+        bypass = self._cache_bypass_reason(req)
+        max_age = timedelta(hours=req.requirements.maxStalenessHours) if req.requirements.maxStalenessHours else None
+        if config.cache_ready and bypass:
+            lookup = retrieval.RetrievalResult(skipped=bypass)
+        elif config.cache_serving:
+            lookup = await self._cache_retrieve(req.query, session_id, budget=config.cache_time_budget_seconds, max_age=max_age)
         elif config.cache_ready:
-            shadow_task = asyncio.create_task(self._cache_retrieve(req.query, session_id, budget=None))
+            shadow_task = asyncio.create_task(self._cache_retrieve(req.query, session_id, budget=None, max_age=max_age))
 
         # A hit is only served if its domain is in serve mode itself; a domain
         # still in shadow gets the vendor answer, the hit stays in the log.
@@ -530,7 +534,7 @@ class GatewayEngine:
         # session turn points at it too, so a reformulation deprecates the
         # cached entry exactly as it would in serve mode.
         would_hit = lookup.hit if lookup is not None else None
-        vendor_entry_id = self._submit_admission(req.query, content) if would_hit is None else None
+        vendor_entry_id = self._submit_admission(req, content) if would_hit is None else None
         self._record_turn(session_id, req.query, would_hit.entry_id if would_hit is not None else vendor_entry_id)
         if lookup is not None:
             self._log_retrieval(
@@ -666,12 +670,28 @@ class GatewayEngine:
         results = await asyncio.gather(*(run(s) for s in sources))
         return dict(results)
 
-    async def _cache_retrieve(self, query: str, session_id: str | None, *, budget: float | None) -> retrieval.RetrievalResult:
+    @staticmethod
+    def _cache_bypass_reason(req: A2KRequest) -> str | None:
+        """Requests the cache cannot serve, so it is not even searched (A2K-KCP
+        0.1): strict grounding (a cached answer's grounding is the agent's
+        self-report, which can never be strict-satisfied, section 5.6) and a
+        point-in-time request (an entry holds the answer as of its admission,
+        never as of another instant, section 3.6). A caller's freshness limit
+        is not a bypass: it filters candidates (retrieval max_evidence_age)."""
+        if req.requirements.strictGrounding:
+            return "strict grounding requested"
+        if req.context is not None and req.context.dateContext:
+            return "point-in-time request (asOf)"
+        return None
+
+    async def _cache_retrieve(
+        self, query: str, session_id: str | None, *, budget: float | None, max_age: timedelta | None = None
+    ) -> retrieval.RetrievalResult:
         """Retrieval in a worker thread (its Bedrock and Data API calls are
         blocking). With a `budget` (serve mode, D15) a slow lookup counts as a
         miss and the request goes to the vendor; the thread is left to finish
         on its own. Never raises."""
-        call = asyncio.to_thread(self._cache_lookup_sync, query, session_id)
+        call = asyncio.to_thread(self._cache_lookup_sync, query, session_id, max_age)
         try:
             return await (asyncio.wait_for(call, timeout=budget) if budget else call)
         except asyncio.TimeoutError:
@@ -679,18 +699,28 @@ class GatewayEngine:
         except Exception as exc:  # noqa: BLE001 -- the cache must never break a request
             return retrieval.RetrievalResult(error=f"{type(exc).__name__}: {exc}")
 
-    def _cache_lookup_sync(self, query: str, session_id: str | None = None) -> retrieval.RetrievalResult:
+    def _cache_lookup_sync(self, query: str, session_id: str | None = None, max_age: timedelta | None = None) -> retrieval.RetrievalResult:
         try:
             bedrock_client, store, _, _, _ = _cache_clients()
         except Exception as exc:  # noqa: BLE001
             return retrieval.RetrievalResult(error=f"clients: {type(exc).__name__}: {exc}")
-        return retrieval.lookup(query, bedrock_client=bedrock_client, store=store, settings=_retrieval_settings(), session_id=session_id)
+        return retrieval.lookup(
+            query,
+            bedrock_client=bedrock_client,
+            store=store,
+            settings=_retrieval_settings(),
+            session_id=session_id,
+            card_revision_of=card_revision,
+            max_evidence_age=max_age,
+        )
 
     def _content_from_cache_hit(self, hit: retrieval.CacheHit) -> dict:
         """The agent's own content shape, so the envelope is built by the same
-        code as a live answer. groundedRatio 1.0: the entry was admitted only
-        after the judge found every requested element covered, with quotes
-        verified against the raw tool output (a2k/cache/decision.py)."""
+        code as a live answer. groundedRatio: what the agent self-reported for
+        the answer when it was produced -- admission in basic mode does not
+        verify grounding outside RSK, so the cache claims no more than that.
+        Entries admitted before it was recorded get 0.75 ("substantially
+        grounded"), never 1.0."""
         return {
             "answer": hit.answer,
             "claims": [],
@@ -698,7 +728,7 @@ class GatewayEngine:
                 {"title": s.get("title"), "sourceUrl": s.get("sourceUrl"), "documentId": s.get("documentId")}
                 for s in hit.sources
             ],
-            "groundedRatio": 1.0,
+            "groundedRatio": hit.grounded_ratio if hit.grounded_ratio is not None else 0.75,
             "conflicts": [],
             "toolCalls": [],
         }
@@ -740,6 +770,7 @@ class GatewayEngine:
             "candidates": lookup.candidates,
             "checks": lookup.checks,
             "skipped": lookup.skipped,
+            "excluded": lookup.excluded,
             "error": lookup.error,
             "timings_ms": lookup.timings_ms,
             "total_ms": lookup.total_ms,
@@ -766,7 +797,7 @@ class GatewayEngine:
 
         admission.run_in_background(_write, workers=config.admission_workers)
 
-    def _submit_admission(self, query: str, content: dict) -> str | None:
+    def _submit_admission(self, req: A2KRequest, content: dict) -> str | None:
         """Hands a live vendor answer to the cache admission pipeline
         (a2k/cache/admission.py), which runs in the background -- the
         response has already been built and is returned right after this.
@@ -779,6 +810,11 @@ class GatewayEngine:
         or None when the answer is not a candidate."""
         if not config.cache_ready:
             return None
+        # An answer as of another instant is not the current answer to the
+        # question: it must not be served later as if it were.
+        if req.context is not None and req.context.dateContext:
+            return None
+        query = req.query
         try:
             vendors = {tc.get("vendor") for tc in (content.get("toolCalls") or []) if tc.get("vendor")}
             if len(vendors) != 1 or next(iter(vendors)) not in config.admission_allowed_vendors:
@@ -791,6 +827,8 @@ class GatewayEngine:
                 tool_calls=list(content.get("toolCalls") or []),
                 citations=list(content.get("citations") or []),
                 created_at=datetime.now(timezone.utc),
+                card_revision=card_revision(next(iter(vendors))),
+                grounded_ratio=float(content["groundedRatio"]) if content.get("groundedRatio") is not None else None,
             )
             admission.submit(candidate, settings=_admission_settings(), deps=_admission_deps)
             return candidate.entry_id

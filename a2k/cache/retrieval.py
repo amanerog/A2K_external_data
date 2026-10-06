@@ -23,8 +23,8 @@ from __future__ import annotations
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field
-from datetime import date, datetime
-from typing import Any
+from datetime import date, datetime, timedelta, timezone
+from typing import Any, Callable
 
 from . import checker, reformulation
 from .bedrock import ModelOutputError, converse_json, embed
@@ -82,6 +82,7 @@ class CacheHit:
     cosine: float
     admitted_at: datetime | None
     data_as_of: date | None
+    grounded_ratio: float | None = None
 
 
 @dataclass
@@ -94,6 +95,9 @@ class RetrievalResult:
     checks: list[dict[str, Any]] = field(default_factory=list)
     hit: CacheHit | None = None
     skipped: str | None = None  # why the lookup stopped early on purpose
+    # Candidates set aside before the Checker: [{"entry_id", "reason"}] --
+    # "card_revision_changed" (also deprecated) or "evidence_too_old".
+    excluded: list[dict[str, Any]] = field(default_factory=list)
     reformulation: dict[str, Any] | None = None  # step 1 outcome, None without a session id
     error: str | None = None
     timings_ms: dict[str, int] = field(default_factory=dict)
@@ -119,6 +123,40 @@ def normalize_and_classify(bedrock_client, *, model_id: str, question: str) -> t
     return str(raw.get("original_lang") or "und").lower()[:8], question_en, domains
 
 
+def _evidence_date(row: dict[str, Any]) -> datetime | None:
+    dates = [row.get("admitted_at")]
+    if row.get("data_as_of"):
+        dates.append(datetime.combine(row["data_as_of"], datetime.min.time(), tzinfo=timezone.utc))
+    dates = [d for d in dates if d is not None]
+    return min(dates) if dates else None
+
+
+def _eligible(
+    rows: list[dict[str, Any]],
+    result: RetrievalResult,
+    *,
+    store: CacheStore,
+    card_revision_of: Callable[[str], str | None] | None,
+    max_evidence_age: timedelta | None,
+) -> list[dict[str, Any]]:
+    kept = []
+    now = datetime.now(timezone.utc)
+    for row in rows:
+        stored = row.get("card_revision")
+        current = card_revision_of(row["vendor"]) if card_revision_of and row.get("vendor") and stored else None
+        if current is not None and current != stored:
+            store.deprecate(row["entry_id"], "card_revision_changed")
+            result.excluded.append({"entry_id": row["entry_id"], "reason": "card_revision_changed"})
+            continue
+        if max_evidence_age is not None:
+            evidence_date = _evidence_date(row)
+            if evidence_date is None or now - evidence_date > max_evidence_age:
+                result.excluded.append({"entry_id": row["entry_id"], "reason": "evidence_too_old"})
+                continue
+        kept.append(row)
+    return kept
+
+
 def lookup(
     question: str,
     *,
@@ -126,7 +164,15 @@ def lookup(
     store: CacheStore,
     settings: RetrievalSettings,
     session_id: str | None = None,
+    card_revision_of: Callable[[str], str | None] | None = None,
+    max_evidence_age: timedelta | None = None,
 ) -> RetrievalResult:
+    """`card_revision_of(vendor)`: the current revision of a vendor's KB Card;
+    an entry admitted under another one is deprecated, not served (A2K-KCP 0.1
+    section 9.4). Entries with no recorded revision (admitted before it was
+    recorded) are kept. `max_evidence_age`: the caller's freshness requirement
+    -- an entry whose evidence is older is not served (section 5.5); the age is
+    counted from the older of the admission and the date of the data."""
     result = RetrievalResult()
     step_start = time.monotonic()
 
@@ -176,6 +222,7 @@ def lookup(
         result.threshold = max(policy.get(d, settings.default_min_cosine) for d in result.domains)
         rows = store.search(vector, min_cosine=result.threshold, embedding_model=settings.embedding_model_id, limit=settings.max_candidates)
         result.candidates = [{"entry_id": r["entry_id"], "cosine": round(r["cosine"], 4)} for r in rows]
+        rows = _eligible(rows, result, store=store, card_revision_of=card_revision_of, max_evidence_age=max_evidence_age)
         lap("search")
 
         for row in rows:
@@ -204,6 +251,7 @@ def lookup(
                     cosine=row["cosine"],
                     admitted_at=row.get("admitted_at"),
                     data_as_of=row.get("data_as_of"),
+                    grounded_ratio=row.get("grounded_ratio"),
                 )
                 break
         lap("checker")

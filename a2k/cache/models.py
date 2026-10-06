@@ -27,6 +27,11 @@ class Candidate:
     tool_calls: list[dict[str, Any]]
     citations: list[dict[str, Any]]
     created_at: datetime
+    # Revision of the vendor's KB Card when the answer was produced: the entry
+    # stops being served when it changes (A2K-KCP 0.1 section 9.4).
+    card_revision: str | None = None
+    # The agent's self-reported groundedRatio, served back with a cache hit.
+    grounded_ratio: float | None = None
 
 
 @dataclass

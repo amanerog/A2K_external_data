@@ -136,7 +136,7 @@ HIT = retrieval.CacheHit(
 def gateway(monkeypatch):
     """GatewayEngine with the vendor call, retrieval and admission faked.
     `state` records what happened; set state["mode"] before calling."""
-    state = {"mode": "shadow", "vendor_calls": 0, "lookups": 0, "submitted": [], "hit": HIT, "lookup_delay": 0.0, "session_ids": [], "turns": []}
+    state = {"mode": "shadow", "vendor_calls": 0, "lookups": 0, "submitted": [], "hit": HIT, "lookup_delay": 0.0, "session_ids": [], "turns": [], "max_ages": []}
 
     monkeypatch.setattr(Config, "cache_ready", property(lambda self: state["mode"] in ("shadow", "serve")))
     monkeypatch.setattr(Config, "cache_serving", property(lambda self: state["mode"] == "serve"))
@@ -150,9 +150,10 @@ def gateway(monkeypatch):
         state["vendor_calls"] += 1
         return dict(VENDOR_CONTENT)
 
-    def fake_lookup_sync(self, query, session_id=None):
+    def fake_lookup_sync(self, query, session_id=None, max_age=None):
         state["lookups"] += 1
         state["session_ids"].append(session_id)
+        state["max_ages"].append(max_age)
         time.sleep(state["lookup_delay"])
         return retrieval.RetrievalResult(original_lang="es", question_en="q", domains=["REG"], threshold=0.9, hit=state["hit"], timings_ms={"embed": 5})
 
@@ -467,3 +468,93 @@ async def test_serving_log_says_where_the_session_came_from(gateway, capsys):
     for sid in ("conv-1", "mcp:abc"):
         await engine._ask_via_agent(A2KRequest(operation="ask", query="q", requestMetadata=RequestMetadata(sessionId=sid)))
     assert [log["session_source"] for log in _serving_log(capsys)] == ["caller", "mcp"]
+
+
+# --- A2K-KCP 0.1: card revision, freshness limit, strict grounding, asOf --------
+
+
+def _admit_with(**candidate_kw) -> tuple[MemoryStore, str]:
+    store = MemoryStore()
+    result = admission.admit(make_candidate(**candidate_kw), bedrock_client=RetrievalBedrock(), store=store, evidence_store=MemoryEvidenceStore(), settings=SETTINGS)
+    assert result.outcome == "ACTIVE"
+    return store, result.entry_id
+
+
+def test_entry_of_an_older_card_revision_is_deprecated_not_served():
+    store, entry_id = _admit_with(card_revision="rev-1")
+    result = retrieval.lookup("q", bedrock_client=RetrievalBedrock(), store=store, settings=RETRIEVAL_SETTINGS, card_revision_of=lambda vendor: "rev-2")
+    assert result.hit is None
+    assert result.excluded == [{"entry_id": entry_id, "reason": "card_revision_changed"}]
+    assert store.rows[entry_id]["status"] == "DEPRECATED" and store.rows[entry_id]["status_reason"] == "card_revision_changed"
+
+
+def test_entry_of_the_current_card_revision_or_with_none_recorded_is_served():
+    for recorded in ("rev-2", None):
+        store, entry_id = _admit_with(card_revision=recorded)
+        result = retrieval.lookup("q", bedrock_client=RetrievalBedrock(), store=store, settings=RETRIEVAL_SETTINGS, card_revision_of=lambda vendor: "rev-2")
+        assert result.hit is not None and result.hit.entry_id == entry_id and result.excluded == []
+
+
+def test_freshness_limit_excludes_entries_with_older_evidence():
+    store, entry_id = _admit_with()  # data_as_of 2026-09-20 in the fake judge
+    old = retrieval.lookup("q", bedrock_client=RetrievalBedrock(), store=store, settings=RETRIEVAL_SETTINGS, max_evidence_age=timedelta(hours=1))
+    assert old.hit is None and old.excluded == [{"entry_id": entry_id, "reason": "evidence_too_old"}]
+    assert store.rows[entry_id]["status"] == "ACTIVE"  # excluded for this caller only, not deprecated
+    roomy = retrieval.lookup("q", bedrock_client=RetrievalBedrock(), store=store, settings=RETRIEVAL_SETTINGS, max_evidence_age=timedelta(days=3650))
+    assert roomy.hit is not None
+
+
+def test_hit_carries_the_grounded_ratio_recorded_at_admission():
+    store, _ = _admit_with(grounded_ratio=0.5)
+    result = retrieval.lookup("q", bedrock_client=RetrievalBedrock(), store=store, settings=RETRIEVAL_SETTINGS)
+    assert result.hit.grounded_ratio == 0.5
+
+
+async def test_served_hit_reports_the_recorded_grounded_ratio_never_more(gateway):
+    from dataclasses import replace
+
+    engine, state = gateway
+    state["mode"] = "serve"
+    state["hit"] = replace(HIT, grounded_ratio=0.5)
+    envelope = await engine._ask_via_agent(A2KRequest(operation="ask", query="q"))
+    assert envelope.answer == "Cached answer." and envelope.grounding.groundedRatio == 0.5
+    state["hit"] = HIT  # admitted before the ratio was recorded
+    envelope = await engine._ask_via_agent(A2KRequest(operation="ask", query="q"))
+    assert envelope.grounding.groundedRatio == 0.75 and envelope.grounding.strictGroundingSatisfied is False
+
+
+async def test_strict_grounding_request_skips_the_cache_but_is_still_admitted(gateway, capsys, monkeypatch):
+    from a2k.models.request import Requirements
+
+    engine, state = gateway
+    # A vendor answer the agent reports as fully grounded, so strict grounding holds for it.
+    monkeypatch.setitem(VENDOR_CONTENT, "groundedRatio", 1.0)
+    state["mode"] = "serve"
+    req = A2KRequest(operation="ask", query="q", requirements=Requirements(strictGrounding=True))
+    envelope = await engine._ask_via_agent(req)
+    assert envelope.answer == VENDOR_CONTENT["answer"]
+    assert state["lookups"] == 0 and state["vendor_calls"] == 1 and len(state["submitted"]) == 1
+    (log,) = _serving_log(capsys)
+    assert log["skipped"] == "strict grounding requested" and log["would_hit"] is False
+
+
+async def test_point_in_time_request_skips_the_cache_and_admission(gateway, capsys):
+    from a2k.models.request import RequestContext
+
+    engine, state = gateway
+    req = A2KRequest(operation="ask", query="q", context=RequestContext(dateContext="2024-06-01T00:00:00Z"))
+    await engine._ask_via_agent(req)
+    assert state["lookups"] == 0 and state["submitted"] == []
+    (log,) = _serving_log(capsys)
+    assert log["skipped"].startswith("point-in-time")
+
+
+async def test_freshness_limit_reaches_retrieval_and_admission_records_card_and_ratio(gateway):
+    from a2k.models.request import Requirements
+
+    engine, state = gateway
+    state["hit"] = None
+    await engine._ask_via_agent(A2KRequest(operation="ask", query="q", requirements=Requirements(maxStalenessHours=24)))
+    assert state["max_ages"] == [timedelta(hours=24)]
+    (candidate,) = state["submitted"]
+    assert candidate.grounded_ratio == 0.9 and candidate.card_revision  # the local Cala card's lastUpdated

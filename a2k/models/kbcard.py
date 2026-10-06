@@ -204,6 +204,9 @@ class KBCard(BaseModel):
     transport: Literal["https-json", "mcp", "a2a"]
     enterprise: Enterprise
     knowledgeProfile: KnowledgeProfile
+    # A2K-KBCard-Schema 0.1 card revision. Optional here (this card model is the
+    # 0.6-baseline one); the cache invalidates its entries when it changes.
+    kbCardVersion: str | None = None
     # Local extension, not part of the A2K-KBCard-Schema spec (which has no
     # additionalProperties:false, so this doesn't break conformance): a numeric
     # tie-breaker for vendor routing among multiple topical matches, lower =
