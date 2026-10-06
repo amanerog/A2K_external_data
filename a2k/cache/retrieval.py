@@ -225,11 +225,18 @@ def lookup(
         rows = _eligible(rows, result, store=store, card_revision_of=card_revision_of, max_evidence_age=max_evidence_age)
         lap("search")
 
+        today = datetime.now(timezone.utc).date()
         for row in rows:
             check: dict[str, Any] = {"entry_id": row["entry_id"]}
             result.checks.append(check)
+            cached_on = row["admitted_at"].date() if row.get("admitted_at") else None
             check["equivalent"], check["equivalent_reason"] = checker.questions_equivalent(
-                bedrock_client, model_id=settings.checker_model_id, cached_query=row["question_text"], new_query=result.question_en
+                bedrock_client,
+                model_id=settings.checker_model_id,
+                cached_query=row["question_text"],
+                new_query=result.question_en,
+                today=today,
+                cached_on=cached_on,
             )
             if not check["equivalent"]:
                 continue
@@ -239,6 +246,8 @@ def lookup(
                 cached_query=row["question_text"],
                 cached_answer=row["answer_text"],
                 new_query=result.question_en,
+                today=today,
+                cached_on=cached_on,
             )
             if check["satisfies"]:
                 original = row.get("original_lang") == result.original_lang and row.get("answer_text_original")

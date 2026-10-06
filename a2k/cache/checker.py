@@ -13,15 +13,27 @@ a2k/gateway/cache.py); only the inputs change: English texts on both sides.
 
 from __future__ import annotations
 
+from datetime import date
+
 from .bedrock import parse_json_object
 
-PROMPT_VERSION = "checker-v1-as-tested"
+# v2: the only change to the prompts as tested (D4) is the dates block: the
+# Checker turned down exact repeats of "this week" / "the past quarter"
+# questions because it could not tell the saved answer was from the same week
+# (full shadow run, 2026-10-06).
+PROMPT_VERSION = "checker-v2-dates"
+
+_DATES = """Today is {today}. The previously asked question was asked, and its answer produced, on \
+{cached_on}. A relative period ("this week", "the past quarter", "current", "latest") means the \
+period around the date its question was asked.
+
+"""
 
 EQUIVALENCE_PROMPT = """Decide whether these two questions are asking for the same underlying \
 information -- not just topically similar, but such that a correct answer to one would also be \
 a correct, complete answer to the other.
 
-Previously asked question: {cached_query}
+{dates}Previously asked question: {cached_query}
 
 New question: {new_query}
 
@@ -39,7 +51,7 @@ saved for reuse. A new question just came in that an embedding search flagged as
 match for that saved answer. Decide whether the saved answer actually, substantively answers \
 the new question -- not just whether the two questions are topically similar.
 
-Previously asked question: {cached_query}
+{dates}Previously asked question: {cached_query}
 
 Saved answer:
 {cached_answer}
@@ -69,15 +81,35 @@ def _converse(bedrock_client, model_id: str, prompt: str) -> dict:
     return {}
 
 
-def questions_equivalent(bedrock_client, *, model_id: str, cached_query: str, new_query: str) -> tuple[bool, str]:
-    out = _converse(bedrock_client, model_id, EQUIVALENCE_PROMPT.format(cached_query=cached_query, new_query=new_query))
+def dates_block(today: date | None, cached_on: date | None) -> str:
+    if today is None:
+        return ""
+    return _DATES.format(today=today.isoformat(), cached_on=cached_on.isoformat() if cached_on else "an unknown date")
+
+
+def questions_equivalent(
+    bedrock_client, *, model_id: str, cached_query: str, new_query: str, today: date | None = None, cached_on: date | None = None
+) -> tuple[bool, str]:
+    prompt = EQUIVALENCE_PROMPT.format(dates=dates_block(today, cached_on), cached_query=cached_query, new_query=new_query)
+    out = _converse(bedrock_client, model_id, prompt)
     return bool(out.get("equivalent", False)), str(out.get("reason") or "")
 
 
-def answer_satisfies(bedrock_client, *, model_id: str, cached_query: str, cached_answer: str, new_query: str) -> tuple[bool, str]:
+def answer_satisfies(
+    bedrock_client,
+    *,
+    model_id: str,
+    cached_query: str,
+    cached_answer: str,
+    new_query: str,
+    today: date | None = None,
+    cached_on: date | None = None,
+) -> tuple[bool, str]:
     out = _converse(
         bedrock_client,
         model_id,
-        SATISFIES_PROMPT.format(cached_query=cached_query, cached_answer=cached_answer, new_query=new_query),
+        SATISFIES_PROMPT.format(
+            dates=dates_block(today, cached_on), cached_query=cached_query, cached_answer=cached_answer, new_query=new_query
+        ),
     )
     return bool(out.get("satisfies", False)), str(out.get("reason") or "")

@@ -16,11 +16,11 @@ plumbing -- no separate log sink to wire up.
 from __future__ import annotations
 
 import json
-import sys
 from datetime import datetime, timezone
 from typing import Any
 
 from ..config import config
+from ..logline import emit
 
 # Keeps a single log line readable and bounds how much a huge upstream
 # result (an entity with dozens of relationship types, for instance) can
@@ -56,4 +56,4 @@ def trace(event: str, **fields: Any) -> None:
         "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         **{key: _preview(val) for key, val in fields.items()},
     }
-    print(json.dumps(record, default=str), file=sys.stdout, flush=True)
+    emit(record, ensure_ascii=True)

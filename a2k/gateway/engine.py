@@ -7,7 +7,6 @@ transportes".
 from __future__ import annotations
 
 import asyncio
-import json
 import sys
 import time
 import uuid
@@ -20,6 +19,7 @@ from ..adapters.cala_mcp import CalaMcpAdapter
 from ..adapters.sayari_mcp import SayariMcpAdapter
 from ..cards import card_revision, vendor_catalogue
 from ..config import config
+from ..logline import emit
 from ..errors import A2KError, ErrorCode
 from ..models.envelope import (
     AccessDecision,
@@ -777,7 +777,7 @@ class GatewayEngine:
             "within_budget": lookup.total_ms <= config.cache_time_budget_seconds * 1000,
             "vendor_entry_id": vendor_entry_id,
         }
-        print(json.dumps(record, ensure_ascii=False, default=str), file=sys.stdout, flush=True)
+        emit(record)
 
     def _record_turn(self, session_id: str | None, query: str, served_entry_id: str | None) -> None:
         """Session memory for the next turn's reformulation check: the question

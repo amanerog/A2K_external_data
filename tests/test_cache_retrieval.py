@@ -558,3 +558,69 @@ async def test_freshness_limit_reaches_retrieval_and_admission_records_card_and_
     assert state["max_ages"] == [timedelta(hours=24)]
     (candidate,) = state["submitted"]
     assert candidate.grounded_ratio == 0.9 and candidate.card_revision  # the local Cala card's lastUpdated
+
+
+# --- full shadow run fixes (2026-10-06) ------------------------------------------
+
+
+def test_reformulation_guard_different_identifiers_skip_the_model():
+    from a2k.cache import reformulation
+
+    class NoModel:
+        def converse(self, **kw):
+            raise AssertionError("the model must not be called")
+
+    kind, reason = reformulation.classify(
+        NoModel(), model_id="m",
+        previous="What information is registered for the company with tax code P3701000F?",
+        current="What information is registered for the company with tax code B43995760?",
+    )
+    assert kind == "new" and "identifiers" in reason
+
+
+def test_reformulation_identifiers_ignore_dates_and_keep_tax_ids():
+    from a2k.cache.reformulation import identifiers
+
+    assert identifiers("between 2026-01-01 and 2026-03-31, as of 31/12/2024") == set()
+    assert identifiers("CNPJ 18.236.120/0001-58, LEI 5493001KJTIIGC8Y1R12") == {"18236120000158", "5493001KJTIIGC8Y1R12"}
+    # Same identifier on both sides: the model decides (it may be a real reformulation).
+    assert identifiers("status of P3701000F") & identifiers("registered data for P3701000F")
+
+
+def test_reformulation_prompt_has_no_literal_backslashes():
+    from a2k.cache.reformulation import _PROMPT
+
+    assert "\\" not in _PROMPT
+
+
+def test_checker_is_told_today_and_when_the_answer_was_produced():
+    store, _ = store_with_entry()
+    seen = []
+
+    class Recording(RetrievalBedrock):
+        def converse(self, *, modelId, messages, inferenceConfig, **kw):
+            seen.append(messages[0]["content"][0]["text"])
+            return super().converse(modelId=modelId, messages=messages, inferenceConfig=inferenceConfig, **kw)
+
+    retrieval.lookup("q", bedrock_client=Recording(), store=store, settings=RETRIEVAL_SETTINGS)
+    checker_prompts = [p for p in seen if p.startswith(("Decide whether these two questions", "A caller previously asked"))]
+    today = datetime.now(timezone.utc).date().isoformat()
+    assert len(checker_prompts) == 2 and all(f"Today is {today}" in p and f"produced, on {today}" in p for p in checker_prompts)
+
+
+def test_log_lines_stay_whole_under_concurrency():
+    import contextlib
+    import io
+    import threading
+
+    from a2k.logline import emit
+
+    buffer = io.StringIO()
+    with contextlib.redirect_stdout(buffer):
+        threads = [threading.Thread(target=lambda n=n: [emit({"event": "x", "n": n, "i": i, "pad": "y" * 500}) for i in range(200)]) for n in range(8)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+    lines = buffer.getvalue().splitlines()
+    assert len(lines) == 1600 and all(json.loads(line)["event"] == "x" for line in lines)

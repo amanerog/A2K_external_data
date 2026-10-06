@@ -34,8 +34,6 @@ raw material to tune the judge afterwards.
 
 from __future__ import annotations
 
-import json
-import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -44,6 +42,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
 from . import classifier, decision, filters, judge, judge_basic, normalize, retrieval
+from ..logline import emit
 from .bedrock import embed
 from .evidence import bundle, evidence_key, evidence_text
 from .expiry import expires_at
@@ -338,7 +337,7 @@ def log_result(result: AdmissionResult, *, candidate: Candidate, evidence_uri: s
         "evidence_uri": evidence_uri,
         "timings_ms": result.timings_ms,
     }
-    print(json.dumps(record, ensure_ascii=False, default=str), file=sys.stdout, flush=True)
+    emit(record)
 
 
 def admit(
