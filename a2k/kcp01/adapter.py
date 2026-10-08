@@ -268,18 +268,36 @@ def _refused(req, code: str, reason: str, *, retryable: bool = False) -> dict[st
     return _success(AskSuccess, "ask", req, data)
 
 
+_MARKDOWN = set("*_`")
+
+
 def _locate(text: str, answer: str) -> tuple[int, int] | None:
-    """Where a claim sits in the answer: an exact match, else the same words
-    with any whitespace between them. Offsets are code points (Python str
-    indexes), as section 5.2 requires."""
+    """Where a claim sits in the answer: an exact match; else the same words
+    with any whitespace between them; else the same once markdown emphasis
+    is ignored on both sides -- the agent writes "Q4 2022: $9.9 billion" for
+    an answer line "- **Q4 2022:** $9.9 billion" (10-question check,
+    2026-10-08: 30 of 204 claims lost that way). Offsets are code points of
+    the answer as delivered (Python str indexes), as section 5.2 requires."""
     text = text.strip()
     if not text:
         return None
     start = answer.find(text)
     if start >= 0:
         return start, start + len(text)
-    match = re.search(r"\s+".join(re.escape(token) for token in text.split()), answer)
-    return (match.start(), match.end()) if match else None
+    pattern = r"\s+".join(re.escape(token) for token in text.split())
+    match = re.search(pattern, answer)
+    if match:
+        return match.start(), match.end()
+    # Ignore markdown emphasis: search a copy without it, map positions back.
+    kept = [i for i, ch in enumerate(answer) if ch not in _MARKDOWN]
+    plain = "".join(answer[i] for i in kept)
+    bare = "".join(ch for ch in text if ch not in _MARKDOWN).split()
+    if not bare:
+        return None
+    match = re.search(r"\s+".join(re.escape(token) for token in bare), plain)
+    if not match:
+        return None
+    return kept[match.start()], kept[match.end() - 1] + 1
 
 
 def _claims(env: CitedResponseEnvelope, answer: str, usable: set[str]) -> list[dict[str, Any]]:

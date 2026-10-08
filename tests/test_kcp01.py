@@ -382,3 +382,13 @@ async def test_coverage_none_is_a_refusal_even_with_answer_text(engine_returns):
     out = await _call("a2k.ask", ask_request())
     validate_by_name(out, "ask-response")
     assert out["data"]["outcome"] == "refused" and "answer" not in out["data"]
+
+
+def test_claims_are_located_ignoring_markdown_emphasis():
+    from a2k.kcp01.adapter import _locate
+
+    answer = "Cartera:\n\n- **Q4 2022:** $9.9 billion (net of provisions)\n- **AIR (AI by Revolut)** - Launched on April 9, 2026."
+    for claim in ("Q4 2022: $9.9 billion (net of provisions)", "AIR (AI by Revolut) - Launched on April 9, 2026."):
+        start, end = _locate(claim, answer)
+        assert answer[start:end].replace("*", "") == claim
+    assert _locate("Not in the answer at all", answer) is None
