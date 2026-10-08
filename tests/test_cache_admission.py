@@ -163,10 +163,28 @@ def test_filters_pass_and_verify_citation_inside_nested_json():
     assert [s["sourceUrl"] for s in result.verified_sources] == [URL]
 
 
-def test_t1_rejects_a_failed_tool_call():
+def test_t1_rejects_when_every_tool_call_failed():
     c = make_candidate()
     c.tool_calls[0]["status"] = "error"
     assert filters.run(c, min_chars=150).failed == "T1"
+
+
+def _with_failed_fetch(url: str) -> Candidate:
+    c = make_candidate()
+    c.tool_calls.insert(1, {"vendor": "cala", "toolName": "fetch", "input": {"url": url}, "output": "403 Forbidden",
+                            "status": "error", "errorType": "HTTPError"})
+    return c
+
+
+def test_t1_tolerates_a_failed_call_the_answer_does_not_rely_on():
+    result = filters.run(_with_failed_fetch("https://example.com/blocked-page"), min_chars=150)
+    assert result.passed
+
+
+def test_t1_rejects_an_answer_citing_a_page_that_failed_to_load():
+    c = _with_failed_fetch(URL)  # URL is the page the answer cites
+    result = filters.run(c, min_chars=150)
+    assert result.failed == "T1" and URL in result.reason
 
 
 def test_t2_rejects_short_answer_and_fallback_message():

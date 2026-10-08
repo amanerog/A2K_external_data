@@ -1,6 +1,9 @@
 """Technical filters T1, T2, T4, T5 (proposal Annex A5): fixed rules, no
 model, run before anything that costs money.
 
+T1 rejects an answer whose tool calls all failed, or that cites a page a
+failed call could not read (relaxed 2026-10-08, see t1_calls_ok).
+
 T3 was retired in the working session (D17). T6 ("not already rejected by the
 user") is not a check here: it is the conditional activation in admission.py,
 which only succeeds if the row is still PENDING -- a reformulation that
@@ -32,11 +35,50 @@ class FilterResult:
     verified_sources: list[dict[str, Any]] | None = None
 
 
+def _failed(tc: dict[str, Any]) -> bool:
+    return tc.get("status") != "success" or bool(tc.get("errorType"))
+
+
+def _input_urls(tc: dict[str, Any]) -> list[str]:
+    """URLs a tool call was asked to read (a page fetch), wherever they sit in its input."""
+    found: list[str] = []
+
+    def walk(value: Any) -> None:
+        if isinstance(value, str):
+            found.extend(_URL.findall(value))
+        elif isinstance(value, dict):
+            for v in value.values():
+                walk(v)
+        elif isinstance(value, list):
+            for v in value:
+                walk(v)
+
+    walk(tc.get("input"))
+    return found
+
+
+def _cited(candidate: Candidate) -> set[str]:
+    refs = [r for c in candidate.citations for r in (c.get("sourceUrl"), c.get("documentId")) if r]
+    refs += _URL.findall(candidate.answer or "")
+    return {v for r in refs for v in _url_variants(r)}
+
+
 def t1_calls_ok(candidate: Candidate) -> FilterResult:
+    """A failed call rejects the answer only if nothing succeeded, or if the
+    answer cites what that call failed to read. Until 2026-10-08 any failed
+    call rejected it: one page fetch out of several returning 403 is routine
+    for web search (14 of Linkup's 120 POCv3 answers), and the answer is then
+    built from the calls that did succeed -- which the judge checks it against."""
     calls = vendor_tool_calls(candidate.tool_calls)
-    bad = [tc.get("toolName") for tc in calls if tc.get("status") != "success" or tc.get("errorType")]
-    if bad:
-        return FilterResult(False, "T1", f"tool calls with errors: {', '.join(map(str, bad))}")
+    failed = [tc for tc in calls if _failed(tc)]
+    if not failed:
+        return FilterResult(True)
+    if len(failed) == len(calls):
+        return FilterResult(False, "T1", f"every tool call failed: {', '.join(str(tc.get('toolName')) for tc in failed)}")
+    cited = _cited(candidate)
+    unread = sorted({url for tc in failed for url in _input_urls(tc) if any(v in cited for v in _url_variants(url))})
+    if unread:
+        return FilterResult(False, "T1", f"the answer cites pages its tool calls failed to read: {', '.join(unread[:3])}")
     return FilterResult(True)
 
 
