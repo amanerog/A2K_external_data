@@ -24,7 +24,9 @@ from .store import CacheStore
 
 # v2: the same subject is required, and the line continuations are real (v1
 # sent the model a literal backslash at the end of five lines).
-PROMPT_VERSION = "reformulation-v2"
+# v3: refers_back -- the words of the second question that point back to the
+# first one's subject, checked in code when only one question names an identifier.
+PROMPT_VERSION = "reformulation-v3"
 DEPRECATION_REASON = "immediate_reformulation"
 KINDS = ("reformulation", "follow_up", "new")
 
@@ -53,8 +55,10 @@ the wording: "what is registered for company A?" followed by "what is registered
 or the same question with a different tax ID, registry number or LEI. If you cannot tell whether \
 the two questions name the same subject, answer "new".
 
+refers_back: the exact words of the second question, copied as written, that point back to the subject of the first one ("its tax ID", "that company", "the same entity", "su CIF", "esa empresa", "dessa empresa"), or "" if it has none. A name or an identifier on its own is not a reference back.
+
 The questions may be in different languages. Respond with ONLY this JSON object:
-{{"kind": "reformulation" | "follow_up" | "new", "reason": "one short sentence"}}
+{{"kind": "reformulation" | "follow_up" | "new", "refers_back": "...", "reason": "one short sentence"}}
 """
 
 # Identifier-like tokens: tax IDs, registry numbers, LEIs, series codes --
@@ -76,7 +80,7 @@ def identifiers(text: str) -> set[str]:
 
 
 def classify(bedrock_client, *, model_id: str, previous: str, current: str) -> tuple[str, str]:
-    # Guard in code, before any model call: two questions that each name an
+    # Guard 1, before any model call: two questions that each name an
     # identifier, with none in common, are about different subjects. The model
     # read "tax code P3701000F" then "tax code B43995760" as a correction and
     # deprecated a good entry (full shadow run, 2026-10-06).
@@ -86,7 +90,20 @@ def classify(bedrock_client, *, model_id: str, previous: str, current: str) -> t
     raw = converse_json(bedrock_client, model_id=model_id, prompt=_PROMPT.format(previous=previous, current=current), max_tokens=1000)
     kind = str(raw.get("kind") or "").lower().replace("-", "_")
     # Anything unrecognised is treated as unrelated: never deprecate on a guess.
-    return (kind if kind in KINDS else "new"), str(raw.get("reason") or "")
+    kind = kind if kind in KINDS else "new"
+    reason = str(raw.get("reason") or "")
+    # Guard 2: when only one question names an identifier (a company by its
+    # name, then a tax code), nothing in the texts says the identifier is that
+    # company's -- the model assumed it for unrelated pairs (validation run,
+    # 2026-10-06: "ENJOY PARKING SL." then "P3701000F", which the day before
+    # it had paired with another company). A reformulation then needs the
+    # second question to point back to the first, in words found in it.
+    if kind == "reformulation" and bool(before) != bool(after):
+        refers_back = str(raw.get("refers_back") or "").strip()
+        squash = lambda text: " ".join(text.lower().split())  # noqa: E731
+        if not refers_back or squash(refers_back) not in squash(current):
+            return "new", "only one question names an identifier and the second does not refer back to the first"
+    return kind, reason
 
 
 def check(

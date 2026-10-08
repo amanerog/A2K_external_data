@@ -641,3 +641,40 @@ async def test_serving_and_admission_logs_carry_the_query_hash(gateway, capsys):
     adm.log_result(AdmissionResult("e1", "NOT_FIT", "r"), candidate=state["submitted"][0], evidence_uri=None)
     line = [json.loads(x) for x in capsys.readouterr().out.splitlines() if x.startswith("{")][-1]
     assert line["event"] == "cache.admission" and line["query_sha256"] == log["query_sha256"]
+
+
+class _ReformulationModel:
+    """Answers the reformulation prompt with a fixed verdict."""
+
+    def __init__(self, kind, refers_back=""):
+        self.out = {"kind": kind, "refers_back": refers_back, "reason": "model reason"}
+
+    def converse(self, **kw):
+        return {"output": {"message": {"content": [{"text": json.dumps(self.out)}]}}, "stopReason": "end_turn"}
+
+
+def test_reformulation_name_then_identifier_needs_a_reference_back():
+    from a2k.cache import reformulation
+
+    name_q = "¿Qué información está registrada para la empresa 'ENJOY PARKING SL.'?"
+    code_q = "¿Qué información está registrada para la empresa con código fiscal P3701000F?"
+    # The model says reformulation, but nothing in the second question links the code to the company.
+    kind, reason = reformulation.classify(_ReformulationModel("reformulation"), model_id="m", previous=name_q, current=code_q)
+    assert kind == "new" and "refer back" in reason
+    # A claimed reference that is not in the question does not count either.
+    kind, _ = reformulation.classify(_ReformulationModel("reformulation", "su CIF"), model_id="m", previous=name_q, current=code_q)
+    assert kind == "new"
+    # With a real reference back it stays a reformulation.
+    back_q = "Esa empresa, con   su CIF P3701000F: ¿qué información está registrada?"
+    kind, _ = reformulation.classify(_ReformulationModel("reformulation", "Esa empresa, con su CIF"), model_id="m", previous=name_q, current=back_q)
+    assert kind == "reformulation"
+
+
+def test_reformulation_without_identifiers_is_left_to_the_model():
+    from a2k.cache import reformulation
+
+    kind, _ = reformulation.classify(
+        _ReformulationModel("reformulation"), model_id="m",
+        previous="¿Quién preside el consejo de Telefónica?", current="Presidente del consejo de administración de Telefónica",
+    )
+    assert kind == "reformulation"
