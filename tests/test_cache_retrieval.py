@@ -749,3 +749,26 @@ def test_claims_for_admission_carry_the_urls_they_cite():
         "claims": [{"text": "a", "citationIndexes": [0, 1]}, {"text": "b", "citationIndexes": [2, 9]}, {"text": "", "citationIndexes": [0]}],
     }
     assert GatewayEngine._claims_with_sources(content) == [{"text": "a", "sources": [URL]}, {"text": "b", "sources": ["https://x.example/2"]}]
+
+
+async def test_an_ask_the_agent_gives_no_answer_to_is_still_logged(gateway, monkeypatch, capsys):
+    engine, state = gateway
+
+    async def no_answer(self, operation, query, sources, request_id):
+        state["vendor_calls"] += 1
+        return {"answer": None, "claims": [], "citations": [], "groundedRatio": 0.0, "conflicts": [], "toolCalls": []}
+
+    monkeypatch.setattr(GatewayEngine, "_call_agent", no_answer)
+    state["hit"] = None
+    await engine._ask_via_agent(A2KRequest(operation="ask", query="q"))
+    (log,) = _serving_log(capsys)
+    assert log["served_from"] == "vendor_no_answer"
+
+
+def test_checker_dates_block_does_not_tie_current_to_the_day():
+    from datetime import date
+
+    from a2k.cache import checker
+
+    block = checker.dates_block(date(2026, 10, 8), date(2026, 10, 6))
+    assert "do NOT make the two questions different" in block and "this week" in block

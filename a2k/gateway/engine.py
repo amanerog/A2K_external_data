@@ -481,6 +481,13 @@ class GatewayEngine:
         ]
 
         if not claims and not content.get("answer"):
+            # Logged like any other ask (a question the agent gave no answer to
+            # used to leave no serving-log line at all).
+            if shadow_task is not None:
+                lookup = await shadow_task
+            if lookup is not None:
+                self._log_retrieval(lookup, query=req.query, request_id=request_id, session_id=session_id,
+                                    served_from="vendor_no_answer", vendor_entry_id=None)
             return self._insufficient_evidence(source_kb_id, request_id, req)
 
         grounded_ratio = float(content.get("groundedRatio") or 0.0)

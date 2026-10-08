@@ -21,11 +21,18 @@ from .bedrock import parse_json_object
 # Checker turned down exact repeats of "this week" / "the past quarter"
 # questions because it could not tell the saved answer was from the same week
 # (full shadow run, 2026-10-06).
-PROMPT_VERSION = "checker-v2-dates"
+# v3: v2 read every "current", "latest" or "recently" as tied to the day it
+# was asked, and turned down good hits only because two days had passed
+# (4c test, 2026-10-08) -- the saved answer is still within its validity, set
+# by the cache's own expiry. Only a named period that falls elsewhere counts.
+PROMPT_VERSION = "checker-v3-dates"
 
 _DATES = """Today is {today}. The previously asked question was asked, and its answer produced, on \
-{cached_on}. A relative period ("this week", "the past quarter", "current", "latest") means the \
-period around the date its question was asked.
+{cached_on}. The saved answer is still within its validity period, so "current", "latest", \
+"recent" or a question with no date at all do NOT make the two questions different just because \
+they were asked on different days. Treat the dates as different only for a named calendar period \
+that falls elsewhere on the two dates: "this week" asked in another calendar week, "this month" \
+in another month, "the past quarter" in another quarter.
 
 """
 
