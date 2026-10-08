@@ -1478,7 +1478,11 @@ async def handle(
         source_ids = [s for s in sources if s in active_ids] if sources else None
 
         if source_ids is None:
-            source_ids = await asyncio.to_thread(_decide_vendors_sync, query, catalogue, model_id, region)
+            # Phase 1 only sees the active vendors: shown a retired one, it could
+            # pick that one alone and leave the question with no vendor at all (POCv3
+            # id 38, a Brazilian registry question, after Sayari was retired 2026-10-08).
+            active_catalogue = [v for v in catalogue if v.get("sourceId") in active_ids]
+            source_ids = await asyncio.to_thread(_decide_vendors_sync, query, active_catalogue, model_id, region)
             source_ids = [s for s in source_ids if s in active_ids]
 
         if not source_ids:

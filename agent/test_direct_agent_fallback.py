@@ -63,3 +63,17 @@ def test_answer_cut_at_max_tokens_never_reaches_the_caller(monkeypatch):
 
     monkeypatch.setattr(da, "run_vendor_agent_sync", truncated)
     assert _handle(["cala"])["answer"] == da.VENDOR_FALLBACK_MESSAGE
+
+
+def test_phase_1_only_sees_active_vendors(monkeypatch):
+    seen = {}
+
+    def decide(query, catalogue, model_id, region):
+        seen["ids"] = [v["sourceId"] for v in catalogue]
+        return ["cala"]
+
+    monkeypatch.setattr(da, "_decide_vendors_sync", decide)
+    monkeypatch.setattr(da, "run_vendor_agent_sync", lambda **kw: _ok("an answer"))
+    catalogue = [{"sourceId": "cala", "status": "active"}, {"sourceId": "sayari", "status": "retired"}]
+    out = asyncio.run(da.handle(operation="ask", query="q", sources=None, catalogue=catalogue, model_id="m"))
+    assert seen["ids"] == ["cala"] and out["answer"] == "an answer"
