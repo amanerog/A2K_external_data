@@ -21,7 +21,7 @@ from __future__ import annotations
 import json
 import math
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Protocol
 
@@ -47,6 +47,8 @@ class Activation:
     embedding_model: str
     admission_versions: dict[str, Any]
     entities: list[str]
+    # {"original": [{"text", "sources"}], "en": [...]} -- see admission._stored_claims.
+    claims: dict[str, Any] = field(default_factory=dict)
 
 
 class CacheStore(Protocol):
@@ -190,7 +192,8 @@ class AuroraStore:
                    judge_findings = CAST(:judge_findings AS jsonb),
                    embedding_model = :embedding_model,
                    admission_versions = CAST(:admission_versions AS jsonb),
-                   entities = ARRAY(SELECT jsonb_array_elements_text(CAST(:entities AS jsonb)))
+                   entities = ARRAY(SELECT jsonb_array_elements_text(CAST(:entities AS jsonb))),
+                   claims = CAST(:claims AS jsonb)
                WHERE entry_id = :entry_id AND status = 'PENDING'""",
             [
                 _p("entry_id", a.entry_id, "UUID"),
@@ -209,6 +212,7 @@ class AuroraStore:
                 _p("embedding_model", a.embedding_model),
                 _p("admission_versions", json.dumps(a.admission_versions, ensure_ascii=False), "JSON"),
                 _p("entities", json.dumps(a.entities, ensure_ascii=False), "JSON"),
+                _p("claims", json.dumps(a.claims, ensure_ascii=False), "JSON"),
             ],
         )
         return result.get("numberOfRecordsUpdated", 0) == 1
@@ -283,7 +287,7 @@ class AuroraStore:
             """SELECT entry_id::text, question_text, answer_text, answer_text_original, original_lang,
                       sources::text, 1 - (question_vector <=> CAST(:v AS vector)) AS cosine,
                       to_char(admitted_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'), data_as_of::text,
-                      vendor, card_revision, grounded_ratio::float8
+                      vendor, card_revision, grounded_ratio::float8, claims::text
                FROM cache_entry
                WHERE status = 'ACTIVE'
                  AND expires_at > now()
@@ -302,7 +306,7 @@ class AuroraStore:
         for rec in result.get("records") or []:
             values = [_field(c) for c in rec]
             admitted, as_of = values[7], values[8]
-            vendor, card_revision, grounded_ratio = values[9], values[10], values[11]
+            vendor, card_revision, grounded_ratio, claims = values[9], values[10], values[11], values[12]
             rows.append(
                 {
                     "entry_id": values[0],
@@ -317,6 +321,7 @@ class AuroraStore:
                     "vendor": vendor,
                     "card_revision": card_revision,
                     "grounded_ratio": float(grounded_ratio) if grounded_ratio is not None else None,
+                    "claims": json.loads(claims) if claims else {},
                 }
             )
         return rows
@@ -421,6 +426,7 @@ class MemoryStore:
                         "vendor": row.get("vendor"),
                         "card_revision": row.get("card_revision"),
                         "grounded_ratio": row.get("grounded_ratio"),
+                        "claims": a.claims,
                     }
                 )
         return sorted(found, key=lambda r: -r["cosine"])[:limit]

@@ -36,11 +36,14 @@ CREATE TABLE IF NOT EXISTS cache_entry (
     -- A2K-KCP 0.1 section 9.4: an entry is invalidated when its vendor's KB Card revision changes.
     card_revision          text,
     -- The groundedRatio the agent self-reported for the answer, served back with it.
-    grounded_ratio         real
+    grounded_ratio         real,
+    -- The agent's claims per served version: {"original": [{"text", "sources"}], "en": [...]}.
+    claims                 jsonb
 );
 -- Columns added after the first deployment (CREATE TABLE IF NOT EXISTS does not add them).
 ALTER TABLE cache_entry ADD COLUMN IF NOT EXISTS card_revision text;
 ALTER TABLE cache_entry ADD COLUMN IF NOT EXISTS grounded_ratio real;
+ALTER TABLE cache_entry ADD COLUMN IF NOT EXISTS claims jsonb;
 
 -- Retrieval only ever searches ACTIVE entries (Annex A3).
 CREATE INDEX IF NOT EXISTS cache_entry_vector_active

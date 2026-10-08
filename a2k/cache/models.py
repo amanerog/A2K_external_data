@@ -32,6 +32,11 @@ class Candidate:
     card_revision: str | None = None
     # The agent's self-reported groundedRatio, served back with a cache hit.
     grounded_ratio: float | None = None
+    # The agent's claims, each written verbatim from the answer, with the URLs
+    # of the citations that support it: [{"text", "sources": [url, ...]}].
+    claims: list[dict[str, Any]] = field(default_factory=list)
+    # The agent's own reading: "complete" | "partial" | "none" (None if not given).
+    coverage: str | None = None
 
 
 @dataclass
@@ -111,6 +116,9 @@ class Normalized:
     original_lang: str
     question_en: str
     answer_en: str
+    # The claims translated with the answer, in the same order (empty when the
+    # translation did not return one per claim).
+    claims_en: list[str] = field(default_factory=list)
 
 
 @dataclass

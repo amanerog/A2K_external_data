@@ -83,6 +83,8 @@ class CacheHit:
     admitted_at: datetime | None
     data_as_of: date | None
     grounded_ratio: float | None = None
+    # The claims of the served version: [{"text", "sources": [url, ...]}].
+    claims: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -261,6 +263,7 @@ def lookup(
                     admitted_at=row.get("admitted_at"),
                     data_as_of=row.get("data_as_of"),
                     grounded_ratio=row.get("grounded_ratio"),
+                    claims=list((row.get("claims") or {}).get("original" if original else "en") or []),
                 )
                 break
         lap("checker")

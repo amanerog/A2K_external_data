@@ -21,7 +21,7 @@ from a2k.cache.store import MemoryEvidenceStore, MemoryStore
 from a2k.config import Config, config
 from a2k.gateway.engine import GatewayEngine
 from a2k.models.request import A2KRequest
-from test_cache_admission import SETTINGS, FakeBedrock, make_candidate
+from test_cache_admission import SETTINGS, URL, FakeBedrock, make_candidate
 
 RETRIEVAL_SETTINGS = retrieval.RetrievalSettings(light_model_id="light", checker_model_id="checker", embedding_model_id="titan")
 
@@ -678,3 +678,74 @@ def test_reformulation_without_identifiers_is_left_to_the_model():
         previous="¿Quién preside el consejo de Telefónica?", current="Presidente del consejo de administración de Telefónica",
     )
     assert kind == "reformulation"
+
+
+# --- claims in the cache (4c, 2026-10-08) -----------------------------------------
+
+CLAIM_ES = "el órgano de administración debe promover, supervisar y evaluar la cultura de riesgos de la entidad"
+CLAIM_EN = "the management body must promote, oversee and assess the institution's risk culture"
+
+
+def _admit_with_claims(**candidate_kw):
+    from test_cache_admission import SETTINGS as STRICT
+
+    bedrock = RetrievalBedrock(normalized={"answer_en": f"Under the EBA guidelines, {CLAIM_EN}.", "claims_en": [CLAIM_EN]})
+    store = MemoryStore()
+    candidate = make_candidate(claims=[{"text": CLAIM_ES, "sources": [URL]}], coverage="complete", **candidate_kw)
+    result = admission.admit(candidate, bedrock_client=bedrock, store=store, evidence_store=MemoryEvidenceStore(), settings=STRICT)
+    return result, store, bedrock
+
+
+def test_admission_stores_the_claims_in_both_served_versions():
+    result, store, _ = _admit_with_claims()
+    assert result.outcome == "ACTIVE"
+    claims = store.rows[result.entry_id]["activation"].claims
+    assert claims == {"original": [{"text": CLAIM_ES, "sources": [URL]}], "en": [{"text": CLAIM_EN, "sources": [URL]}]}
+
+
+def test_admission_skips_an_answer_the_agent_reports_as_partial():
+    from test_cache_admission import SETTINGS as STRICT
+
+    bedrock = RetrievalBedrock()
+    result = admission.admit(make_candidate(coverage="partial"), bedrock_client=bedrock, store=MemoryStore(),
+                             evidence_store=MemoryEvidenceStore(), settings=STRICT)
+    assert result.outcome == "FILTERED" and "partial" in result.reason and bedrock.calls == []
+
+
+def test_hit_carries_the_claims_of_the_served_version():
+    _, store, _ = _admit_with_claims()
+    original = retrieval.lookup("¿Qué...?", bedrock_client=RetrievalBedrock(lang="es"), store=store, settings=RETRIEVAL_SETTINGS)
+    english = retrieval.lookup("What...?", bedrock_client=RetrievalBedrock(lang="en"), store=store, settings=RETRIEVAL_SETTINGS)
+    assert [c["text"] for c in original.hit.claims] == [CLAIM_ES]
+    assert [c["text"] for c in english.hit.claims] == [CLAIM_EN]
+
+
+async def test_a_served_hit_reaches_k2_with_its_claims_located(gateway):
+    """End to end on the serve path: the stored claim, located in the cached
+    answer by the A2K 0.1 adapter, citing the stored source."""
+    from dataclasses import replace
+
+    from a2k.kcp01 import adapter
+    from a2k_kbcard.schema.validation import validate_by_name
+
+    engine, state = gateway
+    state["mode"] = "serve"
+    answer = f"Según las Directrices de la EBA, {CLAIM_ES}."
+    state["hit"] = replace(HIT, answer=answer, sources=[{"title": "EBA GL", "sourceUrl": URL, "documentId": None}],
+                           claims=[{"text": CLAIM_ES, "sources": [URL]}])
+    env = await engine._ask_via_agent(A2KRequest(operation="ask", query="q"))
+    request = adapter.AskRequest.model_validate({"a2kVersion": "0.1", "operation": "ask", "requestId": "r1", "query": "q"})
+    out = adapter.ask_response(request, env)
+    validate_by_name(out, "ask-response")
+    (claim,) = out["data"]["claims"]
+    span = claim["answerSpans"][0]
+    assert out["data"]["answer"][span["start"]:span["end"]] == CLAIM_ES
+    assert claim["status"] == "SUPPORTED" and out["data"]["citations"][0]["sourceUrl"] == URL
+
+
+def test_claims_for_admission_carry_the_urls_they_cite():
+    content = {
+        "citations": [{"sourceUrl": URL}, {"sourceUrl": None, "documentId": "api"}, {"sourceUrl": "https://x.example/2"}],
+        "claims": [{"text": "a", "citationIndexes": [0, 1]}, {"text": "b", "citationIndexes": [2, 9]}, {"text": "", "citationIndexes": [0]}],
+    }
+    assert GatewayEngine._claims_with_sources(content) == [{"text": "a", "sources": [URL]}, {"text": "b", "sources": ["https://x.example/2"]}]

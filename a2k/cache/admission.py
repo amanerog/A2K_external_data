@@ -176,6 +176,11 @@ def _evaluate_steps(
         result.reason = f"evidence too large for the judge: {len(evidence):,} chars > {settings.max_evidence_chars:,}"
         return evaluation
     result.verified_sources = checked.verified_sources or []
+    # The agent itself says the answer does not give all that was asked: not
+    # worth caching, and no judge is paid to find it out (2026-10-08).
+    if candidate.coverage in ("partial", "none"):
+        result.outcome, result.reason = "FILTERED", f"the agent reports coverage {candidate.coverage}"
+        return evaluation
 
     if not still_pending():
         result.outcome, result.reason = "SUPERSEDED", "T6: entry no longer PENDING (deprecated meanwhile)"
@@ -287,8 +292,10 @@ def _expire_normalize_embed(
             bedrock_client, model_id=settings.light_model_id, question=candidate.question
         )
     with timer.step("normalize"):
-        answer_en = normalize.translate_answer(bedrock_client, model_id=settings.light_model_id, answer=candidate.answer)
-    result.normalized = Normalized(original_lang=original_lang, question_en=question_en, answer_en=answer_en)
+        answer_en, claims_en = normalize.translate(
+            bedrock_client, model_id=settings.light_model_id, answer=candidate.answer, claims=[c["text"] for c in candidate.claims]
+        )
+    result.normalized = Normalized(original_lang=original_lang, question_en=question_en, answer_en=answer_en, claims_en=claims_en)
 
     if embed_enabled:
         with timer.step("embed"):
@@ -296,6 +303,14 @@ def _expire_normalize_embed(
 
     result.outcome, result.reason = "ACTIVE", "FIT"
     return evaluation
+
+
+def _stored_claims(claims: list[dict[str, Any]], claims_en: list[str]) -> dict[str, Any]:
+    """{"original": [{"text", "sources"}], "en": [...]}: each served version of
+    the answer keeps its own claims, located in it again when served."""
+    original = [{"text": c["text"], "sources": list(c.get("sources") or [])} for c in claims if c.get("text")]
+    english = [{"text": t, "sources": list(c.get("sources") or [])} for c, t in zip(claims, claims_en) if t] if claims_en else []
+    return {"original": original, "en": english}
 
 
 def _findings_dict(f) -> dict[str, Any]:
@@ -393,6 +408,7 @@ def admit(
                     admission_versions=settings.versions(policy_version),
                     # text[] reserved for invalidation by entity: names and identifiers.
                     entities=[t for e in c.entities for t in (e["name"], *e["identifiers"])],
+                    claims=_stored_claims(candidate.claims, n.claims_en),
                 )
             )
             if not activated:

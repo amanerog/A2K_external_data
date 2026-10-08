@@ -725,6 +725,22 @@ class GatewayEngine:
             max_evidence_age=max_age,
         )
 
+    @staticmethod
+    def _claims_with_sources(content: dict) -> list[dict]:
+        """The agent's claims for admission, each with the URLs of the citations
+        it gives (its citationIndexes point into this answer's citations)."""
+        citations = content.get("citations") or []
+        out = []
+        for claim in content.get("claims") or []:
+            urls = [
+                citations[i].get("sourceUrl")
+                for i in claim.get("citationIndexes") or []
+                if isinstance(i, int) and 0 <= i < len(citations) and citations[i].get("sourceUrl")
+            ]
+            if claim.get("text"):
+                out.append({"text": claim["text"], "sources": urls})
+        return out
+
     def _content_from_cache_hit(self, hit: retrieval.CacheHit) -> dict:
         """The agent's own content shape, so the envelope is built by the same
         code as a live answer. groundedRatio: what the agent self-reported for
@@ -732,9 +748,16 @@ class GatewayEngine:
         verify grounding outside RSK, so the cache claims no more than that.
         Entries admitted before it was recorded get 0.75 ("substantially
         grounded"), never 1.0."""
+        urls = [s.get("sourceUrl") for s in hit.sources]
         return {
             "answer": hit.answer,
-            "claims": [],
+            # The stored claims of the served version, citing the stored sources they name.
+            "claims": [
+                {"text": c["text"], "status": "SUPPORTED", "citationIndexes": [i for i, u in enumerate(urls) if u and u in c.get("sources", [])]}
+                for c in hit.claims
+                if c.get("text")
+            ],
+            "coverage": "complete",
             "citations": [
                 {"title": s.get("title"), "sourceUrl": s.get("sourceUrl"), "documentId": s.get("documentId")}
                 for s in hit.sources
@@ -842,6 +865,8 @@ class GatewayEngine:
                 created_at=datetime.now(timezone.utc),
                 card_revision=card_revision(next(iter(vendors))),
                 grounded_ratio=float(content["groundedRatio"]) if content.get("groundedRatio") is not None else None,
+                claims=self._claims_with_sources(content),
+                coverage=content.get("coverage"),
             )
             admission.submit(candidate, settings=_admission_settings(), deps=_admission_deps)
             return candidate.entry_id
