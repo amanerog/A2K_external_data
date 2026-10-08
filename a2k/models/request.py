@@ -41,6 +41,9 @@ class Requirements(BaseModel):
     citationsRequired: bool = True
     strictGrounding: bool = False
     maxStalenessHours: int | None = None
+    # A2K-KCP 0.1 requirements.maxEvidenceAgeSeconds; takes precedence over
+    # maxStalenessHours wherever both are read (the cache freshness filter).
+    maxEvidenceAgeSeconds: int | None = None
     answerLanguage: str | None = None
     allowedClassifications: list[str] = Field(default_factory=list)
     requireApprovedSources: bool = False

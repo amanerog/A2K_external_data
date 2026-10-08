@@ -429,7 +429,11 @@ class GatewayEngine:
         lookup: retrieval.RetrievalResult | None = None
         shadow_task: asyncio.Task | None = None
         bypass = self._cache_bypass_reason(req)
-        max_age = timedelta(hours=req.requirements.maxStalenessHours) if req.requirements.maxStalenessHours else None
+        max_age = (
+            timedelta(seconds=req.requirements.maxEvidenceAgeSeconds)
+            if req.requirements.maxEvidenceAgeSeconds is not None
+            else timedelta(hours=req.requirements.maxStalenessHours) if req.requirements.maxStalenessHours else None
+        )
         if config.cache_ready and bypass:
             lookup = retrieval.RetrievalResult(skipped=bypass)
         elif config.cache_serving:

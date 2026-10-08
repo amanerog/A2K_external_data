@@ -147,6 +147,14 @@ class Config:
         default_factory=lambda: _bool_env("CALA_RAW_KNOWLEDGE_SEARCH", False)
     )
 
+    # The MCP surface K2 sees is A2K-KCP 0.1: a2k.ask and a2k.search only
+    # (a2k/kcp01/). The pre-0.1 tools -- vendor-forced ask/search, listVendors,
+    # explain, getDocument, validateCitation, reportConflict, getAuditRecord and
+    # the per-vendor card resources -- stay available under `internal.*` names
+    # only when this is on: for our own evaluation scripts on test runtimes,
+    # never on the runtime K2 calls. Off by default.
+    internal_tools: bool = field(default_factory=lambda: _bool_env("A2K_INTERNAL_TOOLS", False))
+
     # Opt-in call tracing (gateway/tracing.py) -- off by default, since dumping
     # every request and upstream tool call/result to stdout is noisy and
     # results can be large (see max_entities_to_hydrate's history; tracing.py

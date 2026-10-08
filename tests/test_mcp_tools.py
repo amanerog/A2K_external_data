@@ -10,6 +10,10 @@ from a2k.cards import load_card
 from a2k.mcp_server import server
 from a2k.mcp_server.server import engine, mcp
 
+# These tests cover the pre-0.1 tools, registered only with A2K_INTERNAL_TOOLS=true.
+if "internal.ask" not in {t.name for t in mcp._tool_manager.list_tools()}:
+    server.register_internal_tools()
+
 
 def _content_json(result):
     content, _structured = result if isinstance(result, tuple) else (result, None)
@@ -19,25 +23,28 @@ def _content_json(result):
 async def test_tools_and_resources_are_registered():
     tools = await mcp.list_tools()
     names = {t.name for t in tools}
-    assert names == {
-        "a2k.search",
-        "a2k.ask",
-        "a2k.listVendors",
-        "a2k.getCard",
-        "a2k.explain",
-        "a2k.getDocument",
-        "a2k.validateCitation",
-        "a2k.reportConflict",
-        "a2k.getAuditRecord",
+    # K2's surface: the two A2K 0.1 operations, nothing else under a2k.*.
+    assert {n for n in names if n.startswith("a2k.")} == {"a2k.ask", "a2k.search"}
+    # The pre-0.1 tools, registered here by _internal_tools below.
+    assert {n for n in names if n.startswith("internal.")} == {
+        "internal.search",
+        "internal.ask",
+        "internal.listVendors",
+        "internal.getCard",
+        "internal.explain",
+        "internal.getDocument",
+        "internal.validateCitation",
+        "internal.reportConflict",
+        "internal.getAuditRecord",
     }
 
     resources = await mcp.list_resources()
     uris = {str(r.uri) for r in resources}
-    assert uris == {"a2k://card", "a2k://card/cala", "a2k://card/sayari"}
+    assert uris == {"a2k://card", "internal://card/cala", "internal://card/sayari"}
 
 
 async def test_ask_tool_matches_engine_envelope_shape():
-    result = await mcp.call_tool("a2k.ask", {"query": "Meridian Textiles ownership"})
+    result = await mcp.call_tool("internal.ask", {"query": "Meridian Textiles ownership"})
     data = _content_json(result)
     assert data["ok"] is True
     assert len(data["conflicts"]) == 1
@@ -46,44 +53,44 @@ async def test_ask_tool_matches_engine_envelope_shape():
 
 
 async def test_explain_tool_uses_prior_ask_request_id():
-    ask_result = await mcp.call_tool("a2k.ask", {"query": "Acme Robotics"})
+    ask_result = await mcp.call_tool("internal.ask", {"query": "Acme Robotics"})
     ask_data = _content_json(ask_result)
     request_id = ask_data["audit"]["requestId"]
 
-    explain_result = await mcp.call_tool("a2k.explain", {"answerRef": request_id})
+    explain_result = await mcp.call_tool("internal.explain", {"answerRef": request_id})
     explain_data = _content_json(explain_result)
     assert explain_data["ok"] is True
     assert explain_data["operation"] == "explain"
 
 
 async def test_validate_citation_tool_detects_mismatch():
-    search_result = await mcp.call_tool("a2k.search", {"query": "Acme Robotics"})
+    search_result = await mcp.call_tool("internal.search", {"query": "Acme Robotics"})
     search_data = _content_json(search_result)
     citation = search_data["citations"][0]
 
     ok_result = await mcp.call_tool(
-        "a2k.validateCitation", {"documentId": citation["documentId"], "exact": citation["selector"]["exact"]}
+        "internal.validateCitation", {"documentId": citation["documentId"], "exact": citation["selector"]["exact"]}
     )
     assert _content_json(ok_result)["valid"] is True
 
     bad_result = await mcp.call_tool(
-        "a2k.validateCitation", {"documentId": citation["documentId"], "exact": "this text is not in the document"}
+        "internal.validateCitation", {"documentId": citation["documentId"], "exact": "this text is not in the document"}
     )
     assert _content_json(bad_result)["valid"] is False
 
 
 async def test_report_conflict_tool_returns_full_report():
-    ask_result = await mcp.call_tool("a2k.ask", {"query": "Meridian Textiles ownership"})
+    ask_result = await mcp.call_tool("internal.ask", {"query": "Meridian Textiles ownership"})
     request_id = _content_json(ask_result)["audit"]["requestId"]
 
-    report_result = await mcp.call_tool("a2k.reportConflict", {"answerRef": request_id})
+    report_result = await mcp.call_tool("internal.reportConflict", {"answerRef": request_id})
     report_data = _content_json(report_result)
     assert report_data["ok"] is True
     assert report_data["conflictReport"]["reconciliation"]["status"] == "unresolved-surfaced"
 
 
 async def test_list_vendors_tool_returns_domains_topics_and_scope():
-    result = await mcp.call_tool("a2k.listVendors", {})
+    result = await mcp.call_tool("internal.listVendors", {})
     data = _content_json(result)
     vendors = {v["sourceId"]: v for v in data["vendors"]}
     assert set(vendors) == {"cala", "sayari"}
@@ -102,7 +109,7 @@ async def test_list_vendors_tool_returns_domains_topics_and_scope():
 
 
 async def test_get_card_tool_returns_gateway_card():
-    result = await mcp.call_tool("a2k.getCard", {})
+    result = await mcp.call_tool("internal.getCard", {})
     data = _content_json(result)
     # Same content as the a2k://card resource (gateway_card() in server.py) and
     # REST's GET /.well-known/a2k-card.json -- this tool is just a callable
@@ -125,7 +132,7 @@ async def test_cala_raw_mode_disabled_by_default(monkeypatch):
 
     monkeypatch.setattr(engine.adapters["cala"], "raw_knowledge_search", _fail_if_called)
 
-    result = await mcp.call_tool("a2k.ask", {"query": "Meridian Textiles ownership"})
+    result = await mcp.call_tool("internal.ask", {"query": "Meridian Textiles ownership"})
     data = _content_json(result)
     assert called is False
     assert "ok" in data  # normal envelope shape, not the raw {"content": ...} shape
@@ -139,7 +146,7 @@ async def test_cala_raw_mode_returns_content_unprocessed_when_enabled(monkeypatc
 
     monkeypatch.setattr(engine.adapters["cala"], "raw_knowledge_search", _fake_raw_knowledge_search)
 
-    result = await mcp.call_tool("a2k.ask", {"query": "Meridian Textiles"})
+    result = await mcp.call_tool("internal.ask", {"query": "Meridian Textiles"})
     data = _content_json(result)
     assert data == {"content": "Cala's own synthesized answer about Meridian Textiles", "explainability": ["ignored by this path"]}
 
@@ -155,7 +162,7 @@ async def test_cala_raw_mode_skipped_when_sources_excludes_cala(monkeypatch):
 
     monkeypatch.setattr(engine.adapters["cala"], "raw_knowledge_search", _fail_if_called)
 
-    result = await mcp.call_tool("a2k.search", {"query": "Meridian Textiles", "sources": ["sayari"]})
+    result = await mcp.call_tool("internal.search", {"query": "Meridian Textiles", "sources": ["sayari"]})
     data = _content_json(result)
     assert called is False
     assert "citations" in data  # normal a2k.search envelope shape

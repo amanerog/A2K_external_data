@@ -1,5 +1,6 @@
-"""Validates the K2-facing gateway KB Card and its EndpointBinding against the
-A2K 0.1 JSON Schemas of the reference package (sgt-ap11702-a2k).
+"""Validates the K2-facing KB Card (a2k/cards/kcp01/service_card.json, the one
+a2k://card serves) and its EndpointBinding against the A2K 0.1 JSON Schemas of
+the reference package (sgt-ap11702-a2k).
 
 Usage:
     python deploy/k2/validate.py --a2k-repo ../sgt-ap11702-a2k-main
@@ -14,7 +15,10 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-FILES = {"kb-card": "gateway_kbcard.a2k-0.1.json", "endpoint-binding": "gateway_endpoint_binding.a2k-0.1.json"}
+FILES = {
+    "kb-card": HERE.parent.parent / "a2k" / "cards" / "kcp01" / "service_card.json",
+    "endpoint-binding": HERE / "endpoint_binding.a2k-0.1.json",
+}
 
 
 def main() -> None:
@@ -26,18 +30,18 @@ def main() -> None:
     from a2k_kbcard.schema.validation import SchemaValidationError, validate_by_name
 
     failed = False
-    for schema, filename in FILES.items():
+    for schema, path in FILES.items():
         try:
-            validate_by_name(json.loads((HERE / filename).read_text(encoding="utf-8")), schema)
-            print(f"OK       {filename} ({schema})")
+            validate_by_name(json.loads(path.read_text(encoding="utf-8")), schema)
+            print(f"OK       {path.name} ({schema})")
         except SchemaValidationError as exc:
             failed = True
-            print(f"INVALID  {filename} ({schema})")
+            print(f"INVALID  {path.name} ({schema})")
             for error in exc.errors:
                 print(f"         {error['instancePath'] or '/'}: {error['message']}")
     # Validator-side rule (EndpointBinding): resource is REQUIRED when auth.mode is not none.
-    card = json.loads((HERE / FILES["kb-card"]).read_text(encoding="utf-8"))
-    binding = json.loads((HERE / FILES["endpoint-binding"]).read_text(encoding="utf-8"))
+    card = json.loads(FILES["kb-card"].read_text(encoding="utf-8"))
+    binding = json.loads(FILES["endpoint-binding"].read_text(encoding="utf-8"))
     if card["auth"]["mode"] != "none" and "resource" not in binding:
         failed = True
         print("INVALID  binding needs `resource` when auth.mode is not none")

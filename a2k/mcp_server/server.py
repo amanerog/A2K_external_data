@@ -1,9 +1,15 @@
-"""MCP transport binding (A2K-KCP-Consumption 4.md, section 2).
+"""MCP transport binding, A2K-KCP 0.1 section 10.2: the surface K2 calls.
 
-Same shape as `api/rest.py`: every tool here parses arguments into a request
-model, calls `gateway/engine.py`, and returns the resulting envelope as a
-dict. No business logic lives in this module -- K2 gets an identical
-envelope whether it talks to the box over REST or over this MCP server.
+- Tools a2k.ask and a2k.search only: arguments are the 0.1 request, the
+  result's structuredContent is the 0.1 envelope, declared as outputSchema
+  (the reference package's self-contained response bundles), isError false
+  for success and failure alike. The mapping lives in a2k/kcp01/.
+- Resource a2k://card: the service's 0.1 KB Card (a2k/cards/kcp01/). The
+  vendors behind it are internal and never named here.
+- The pre-0.1 tools (vendor-forced ask/search, listVendors, explain,
+  getDocument, validateCitation, reportConflict, getAuditRecord, getCard) and
+  the per-vendor card resources are registered as `internal.*` only with
+  A2K_INTERNAL_TOOLS=true -- for our evaluation scripts on test runtimes.
 
 Run standalone with `python -m a2k.mcp_server` (streamable-http transport,
 listening on 0.0.0.0:8000/mcp -- the path/port AgentCore Runtime expects
@@ -13,6 +19,7 @@ when hosting an MCP server, see README "Deploy to AgentCore").
 from __future__ import annotations
 
 import json
+from typing import Any
 
 import anyio
 import uvicorn
@@ -24,6 +31,8 @@ from ..cache import admission
 from ..cards import load_card, vendor_catalogue
 from ..config import config
 from ..gateway.engine import engine
+from ..kcp01 import adapter as kcp01
+from ..kcp01.card import service_card
 from ..models.envelope import CitedResponseEnvelope
 from ..models.request import A2KRequest, ExplainRequest, GetDocumentRequest, RequestMetadata, Requirements
 
@@ -39,29 +48,13 @@ mcp = FastMCP(
     # a caller needs to use this contract correctly belongs here or in the
     # individual tool docstrings below, not in any one consumer's prompt.
     instructions=(
-        "A2K-KCP gateway fronting Cala (financial/legal/regulatory filings) and "
-        "Sayari (ownership/risk graph) company-intelligence data. Framework-neutral: "
-        "any MCP client can call these tools directly, not just a specific consumer.\n\n"
-        "ALWAYS call a2k.listVendors before your first a2k.search/a2k.ask in a "
-        "session -- even if you think you already know which vendor fits. It "
-        "returns each vendor's actual current domains/topics/coverage scope and "
-        "status; do not guess from vendor names or from prior knowledge, and do "
-        "not skip this step to save a call. Only vendors with status \"active\" "
-        "are usable. Pass the matching sourceId(s) as a2k.ask/a2k.search's "
-        "`sources` param when exactly one (or a clear subset) of the active "
-        "vendors matches; omit `sources` entirely to fan out to all active "
-        "vendors when coverage genuinely overlaps or stays unclear after "
-        "checking -- omitting it is always safe and never wrong, just "
-        "potentially less precise than a correctly scoped `sources`.\n\n"
-        "Call a2k.search for raw cited passages, or a2k.ask for a synthesized, "
-        "cited answer -- see a2k.ask's own description for how to phrase its "
-        "`query` param (entity name, not a full sentence, especially when "
-        "Sayari is among the sources). If the response's `conflicts` array is "
-        "non-empty, Cala and Sayari disagree on a fact -- surface both "
-        "positions to the user; never silently prefer one source. Use "
-        "a2k.explain(answerRef=<audit.requestId>) to get the evidence behind a "
-        "prior a2k.ask response, and a2k.getDocument to retrieve the full "
-        "source record behind any citation's documentId."
+        "A2K-KCP 0.1 knowledge base of external, third-party information on companies, "
+        "people, markets and regulation. Read the KB Card at resource a2k://card. "
+        "Call a2k.ask for a cited answer to a question, a2k.search for cited passages. "
+        "Both take the A2K 0.1 request (a2kVersion \"0.1\", operation, requestId, query, "
+        "and optionally context, requirements, filters; pagination on search) and return "
+        "the A2K 0.1 envelope: a non-answer is a success whose data.outcome says so, and a "
+        "failure is ok: false with error.code."
     ),
     # AgentCore Runtime hosts MCP servers at 0.0.0.0:8000/mcp (both are
     # FastMCP defaults, kept explicit here since Runtime depends on them).
@@ -77,25 +70,22 @@ def _dump(model) -> dict:
     return model.model_dump(mode="json")
 
 
-@mcp.resource("a2k://card")
-def gateway_card() -> str:
-    """The gateway's own KB Card (federates Cala + Sayari)."""
-    return load_card("gateway").model_dump_json()
+@mcp.resource("a2k://card", mime_type="application/json")
+def card() -> str:
+    """This KB's A2K 0.1 KB Card."""
+    return json.dumps(service_card(), ensure_ascii=False)
 
 
-@mcp.resource("a2k://card/cala")
 def cala_card() -> str:
-    """Cala's KB Card."""
+    """Cala's (internal, pre-0.1) KB Card."""
     return load_card("cala").model_dump_json()
 
 
-@mcp.resource("a2k://card/sayari")
 def sayari_card() -> str:
-    """Sayari's KB Card."""
+    """Sayari's (internal, pre-0.1) KB Card."""
     return load_card("sayari").model_dump_json()
 
 
-@mcp.tool(name="a2k.listVendors")
 async def a2k_list_vendors() -> dict:
     """Lists the vendor knowledge sources behind this gateway and what each one
     actually covers (domains, topics, human-readable scope, status, priority,
@@ -126,7 +116,6 @@ async def a2k_list_vendors() -> dict:
     return {"vendors": vendor_catalogue()}
 
 
-@mcp.tool(name="a2k.getCard")
 async def a2k_get_card() -> dict:
     """Returns this gateway's own KB Card (federates Cala + Sayari) --
     the same content as the `a2k://card` MCP resource and REST's
@@ -157,7 +146,6 @@ async def _cala_raw_response_if_enabled(query: str, sources: list[str] | None) -
     return await cala_adapter.raw_knowledge_search(query)
 
 
-@mcp.tool(name="a2k.search")
 async def a2k_search(query: str, sources: list[str] | None = None, limit: int = 10) -> dict:
     """Retrieve relevant passages with citations from Cala and/or Sayari. No synthesized answer -- use a2k.ask for that.
 
@@ -207,7 +195,6 @@ def _session_id(explicit: str | None, ctx: Context | None) -> str | None:
     return None
 
 
-@mcp.tool(name="a2k.ask")
 async def a2k_ask(
     query: str,
     sources: list[str] | None = None,
@@ -271,21 +258,18 @@ async def a2k_ask(
     return _dump(await engine.ask(req))
 
 
-@mcp.tool(name="a2k.explain")
 async def a2k_explain(answerRef: str, claimIds: list[str] | None = None) -> dict:
     """Explain a prior a2k.ask/a2k.search response, given its `audit.requestId` as answerRef."""
     req = ExplainRequest(answerRef=answerRef, claimIds=claimIds or [])
     return _dump(await engine.explain(req))
 
 
-@mcp.tool(name="a2k.getDocument")
 async def a2k_get_document(documentId: str) -> dict:
     """Retrieve the full source document/profile behind a citation's documentId."""
     req = GetDocumentRequest(documentId=documentId)
     return _dump(await engine.get_document(req))
 
 
-@mcp.tool(name="a2k.validateCitation")
 async def a2k_validate_citation(documentId: str, exact: str) -> dict:
     """Level-4 verifiability helper: confirms `exact` text is actually present in the cited
     document, mitigating citation laundering (A2K-KCP section 19.7)."""
@@ -298,7 +282,6 @@ async def a2k_validate_citation(documentId: str, exact: str) -> dict:
     return {"documentId": documentId, "valid": found, "sourceHash": response.document.hash}
 
 
-@mcp.tool(name="a2k.reportConflict")
 async def a2k_report_conflict(answerRef: str) -> dict:
     """Return the full cross-source ConflictReport for a prior a2k.ask response, if any."""
     envelope: CitedResponseEnvelope | None = engine.get_cached(answerRef)
@@ -309,7 +292,6 @@ async def a2k_report_conflict(answerRef: str) -> dict:
     return {"ok": True, "conflictReport": _dump(envelope.conflictReport)}
 
 
-@mcp.tool(name="a2k.getAuditRecord")
 async def a2k_get_audit_record(requestId: str) -> dict:
     """Look up the audit record for a given requestId in the append-only audit trail."""
     if not config.audit_log_path.exists():
@@ -320,6 +302,101 @@ async def a2k_get_audit_record(requestId: str) -> dict:
             if record.get("requestId") == requestId:
                 return {"found": True, "audit": record}
     return {"found": False}
+
+
+# --- A2K-KCP 0.1 tools ----------------------------------------------------------
+
+
+def _arguments(**members: Any) -> dict[str, Any]:
+    """The 0.1 request as sent: absent members stay absent (never null)."""
+    return {k: v for k, v in members.items() if v is not None}
+
+
+@mcp.tool(name="a2k.ask", structured_output=True)
+async def kcp_ask(
+    a2kVersion: str | None = None,
+    operation: str | None = None,
+    requestId: str | None = None,
+    query: str | None = None,
+    context: dict[str, Any] | None = None,
+    onBehalfOf: dict[str, Any] | None = None,
+    requirements: dict[str, Any] | None = None,
+    filters: dict[str, Any] | None = None,
+    ctx: Context | None = None,
+) -> dict[str, Any]:
+    """A2K-KCP 0.1 ask: a synthesized answer with claims and citations, or a
+    substantive non-answer (data.outcome). Arguments are the 0.1 request:
+    a2kVersion "0.1", operation "ask", requestId, query, and optionally
+    context {purpose?, asOf?, riskLevel?}, requirements {features?,
+    maxEvidenceAgeSeconds?}, filters."""
+    arguments = _arguments(
+        a2kVersion=a2kVersion, operation=operation, requestId=requestId, query=query,
+        context=context, onBehalfOf=onBehalfOf, requirements=requirements, filters=filters,
+    )
+    return await kcp01.ask(arguments, session_id=_session_id(None, ctx))
+
+
+@mcp.tool(name="a2k.search", structured_output=True)
+async def kcp_search(
+    a2kVersion: str | None = None,
+    operation: str | None = None,
+    requestId: str | None = None,
+    query: str | None = None,
+    context: dict[str, Any] | None = None,
+    onBehalfOf: dict[str, Any] | None = None,
+    requirements: dict[str, Any] | None = None,
+    filters: dict[str, Any] | None = None,
+    pagination: dict[str, Any] | None = None,
+    ctx: Context | None = None,
+) -> dict[str, Any]:
+    """A2K-KCP 0.1 search: passages with citations, no synthesis. Arguments
+    are the 0.1 request: a2kVersion "0.1", operation "search", requestId,
+    query, and optionally context, requirements {maxEvidenceAgeSeconds?},
+    filters and pagination {limit?} (a single page: no cursor)."""
+    arguments = _arguments(
+        a2kVersion=a2kVersion, operation=operation, requestId=requestId, query=query, context=context,
+        onBehalfOf=onBehalfOf, requirements=requirements, filters=filters, pagination=pagination,
+    )
+    return await kcp01.search(arguments, session_id=_session_id(None, ctx))
+
+
+def _declare_output_schemas() -> None:
+    """outputSchema = the reference package's self-contained response bundle
+    for each operation (section 10.2). FastMCP has no parameter for a given
+    schema, so it replaces the one it derived from the return annotation."""
+    from a2k_kcp.schema import load_bundle
+
+    for name, operation in (("a2k.ask", "ask"), ("a2k.search", "search")):
+        mcp._tool_manager.get_tool(name).fn_metadata.output_schema = load_bundle(operation)
+
+
+_declare_output_schemas()
+
+
+# --- internal (pre-0.1) tools, A2K_INTERNAL_TOOLS=true only ---------------------
+
+_INTERNAL_TOOLS = {
+    "internal.ask": a2k_ask,
+    "internal.search": a2k_search,
+    "internal.listVendors": a2k_list_vendors,
+    "internal.getCard": a2k_get_card,
+    "internal.explain": a2k_explain,
+    "internal.getDocument": a2k_get_document,
+    "internal.validateCitation": a2k_validate_citation,
+    "internal.reportConflict": a2k_report_conflict,
+    "internal.getAuditRecord": a2k_get_audit_record,
+}
+
+
+def register_internal_tools() -> None:
+    for name, fn in _INTERNAL_TOOLS.items():
+        mcp.tool(name=name)(fn)
+    mcp.resource("internal://card/cala")(cala_card)
+    mcp.resource("internal://card/sayari")(sayari_card)
+
+
+if config.internal_tools:
+    register_internal_tools()
 
 
 class _TrailingSlashAliasMiddleware:
