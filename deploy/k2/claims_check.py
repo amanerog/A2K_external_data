@@ -97,7 +97,7 @@ def main() -> None:
             out.write(json.dumps({**row, "kcp01": kcp}, ensure_ascii=False) + "\n")
             print(f"id={qid} {row['seconds']}s coverage={row['coverage']} claims {row['located']}/{row['claims']} located, "
                   f"{row['with_source']} with a usable source -> {row['outcome']}, grounding={row['grounding']}, valid={valid}", flush=True)
-            totals.update(claims=row["claims"], located=row["located"], with_source=row["with_source"], answers=1, valid=valid)
+            totals.update(claims=row["claims"], located=row["located"], with_source=row["with_source"], answers=1, valid=int(valid))
             totals[f"outcome:{row['outcome']}"] += 1
     if totals["answers"]:
         print(f"\n{totals['answers']} answers, claims located {totals['located']}/{totals['claims']} "
