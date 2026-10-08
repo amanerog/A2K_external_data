@@ -7,6 +7,10 @@ code a2k.ask runs -- and the 0.1 envelope is validated. Reported per question
 and in total: claims written, claims located in the answer, claims citing a
 usable source, coverage, the 0.1 outcome and grounding.
 
+With --via a2k.ask the question goes through the A2K 0.1 tool instead, the
+way K2 sends it -- use it in serve mode to see cache hits reach K2 with their
+claims (no internal envelope then: coverage and unlocated claims are n/a).
+
 Usage:
     export A2K_BOX_RUNTIME_ARN=...
     python deploy/k2/claims_check.py --a2k-repo ../sgt-ap11702-a2k-main \\
@@ -49,6 +53,7 @@ def main() -> None:
     parser.add_argument("--ids", required=True)
     parser.add_argument("--sources", default=None, help="force vendors, e.g. cala (default: the agent picks)")
     parser.add_argument("--output", default="claims_check.jsonl")
+    parser.add_argument("--via", choices=("internal.ask", "a2k.ask"), default="internal.ask")
     args = parser.parse_args()
     if not args.runtime_arn:
         sys.exit("set A2K_BOX_RUNTIME_ARN or --runtime-arn")
@@ -64,10 +69,35 @@ def main() -> None:
     totals: Counter = Counter()
     with open(args.output, "w", encoding="utf-8") as out:
         for qid, query in questions(args.gt, args.ids.split(",")).items():
+            t0 = time.monotonic()
+            if args.via == "a2k.ask":
+                try:
+                    kcp = session.call("a2k.ask", {"a2kVersion": "0.1", "operation": "ask", "requestId": f"cc-{qid}", "query": query})[0]
+                except Exception as exc:  # noqa: BLE001
+                    print(f"id={qid} ERROR {exc}")
+                    continue
+                seconds = time.monotonic() - t0
+                data = kcp.get("data") or {}
+                try:
+                    validate_by_name(kcp, "ask-response")
+                    valid = True
+                except SchemaValidationError:
+                    valid = False
+                claims = data.get("claims") or []
+                spans = sum(sp["end"] - sp["start"] for c in claims for sp in c["answerSpans"])
+                row = {"id": qid, "seconds": round(seconds, 1), "claims": len(claims), "citations": len(data.get("citations") or []),
+                       "outcome": data.get("outcome") or (kcp.get("error") or {}).get("code"),
+                       "grounding": (data.get("grounding") or {}).get("status"), "valid": valid,
+                       "covered": round(min(1, spans / max(1, len(data.get("answer") or ""))), 2)}
+                out.write(json.dumps({**row, "kcp01": kcp}, ensure_ascii=False) + "\n")
+                print(f"id={qid} {row['seconds']}s claims={row['claims']} citations={row['citations']} covered={row['covered']:.0%} "
+                      f"-> {row['outcome']}, grounding={row['grounding']}, valid={valid}", flush=True)
+                totals.update(answers=1, valid=int(valid), claims=row["claims"])
+                totals[f"outcome:{row['outcome']}"] += 1
+                continue
             arguments = {"query": query}
             if args.sources:
                 arguments["sources"] = args.sources.split(",")
-            t0 = time.monotonic()
             try:
                 internal = session.call("internal.ask", arguments)[0]
             except Exception as exc:  # noqa: BLE001
@@ -99,7 +129,10 @@ def main() -> None:
                   f"{row['with_source']} with a usable source -> {row['outcome']}, grounding={row['grounding']}, valid={valid}", flush=True)
             totals.update(claims=row["claims"], located=row["located"], with_source=row["with_source"], answers=1, valid=int(valid))
             totals[f"outcome:{row['outcome']}"] += 1
-    if totals["answers"]:
+    if totals["answers"] and args.via == "a2k.ask":
+        print(f"\n{totals['answers']} answers, {totals['claims']} claims, valid 0.1 {totals['valid']}/{totals['answers']}, "
+              + ", ".join(f"{k[8:]}={v}" for k, v in totals.items() if k.startswith("outcome:")))
+    elif totals["answers"]:
         print(f"\n{totals['answers']} answers, claims located {totals['located']}/{totals['claims']} "
               f"({totals['located'] / max(1, totals['claims']):.0%}), with a usable source {totals['with_source']}, "
               f"valid 0.1 {totals['valid']}/{totals['answers']}, "
