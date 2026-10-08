@@ -16,6 +16,15 @@ Response side, the minimal faithful mapping (decided 2026-10-08):
 - error messages are generic per code: internal messages can name vendors
   or runtimes, which the caller is not to see.
 
+requirements.maxEvidenceAgeSeconds (decided 2026-10-08): it is measured
+against sourceVerifiedAt -- when the origin confirmed the evidence -- and
+evidence without it cannot qualify (section 5.5). Nothing here has one: the
+vendors answer from their own stores and the cache is a copy, neither a
+confirmation against the origin. So a request carrying it is refused
+(EVIDENCE_TOO_OLD) for ask and gets an empty result for search, whatever the
+limit. Routing such requests to a live fetch of the origin (Linkup's
+linkup-fetch) is on hold.
+
 Not mapped: onBehalfOf (auth.mode service: no verified human subject, the
 member is at most a hint) and filters.language (answers follow the language
 of the question). Unknown top-level members are dropped by the MCP layer
@@ -285,6 +294,8 @@ async def ask(arguments: dict[str, Any], *, session_id: str | None = None) -> di
     if "strict-grounding" in features:
         # The answer's grounding is the agent's self-report, which can never be strict-satisfied.
         return failure("ask", req.requestId, "REQUIRED_FEATURE_UNSUPPORTED", details={"unsupportedFeatures": ["strict-grounding"]})
+    if req.requirements and req.requirements.maxEvidenceAgeSeconds is not None:
+        return _refused(req, "EVIDENCE_TOO_OLD", "No evidence here carries a verification time from its origin, so none can meet a maximum evidence age.")
     context = req.context
     if context and context.asOf and not card.point_in_time_supported():
         return _refused(req, "POINT_IN_TIME_UNSUPPORTED", "Answers as of a past instant are not supported.")
@@ -335,6 +346,12 @@ async def search(arguments: dict[str, Any], *, session_id: str | None = None) ->
         return failure("search", req.requestId, "PAGINATION_CURSOR_INVALID")
     if _filters_exclude_this_kb(req.filters):
         return _success(SearchSuccess, "search", req, {"passages": [], "citations": [], "pageInfo": {"nextCursor": None}})
+    if req.requirements and req.requirements.maxEvidenceAgeSeconds is not None:
+        # search returns only qualifying evidence (section 5.5): none qualifies here.
+        return _success(SearchSuccess, "search", req, {
+            "passages": [], "citations": [], "pageInfo": {"nextCursor": None},
+            "warnings": ["No evidence here carries a verification time from its origin, so none meets the maximum evidence age."],
+        })
     limit = pagination.limit if pagination and pagination.limit else 10
     env = await engine.search(_internal("search", req, session_id, limit=limit))
     return search_response(req, env)

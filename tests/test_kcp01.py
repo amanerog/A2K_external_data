@@ -82,7 +82,7 @@ async def test_tools_declare_the_reference_output_schemas_and_the_card_resource(
 
 async def test_ask_answered_is_one_claim_spanning_the_answer(engine_returns):
     seen = engine_returns(internal())
-    out = await _call("a2k.ask", ask_request(requirements={"maxEvidenceAgeSeconds": 3600}))
+    out = await _call("a2k.ask", ask_request())
     validate_by_name(out, "ask-response")
     assert out["ok"] is True and out["requestId"] == "req-1" and out["kbId"] == service_card()["id"]
     data = out["data"]
@@ -92,8 +92,7 @@ async def test_ask_answered_is_one_claim_spanning_the_answer(engine_returns):
     assert claim["answerSpans"] == [{"start": 0, "end": len(data["answer"])}]  # code points: "ó" is one
     assert data["grounding"] == {"status": "supported", "method": "llm-self-report"}
     assert data["citations"][0]["sourceUrl"] == URL
-    # What reached the engine: the requestId and the freshness limit.
-    assert seen["req"].requestMetadata.requestId == "req-1" and seen["req"].requirements.maxEvidenceAgeSeconds == 3600
+    assert seen["req"].requestMetadata.requestId == "req-1"
 
 
 async def test_ask_without_usable_citations_is_answered_but_unsupported(engine_returns):
@@ -146,6 +145,8 @@ async def test_conflicts_become_warnings(engine_returns):
         ({"context": {"asOf": "2024-06-01T00:00:00Z"}}, "refused", "POINT_IN_TIME_UNSUPPORTED"),
         ({"context": {"purpose": "model-training"}}, "refused", "PURPOSE_NOT_ALLOWED"),
         ({"filters": {"maxClassificationLevel": 0}}, "refused", "INSUFFICIENT_EVIDENCE"),
+        # No sourceVerifiedAt anywhere: no evidence can meet any maximum age (section 5.5).
+        ({"requirements": {"maxEvidenceAgeSeconds": 31536000}}, "refused", "EVIDENCE_TOO_OLD"),
     ],
 )
 async def test_ask_refusals_settled_before_answering(engine_returns, overrides, outcome, code):
@@ -246,3 +247,10 @@ async def test_end_to_end_over_an_mcp_client_session(engine_returns):
         validate_by_name(ok.structuredContent, "ask-response")
         failed = await client.call_tool("a2k.ask", ask_request(a2kVersion="0.2"))
         assert failed.isError is False and failed.structuredContent["error"]["code"] == "UNSUPPORTED_VERSION"
+
+
+async def test_search_with_a_maximum_evidence_age_is_empty_with_a_warning(engine_returns):
+    seen = engine_returns(internal(operation="search"))
+    out = await _call("a2k.search", search_request(requirements={"maxEvidenceAgeSeconds": 86400}))
+    validate_by_name(out, "search-response")
+    assert out["ok"] is True and out["data"]["passages"] == [] and out["data"]["warnings"] and "req" not in seen
