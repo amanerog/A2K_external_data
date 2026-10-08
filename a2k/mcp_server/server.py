@@ -36,7 +36,24 @@ from ..kcp01.card import service_card
 from ..models.envelope import CitedResponseEnvelope
 from ..models.request import A2KRequest, ExplainRequest, GetDocumentRequest, RequestMetadata, Requirements
 
-mcp = FastMCP(
+class _KcpFastMCP(FastMCP):
+    """FastMCP builds a tool's arguments from the function signature and drops
+    any member it does not know, so an A2K 0.1 request with an unknown core
+    member would be answered instead of rejected (SCHEMA_VALIDATION_FAILED,
+    section 2.1). a2k.ask and a2k.search are therefore handed the arguments
+    exactly as sent; the reference request models, which are closed, judge
+    them. The result goes through the tool's own conversion, so the response
+    is shaped exactly as before (structuredContent + text)."""
+
+    async def call_tool(self, name: str, arguments: dict[str, Any]):
+        handler = {"a2k.ask": kcp01.ask, "a2k.search": kcp01.search}.get(name)
+        if handler is None:
+            return await super().call_tool(name, arguments)
+        envelope = await handler(dict(arguments or {}), session_id=_session_id(None, self.get_context()))
+        return self._tool_manager.get_tool(name).fn_metadata.convert_result(envelope)
+
+
+mcp = _KcpFastMCP(
     name="a2k-box",
     # Read by any MCP client at `initialize` -- this is the closest thing this
     # contract has to a "system prompt" that ships with the protocol itself,
@@ -363,11 +380,17 @@ async def kcp_search(
 def _declare_output_schemas() -> None:
     """outputSchema = the reference package's self-contained response bundle
     for each operation (section 10.2). FastMCP has no parameter for a given
-    schema, so it replaces the one it derived from the return annotation."""
+    schema, so it replaces the one it derived from the return annotation.
+    The inputSchema it derived is kept, closed and with the members the 0.1
+    request requires (the arguments themselves are judged by the reference
+    models, see _KcpFastMCP)."""
     from a2k_kcp.schema import load_bundle
 
     for name, operation in (("a2k.ask", "ask"), ("a2k.search", "search")):
-        mcp._tool_manager.get_tool(name).fn_metadata.output_schema = load_bundle(operation)
+        tool = mcp._tool_manager.get_tool(name)
+        tool.fn_metadata.output_schema = load_bundle(operation)
+        tool.parameters["additionalProperties"] = False
+        tool.parameters["required"] = ["a2kVersion", "operation", "requestId", "query"]
 
 
 _declare_output_schemas()

@@ -254,3 +254,45 @@ async def test_search_with_a_maximum_evidence_age_is_empty_with_a_warning(engine
     out = await _call("a2k.search", search_request(requirements={"maxEvidenceAgeSeconds": 86400}))
     validate_by_name(out, "search-response")
     assert out["ok"] is True and out["data"]["passages"] == [] and out["data"]["warnings"] and "req" not in seen
+
+
+async def test_citations_to_a_vendor_api_are_not_sources(engine_returns):
+    citations = [
+        Citation(id="citation-1", documentId="doc-1", sourceUrl=URL, retrievedAt="2026-10-08T09:00:00Z"),
+        Citation(id="citation-2", documentId="e1", sourceUrl="https://api.cala.ai/v1/entities/ccca3f91", retrievedAt="2026-10-08T09:00:00Z"),
+    ]
+    engine_returns(internal(citations=citations))
+    out = await _call("a2k.ask", ask_request())
+    validate_by_name(out, "ask-response")
+    assert [c["id"] for c in out["data"]["citations"]] == ["citation-1"]
+
+
+async def test_unknown_or_null_members_are_rejected_through_mcp(engine_returns):
+    seen = engine_returns(internal())
+    out = await _call("a2k.ask", ask_request(sources=["cala"]))
+    validate_by_name(out, "ask-response")
+    assert out["ok"] is False and out["error"]["code"] == "SCHEMA_VALIDATION_FAILED" and "req" not in seen
+    out = await _call("a2k.ask", ask_request(context=None))
+    assert out["error"]["code"] == "SCHEMA_VALIDATION_FAILED"
+
+
+async def test_input_schema_is_closed_with_the_required_members():
+    tools = {t.name: t for t in await mcp.list_tools()}
+    schema = tools["a2k.ask"].inputSchema
+    assert schema["additionalProperties"] is False
+    assert set(schema["required"]) == {"a2kVersion", "operation", "requestId", "query"}
+
+
+@pytest.mark.skipif(not CORPUS.exists(), reason="reference repo (sgt-ap11702-a2k-main) not next to this one")
+@pytest.mark.parametrize("operation", ["ask", "search"])
+async def test_reference_negative_requests_are_rejected_through_mcp(engine_returns, operation):
+    from mcp.shared.memory import create_connected_server_and_client_session
+
+    engine_returns(internal(operation=operation))
+    async with create_connected_server_and_client_session(mcp._mcp_server) as client:
+        for path in sorted((CORPUS / f"{operation}-request").glob("*.json")):
+            result = await client.call_tool(f"a2k.{operation}", json.loads(path.read_text(encoding="utf-8")))
+            out = result.structuredContent
+            assert result.isError is False, path.name
+            validate_by_name(out, f"{operation}-response")
+            assert out["ok"] is False or out["data"].get("outcome") not in ("answered", None), path.name

@@ -27,14 +27,15 @@ linkup-fetch) is on hold.
 
 Not mapped: onBehalfOf (auth.mode service: no verified human subject, the
 member is at most a hint) and filters.language (answers follow the language
-of the question). Unknown top-level members are dropped by the MCP layer
-before they reach here, not rejected.
+of the question). Unknown members are rejected: the MCP layer hands the
+arguments over exactly as sent (mcp_server/server.py _KcpFastMCP).
 """
 
 from __future__ import annotations
 
 import re
 import uuid
+from urllib.parse import urlparse
 from datetime import datetime, timezone
 from typing import Any
 
@@ -149,6 +150,9 @@ def _parse(operation: str, model, arguments: dict[str, Any]):
         return None, failure(operation, request_id, "INVALID_REQUEST")
     if "operation" not in arguments or "a2kVersion" not in arguments:
         return None, failure(operation, request_id, "SCHEMA_VALIDATION_FAILED")
+    nulls = sorted(k for k, v in arguments.items() if v is None)
+    if nulls:  # absent optionals are omitted, never null (section 2.1)
+        return None, failure(operation, request_id, "SCHEMA_VALIDATION_FAILED", details={"fields": nulls})
     try:
         return model.model_validate(arguments), None
     except ValidationError as exc:
@@ -191,12 +195,19 @@ def _timestamp(value: str | None) -> str | None:
     return value if value and _TIMESTAMP.match(value) else None
 
 
+def _vendor_api(url: str) -> bool:
+    host = urlparse(url).hostname or ""
+    return any(host == h or host.endswith("." + h) for h in config.vendor_api_hosts)
+
+
 def _citations(env: CitedResponseEnvelope) -> list[dict[str, Any]]:
-    """0.1 citations with a permitted resolver: a URL (getDocument is not advertised)."""
+    """0.1 citations with a permitted resolver: a URL (getDocument is not
+    advertised) -- and not one of a vendor's own API, an internal record of
+    the vendor rather than an origin document."""
     out = []
     for c in env.citations:
         url = c.sourceUrl if c.sourceUrl and _URI.match(c.sourceUrl) else None
-        if url is None:
+        if url is None or _vendor_api(url):
             continue
         citation: dict[str, Any] = {
             "id": c.id,

@@ -154,6 +154,15 @@ class Config:
     # only when this is on: for our own evaluation scripts on test runtimes,
     # never on the runtime K2 calls. Off by default.
     internal_tools: bool = field(default_factory=lambda: _bool_env("A2K_INTERNAL_TOOLS", False))
+    # Hosts of the vendors' own APIs: a citation pointing there is an internal
+    # record of the vendor, not an origin document, and never reaches K2.
+    vendor_api_hosts: tuple[str, ...] = field(
+        default_factory=lambda: tuple(
+            h.strip().lower()
+            for h in os.environ.get("VENDOR_API_HOSTS", "api.cala.ai,api.sayari.com,api.linkup.so").split(",")
+            if h.strip()
+        )
+    )
 
     # Opt-in call tracing (gateway/tracing.py) -- off by default, since dumping
     # every request and upstream tool call/result to stdout is noisy and
