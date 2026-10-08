@@ -100,8 +100,10 @@ async def test_list_vendors_tool_returns_domains_topics_and_scope():
         assert vendor["domains"]
         assert vendor["topics"]
         assert vendor["scope"]
-        assert vendor["status"] == "active"
         assert vendor["priority"] == 1
+    # Sayari is not used for now (2026-10-08): listed, but not active, so the
+    # agent's phase 1 never picks it and an explicit sources=["sayari"] is dropped.
+    assert cala["status"] == "active" and sayari["status"] == "retired"
 
     # the whole point of granularizing the cards: no shared topic strings for
     # the agent to get confused by when picking a `sources` value.
