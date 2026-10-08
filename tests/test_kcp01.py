@@ -296,3 +296,17 @@ async def test_reference_negative_requests_are_rejected_through_mcp(engine_retur
             assert result.isError is False, path.name
             validate_by_name(out, f"{operation}-response")
             assert out["ok"] is False or out["data"].get("outcome") not in ("answered", None), path.name
+
+
+async def test_search_with_every_vendor_unavailable_is_an_upstream_error(monkeypatch):
+    from a2k.gateway.engine import GatewayEngine
+    from a2k.models.request import A2KRequest
+
+    async def unavailable(self, operation, query, sources, request_id):
+        return {"passages": [], "citations": [], "usage": {}, "toolCalls": [], "vendorUnavailable": True}
+
+    monkeypatch.setattr(GatewayEngine, "_call_agent", unavailable)
+    env = await GatewayEngine()._search_via_agent(A2KRequest(operation="search", query="q"))
+    out = adapter.search_response(adapter.SearchRequest.model_validate(search_request()), env)
+    validate_by_name(out, "search-response")
+    assert out["ok"] is False and out["error"]["code"] == "UPSTREAM_ERROR" and out["error"]["retryable"] is True

@@ -1279,6 +1279,100 @@ def merge_ask_contents(
     }
 
 
+# --- search: the vendor's own search results, as returned ---------------------
+#
+# Decided 2026-10-08: search is retrieval only (A2K-KCP 0.1 section 4.1), so
+# after phase 1 picks the vendor there is no model in the loop -- one call to
+# that vendor's search tool, its results mapped onto passages and citations
+# in code. Nothing is written or summarised; ~65 s through the agent loop
+# becomes one vendor call.
+
+
+def _tool_text(result: dict) -> str:
+    return "\n".join(block.get("text", "") for block in (result.get("content") or []) if isinstance(block, dict))
+
+
+def _cala_search(output: str) -> tuple[list[dict], list[dict]]:
+    """knowledge_search: `context` holds the verbatim excerpts of the origin
+    documents, each with its document. Cala's own written summary (`content`)
+    is left out: it is Cala's synthesis, not retrieved material."""
+    data = json.loads(output)
+    passages, citations, index = [], [], {}
+    for item in data.get("context") or []:
+        text = str(item.get("content") or "").strip()
+        if not text:
+            continue
+        cited = []
+        for origin in item.get("origins") or []:
+            document = origin.get("document") or {}
+            url = document.get("url") or (origin.get("source") or {}).get("url")
+            if not url:
+                continue
+            if url not in index:
+                index[url] = len(citations)
+                citations.append({"title": document.get("name") or None, "sourceUrl": url, "documentId": url})
+            cited.append(index[url])
+        passages.append({"text": text, "citationIndexes": sorted(set(cited))})
+    return passages, citations
+
+
+def _linkup_search(output: str) -> tuple[list[dict], list[dict]]:
+    data = json.loads(output)
+    passages, citations = [], []
+    for result in data.get("results") or []:
+        text, url = str(result.get("content") or "").strip(), result.get("url")
+        if not text or not url:
+            continue
+        citations.append({"title": result.get("name") or None, "sourceUrl": url, "documentId": url})
+        passages.append({"text": text, "citationIndexes": [len(citations) - 1]})
+    return passages, citations
+
+
+def _sayari_search(output: str) -> tuple[list[dict], list[dict]]:
+    """search_entities returns entity matches with no public URL: they become
+    passages cited by the entity id, which an A2K 0.1 response (citations
+    need a resolvable URL) leaves out."""
+    data = json.loads(output)
+    passages, citations = [], []
+    for item in data.get("items") or []:
+        entity_id = item.get("entity_id")
+        if not entity_id:
+            continue
+        text = " -- ".join(str(item[k]) for k in ("label", "type", "country") if item.get(k))
+        citations.append({"title": item.get("label") or None, "sourceUrl": None, "documentId": f"sayari:{entity_id}"})
+        passages.append({"text": text or entity_id, "citationIndexes": [len(citations) - 1]})
+    return passages, citations
+
+
+# sourceId -> (search tool, its arguments for a query, results -> passages/citations)
+SEARCH_TOOLS = {
+    "cala": ("knowledge_search", lambda query: {"input": query}, _cala_search),
+    "linkup": ("linkup-search", lambda query: {"query": query}, _linkup_search),
+    "sayari": ("search_entities", lambda query: {"query": query, "limit": 10}, _sayari_search),
+}
+
+
+def run_vendor_search_sync(*, query: str, source_id: str) -> VendorCallResult:
+    """One call to the vendor's search tool, no model. Raises if the vendor
+    has no search tool configured or the call fails -- handle() treats that
+    vendor as unavailable, like a failed agent run."""
+    tool_name, arguments_for, parse = SEARCH_TOOLS[source_id]
+    arguments = arguments_for(query)
+    mcp_client, _ = vendor_mcp_client.connect_vendor(source_id)
+    try:
+        result = mcp_client.call_tool_sync(tool_use_id=f"search-{int(time.time() * 1000)}", name=tool_name, arguments=arguments)
+    finally:
+        vendor_mcp_client.disconnect(mcp_client)
+    status = result.get("status")
+    record = {"vendor": source_id, "toolName": tool_name, "input": arguments, "output": dict(result), "status": status, "errorType": None}
+    if status != "success":
+        record["errorType"] = "ToolError"
+        raise RuntimeError(f"{source_id} {tool_name} failed: {_tool_text(result)[:300]}")
+    passages, citations = parse(_tool_text(result))
+    content = SearchContent(passages=[PassageOut(**p) for p in passages], citations=[CitationOut(**c) for c in citations])
+    return VendorCallResult(content=content, invocation_count=1, error_count=0, usage={"inputTokens": 0, "outputTokens": 0, "totalTokens": 0}, tool_calls=[record])
+
+
 def merge_search_contents(contents: list[SearchContent]) -> dict:
     merged_citations: list[dict] = []
     merged_passages: list[dict] = []
@@ -1378,8 +1472,11 @@ async def handle(
                 }
             return {"passages": [], "citations": [], "usage": empty_usage, "toolCalls": []}
 
-        outcomes = await asyncio.gather(
-            *(
+        if operation == "search":
+            # Retrieval only: the vendor's own search results, no model (see SEARCH_TOOLS).
+            calls = [asyncio.to_thread(run_vendor_search_sync, query=query, source_id=sid) for sid in source_ids]
+        else:
+            calls = [
                 asyncio.to_thread(
                     run_vendor_agent_sync,
                     operation=operation,
@@ -1391,9 +1488,8 @@ async def handle(
                     internal_client=internal_client,
                 )
                 for sid in source_ids
-            ),
-            return_exceptions=True,
-        )
+            ]
+        outcomes = await asyncio.gather(*calls, return_exceptions=True)
 
         # A vendor whose run failed (unreachable MCP server, tool or model
         # error) drops out; the others still answer. If none answered, the
@@ -1432,7 +1528,9 @@ async def handle(
                     "usage": no_usage,
                     "toolCalls": [],
                 }
-            return {"passages": [], "citations": [], "usage": no_usage, "toolCalls": []}
+            # Every vendor failed: not an empty result (A2K-KCP 0.1 section 8 rule 3),
+            # a2k-box turns this into UPSTREAM_ERROR.
+            return {"passages": [], "citations": [], "usage": no_usage, "toolCalls": [], "vendorUnavailable": True}
 
         contents = []
         total_input_tokens = 0

@@ -243,6 +243,10 @@ class GatewayEngine:
             content = await self._call_agent("search", req.query, req.sources, request_id)
         except A2KError as err:
             return self._error_envelope("search", source_kb_id, err, request_id)
+        if content.get("vendorUnavailable"):
+            # Every vendor failed: an upstream error, never an empty result.
+            err = A2KError(ErrorCode.UPSTREAM_ERROR, "No data provider could be reached.", retryable=True)
+            return self._error_envelope("search", source_kb_id, err, request_id)
         retrieved_at = None
         decision_reason = None
 
