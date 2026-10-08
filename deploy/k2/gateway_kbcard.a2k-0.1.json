@@ -1,0 +1,57 @@
+{
+  "a2kVersion": "0.1",
+  "id": "urn:a2k:santander:external-data:gateway",
+  "kbCardVersion": "1",
+  "name": "A2K External Data Gateway",
+  "description": "Answers questions about companies, people, markets and regulation from licensed third-party data providers, with cited answers. The provider is chosen internally for each question; answers may be served from a validated cache within each domain's validity window.",
+  "ownership": {
+    "ownerId": "group:k2-platform-owners",
+    "contact": "k2-platform@example.com"
+  },
+  "lifecycle": {
+    "status": "active",
+    "cardUpdatedAt": "2026-10-08T00:00:00Z"
+  },
+  "access": {
+    "classificationLevel": 1
+  },
+  "auth": {
+    "mode": "service"
+  },
+  "knowledgeProfile": {
+    "domains": [
+      "regulatory-and-policy",
+      "competitive-and-market-intelligence",
+      "talent-and-leadership",
+      "macroeconomic-and-prudential-statistics",
+      "corporate-registry-and-compliance",
+      "risk-integrity-and-adverse-information",
+      "media-and-reputation"
+    ],
+    "topics": [
+      "supervisory guidelines",
+      "regulatory positions",
+      "competitor products and results",
+      "executive committees and senior appointments",
+      "prudential ratios",
+      "macroeconomic series",
+      "company registries",
+      "legal entity identifiers",
+      "beneficial ownership",
+      "sanctions and watchlists",
+      "litigation and adverse media",
+      "media coverage and sentiment"
+    ],
+    "scope": "External, third-party information on companies, people, markets and regulation: regulatory and supervisory publications, competitor and market intelligence, senior management, macroeconomic and prudential statistics, corporate registries, sanctions and adverse information, and media coverage. Excludes the bank's internal data and is not a system of record for any internal decision.",
+    "languages": ["en", "es", "pt"],
+    "pointInTime": { "supported": false }
+  },
+  "operations": ["search", "ask"],
+  "provenance": "vendor",
+  "policies": {
+    "allowedUse": ["answering", "summarization", "search", "citation", "evaluation"],
+    "disallowedUse": ["model-training", "bulk-export", "external-disclosure"],
+    "queryRetention": "P365D",
+    "piiHandling": "allowed"
+  }
+}

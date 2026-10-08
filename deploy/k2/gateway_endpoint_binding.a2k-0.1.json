@@ -1,0 +1,5 @@
+{
+  "url": "https://bedrock-agentcore.eu-west-1.amazonaws.com/runtimes/arn%3Aaws%3Abedrock-agentcore%3Aeu-west-1%3A396961015428%3Aruntime%2Fa2k_cache_mcp-48ImkT2F9a/invocations?qualifier=DEFAULT",
+  "transport": "mcp",
+  "resource": "arn:aws:bedrock-agentcore:eu-west-1:396961015428:runtime/a2k_cache_mcp-48ImkT2F9a"
+}
