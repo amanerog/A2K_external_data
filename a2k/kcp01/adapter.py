@@ -5,12 +5,17 @@ Request side: the 0.1 request is validated with the reference models, the
 grounding, point in time, purpose, cursor, classification and lifecycle
 filters), and what remains is mapped onto the internal A2KRequest.
 
-Response side, the minimal faithful mapping (decided 2026-10-08):
-- an answer is one claim spanning the whole answer, citing every usable
-  citation (one with a sourceUrl: getDocument is not advertised, so a
-  citation with no URL has no permitted resolver and is dropped);
+Response side:
+- claims are the agent's own, written verbatim from its answer and located
+  in it here (their answerSpans); each cites only usable citations (with a
+  sourceUrl that is not a vendor's API: getDocument is not advertised, so a
+  citation with no URL has no permitted resolver). When none can be located
+  -- or on a cache hit, which keeps no claims -- one claim spans the whole
+  answer;
 - grounding is the agent's self-report: method llm-self-report, so status is
   at most `supported`, never `strict-satisfied` (section 5.6);
+- the agent's coverage sets the outcome: complete -> answered, partial ->
+  partial with a refusal and what is missing as warnings, none -> refused;
 - non-answers are successes with an outcome and a refusal, never errors;
   the vendor-unavailable fallback is an UPSTREAM_ERROR failure;
 - error messages are generic per code: internal messages can name vendors
@@ -263,6 +268,53 @@ def _refused(req, code: str, reason: str, *, retryable: bool = False) -> dict[st
     return _success(AskSuccess, "ask", req, data)
 
 
+def _locate(text: str, answer: str) -> tuple[int, int] | None:
+    """Where a claim sits in the answer: an exact match, else the same words
+    with any whitespace between them. Offsets are code points (Python str
+    indexes), as section 5.2 requires."""
+    text = text.strip()
+    if not text:
+        return None
+    start = answer.find(text)
+    if start >= 0:
+        return start, start + len(text)
+    match = re.search(r"\s+".join(re.escape(token) for token in text.split()), answer)
+    return (match.start(), match.end()) if match else None
+
+
+def _claims(env: CitedResponseEnvelope, answer: str, usable: set[str]) -> list[dict[str, Any]]:
+    """The agent's claims located in the answer, each citing only usable
+    citations. A claim that is not literally in the answer is dropped -- its
+    span cannot be stated -- and the text it covered stays uncovered."""
+    claims = []
+    for claim in env.claims:
+        span = _locate(claim.text, answer)
+        if span is None:
+            continue
+        cited = [cid for cid in claim.citationIds if cid in usable]
+        if not cited:
+            status = "INSUFFICIENT_EVIDENCE"
+        elif claim.status in ("DISPUTED", "REFUTED"):
+            status = claim.status
+        else:
+            status = "SUPPORTED"
+        claims.append({
+            "id": f"k{len(claims) + 1}",
+            "text": claim.text.strip(),
+            "status": status,
+            "answerSpans": [{"start": span[0], "end": span[1]}],
+            "citationIds": cited,
+        })
+    return claims
+
+
+def _grounding_status(claims: list[dict[str, Any]]) -> str:
+    supported = [c["status"] == "SUPPORTED" for c in claims]
+    if supported and all(supported):
+        return "supported"  # never strict-satisfied: the method is a self-report (section 5.6)
+    return "partial" if any(supported) else "unsupported"
+
+
 def ask_response(req: AskRequest, env: CitedResponseEnvelope) -> dict[str, Any]:
     if not env.ok:
         code = env.error.code if env.error else ""
@@ -270,30 +322,41 @@ def ask_response(req: AskRequest, env: CitedResponseEnvelope) -> dict[str, Any]:
             return _refused(req, _REFUSALS[code], "The question could not be answered from the available sources.")
         return _from_internal_error("ask", req.requestId, env)
     answer = (env.answer or "").strip()
-    if not answer:
+    if not answer or env.coverage == "none":
         return _refused(req, "INSUFFICIENT_EVIDENCE", "No information was found to answer this question.")
     if answer == config.vendor_fallback_message.strip():
         return failure("ask", req.requestId, "UPSTREAM_ERROR")
     answer = env.answer  # spans index the answer exactly as delivered
     citations = _citations(env)
-    supported = bool(citations)
+    usable = {c["id"] for c in citations}
+    claims = _claims(env, answer, usable)
+    if not claims:
+        # No claim of the agent's could be located (or there were none, as on a
+        # cache hit): one claim spanning the whole answer, citing every usable citation.
+        claims = [{
+            "id": "k1",
+            "text": answer,
+            "status": "SUPPORTED" if citations else "INSUFFICIENT_EVIDENCE",
+            "answerSpans": [{"start": 0, "end": len(answer)}],
+            "citationIds": [c["id"] for c in citations],
+        }]
+    cited = {cid for c in claims for cid in c["citationIds"]}
     data: dict[str, Any] = {
         "outcome": "answered",
         "answer": answer,
-        "claims": [
-            {
-                "id": "k1",
-                "text": answer,
-                "status": "SUPPORTED" if supported else "INSUFFICIENT_EVIDENCE",
-                "answerSpans": [{"start": 0, "end": len(answer)}],  # code points, as section 5.2 requires
-                "citationIds": [c["id"] for c in citations],
-            }
-        ],
-        "citations": citations,
-        "grounding": {"status": "supported" if supported else "unsupported", "method": _GROUNDING_METHOD},
+        "claims": claims,
+        # Every citation a claim references (section 4.2); the others are left out.
+        "citations": [c for c in citations if c["id"] in cited],
+        "grounding": {"status": _grounding_status(claims), "method": _GROUNDING_METHOD},
     }
-    if env.conflicts:
-        data["warnings"] = [f"The sources disagree: {c.thisPosition} / {c.otherPosition}" for c in env.conflicts]
+    warnings = []
+    if env.coverage == "partial":
+        data["outcome"] = "partial"
+        data["refusal"] = {"code": "INSUFFICIENT_EVIDENCE", "reason": "Part of the question could not be answered from the available sources.", "retryable": False}
+        warnings += [f"Not answered: {m}" for m in env.missing if m.strip()] or ["Part of the question was not answered."]
+    warnings += [f"The sources disagree: {c.thisPosition} / {c.otherPosition}" for c in env.conflicts]
+    if warnings:
+        data["warnings"] = warnings
     return _success(AskSuccess, "ask", req, data)
 
 

@@ -88,7 +88,7 @@ def testmerge_ask_contents_single_vendor_skips_conflict_check():
 
 def testmerge_ask_contents_empty_input_is_safe():
     merged = da.merge_ask_contents([], [], model_id="unused", region="eu-west-1")
-    assert merged == {"answer": None, "claims": [], "citations": [], "groundedRatio": 0.0, "conflicts": []}
+    assert merged == {"answer": None, "claims": [], "citations": [], "groundedRatio": 0.0, "conflicts": [], "coverage": "none", "missing": []}
 
 
 def testmerge_search_contents_reindexes_citations_across_vendors():
@@ -105,3 +105,12 @@ def testmerge_search_contents_reindexes_citations_across_vendors():
     assert len(merged["citations"]) == 2
     assert merged["passages"][0]["citationIndexes"] == [0]
     assert merged["passages"][1]["citationIndexes"] == [1]
+
+
+def test_merge_takes_coverage_from_the_best_covered_vendor():
+    partial = da.AskContent(answer="a", groundedRatio=1.0, coverage="partial", missing=["Q4 2023 figures"])
+    complete = da.AskContent(answer="b", groundedRatio=1.0, coverage="complete")
+    # One vendor at a time: two would run the conflict check, a model call.
+    merged = da.merge_ask_contents([partial], ["cala"], model_id="m", region="r")
+    assert merged["coverage"] == "partial" and merged["missing"] == ["Q4 2023 figures"]
+    assert da.merge_ask_contents([complete], ["linkup"], model_id="m", region="r")["coverage"] == "complete"

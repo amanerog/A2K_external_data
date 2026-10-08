@@ -399,7 +399,7 @@ class CitationOut(BaseModel):
 
 
 class ClaimOut(BaseModel):
-    text: str
+    text: str = Field(description="A sentence or phrase copied verbatim, character for character, from `answer`.")
     type: str | None = None
     status: Literal["SUPPORTED", "DISPUTED", "INSUFFICIENT_EVIDENCE"] = "SUPPORTED"
     citationIndexes: list[int] = Field(
@@ -416,6 +416,15 @@ class AskContent(BaseModel):
     answer: str
     claims: list[ClaimOut] = Field(default_factory=list)
     citations: list[CitationOut] = Field(default_factory=list)
+    coverage: Literal["complete", "partial", "none"] = Field(
+        default="complete",
+        description='"complete": the answer gives everything the question asks for; "partial": only part of it; '
+        '"none": nothing the question asks for was found.',
+    )
+    missing: list[str] = Field(
+        default_factory=list,
+        description="For partial or none: each thing the question asks for that the tool outputs did not give, one short phrase each.",
+    )
     groundedRatio: float = Field(
         description="Self-reported groundedness anchor for `answer`; use only 1.0, 0.75, 0.5, or 0.0 "
         "according to the system prompt calibration. Not a verified/exact measurement -- see module docstring."
@@ -775,6 +784,16 @@ citations you're providing. To avoid false precision, use only these four anchor
 - 0.0: the answer is effectively unsupported by the cited tool output.
 Do not invent intermediate decimals. Do not call AskContent until you've run the SELF-CHECK step
 above.
+
+Claims: write each claim as a sentence or phrase copied verbatim from your `answer` -- character for
+character, not reworded, not translated, not shortened with "..." -- and give it the indexes of the
+citations that support it. Cover every factual statement of the answer with a claim; headings and
+connecting words need none. The claims are located in the answer text by exact match, so a claim
+that is not literally in the answer is lost.
+
+coverage and missing: say whether the answer gives everything the question asks for ("complete"),
+only part of it ("partial"), or nothing of it ("none" -- e.g. the tools returned nothing relevant),
+and for partial or none list, in `missing`, each thing asked for that the tools did not give.
 
 ---
 
@@ -1253,6 +1272,7 @@ def merge_ask_contents(
     claim_vendor_ids: list[str] = []
     answers: list[str] = []
     ratios: list[float] = []
+    best = max(contents, key=lambda c: ("none", "partial", "complete").index(c.coverage)) if contents else None
 
     for source_id, content in zip(source_ids, contents):
         offset = len(merged_citations)
@@ -1276,6 +1296,9 @@ def merge_ask_contents(
         "citations": merged_citations,
         "groundedRatio": sum(ratios) / len(ratios) if ratios else 0.0,
         "conflicts": conflicts,
+        # The best-covered vendor answer decides; its gaps are what is still missing.
+        "coverage": best.coverage if best else "none",
+        "missing": list(best.missing) if best else [],
     }
 
 

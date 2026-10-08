@@ -376,6 +376,13 @@ class CitedResponseEnvelope(BaseModel):
     # deterministic path.
     toolCalls: list[ToolCallRecord] = Field(default_factory=list)
 
+    # Internal (not on the pre-0.1 wire): the agent's own reading of how much
+    # of the question its answer covers, and what is missing -- the A2K 0.1
+    # adapter turns it into outcome answered / partial / refused. None for an
+    # answer that did not come from the agent this time (a cache hit).
+    coverage: Literal["complete", "partial", "none"] | None = None
+    missing: list[str] = Field(default_factory=list)
+
 
 # --- getDocument response (KCP section 4.4) -----------------------------------
 

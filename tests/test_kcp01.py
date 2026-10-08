@@ -310,3 +310,75 @@ async def test_search_with_every_vendor_unavailable_is_an_upstream_error(monkeyp
     out = adapter.search_response(adapter.SearchRequest.model_validate(search_request()), env)
     validate_by_name(out, "search-response")
     assert out["ok"] is False and out["error"]["code"] == "UPSTREAM_ERROR" and out["error"]["retryable"] is True
+
+
+# --- claims located in the answer, coverage -> outcome ------------------------------
+
+ANSWER = "La EBA exige un órgano de administración responsable 📈. El ratio CET1 es del 15,2 € por cada 100.\nFin."
+
+
+def _with_claims(*claims, coverage="complete", missing=(), citations=None):
+    from a2k.models.envelope import Claim
+
+    if citations is None:
+        citations = [
+            Citation(id="citation-1", documentId="d1", sourceUrl=URL, retrievedAt="2026-10-08T09:00:00Z"),
+            Citation(id="citation-2", documentId="d2", sourceUrl="https://www.ecb.europa.eu/stats", retrievedAt="2026-10-08T09:00:00Z"),
+            Citation(id="citation-3", documentId="api", retrievedAt="2026-10-08T09:00:00Z"),  # no URL: not usable
+        ]
+    claim_objs = [Claim(id=f"claim-{i}", text=t, status="SUPPORTED", citationIds=ids) for i, (t, ids) in enumerate(claims, 1)]
+    return internal(answer=ANSWER, citations=citations, claims=claim_objs, coverage=coverage, missing=list(missing))
+
+
+async def test_claims_are_located_with_code_point_spans(engine_returns):
+    engine_returns(_with_claims(
+        ("La EBA exige un órgano de administración responsable 📈.", ["citation-1"]),
+        ("El ratio CET1 es del   15,2 € por cada 100.", ["citation-2"]),  # extra spaces: still located
+        ("A sentence the answer never says.", ["citation-1"]),            # not in the answer: dropped
+    ))
+    out = await _call("a2k.ask", ask_request())
+    validate_by_name(out, "ask-response")
+    data = out["data"]
+    first, second = data["claims"]
+    s1, s2 = first["answerSpans"][0], second["answerSpans"][0]
+    assert data["answer"][s1["start"]:s1["end"]] == "La EBA exige un órgano de administración responsable 📈."
+    assert data["answer"][s2["start"]:s2["end"]] == "El ratio CET1 es del 15,2 € por cada 100."
+    assert first["citationIds"] == ["citation-1"] and second["citationIds"] == ["citation-2"]
+    assert data["grounding"]["status"] == "supported" and data["outcome"] == "answered"
+    assert {c["id"] for c in data["citations"]} == {"citation-1", "citation-2"}
+
+
+async def test_a_claim_citing_only_unusable_sources_makes_grounding_partial(engine_returns):
+    engine_returns(_with_claims(
+        ("La EBA exige un órgano de administración responsable 📈.", ["citation-1"]),
+        ("El ratio CET1 es del 15,2 € por cada 100.", ["citation-3"]),
+    ))
+    out = await _call("a2k.ask", ask_request())
+    validate_by_name(out, "ask-response")
+    assert [c["status"] for c in out["data"]["claims"]] == ["SUPPORTED", "INSUFFICIENT_EVIDENCE"]
+    assert out["data"]["grounding"]["status"] == "partial"
+
+
+async def test_no_locatable_claim_falls_back_to_one_claim_over_the_answer(engine_returns):
+    engine_returns(_with_claims(("Paraphrased, not in the answer.", ["citation-1"])))
+    out = await _call("a2k.ask", ask_request())
+    validate_by_name(out, "ask-response")
+    (claim,) = out["data"]["claims"]
+    assert claim["answerSpans"] == [{"start": 0, "end": len(ANSWER)}]
+
+
+async def test_partial_coverage_is_outcome_partial_with_what_is_missing(engine_returns):
+    engine_returns(_with_claims(("La EBA exige un órgano de administración responsable 📈.", ["citation-1"]),
+                                coverage="partial", missing=["Q4 2023 CET1 ratio"]))
+    out = await _call("a2k.ask", ask_request())
+    validate_by_name(out, "ask-response")
+    data = out["data"]
+    assert data["outcome"] == "partial" and data["answer"] == ANSWER
+    assert data["refusal"]["code"] == "INSUFFICIENT_EVIDENCE" and data["warnings"] == ["Not answered: Q4 2023 CET1 ratio"]
+
+
+async def test_coverage_none_is_a_refusal_even_with_answer_text(engine_returns):
+    engine_returns(_with_claims(coverage="none"))
+    out = await _call("a2k.ask", ask_request())
+    validate_by_name(out, "ask-response")
+    assert out["data"]["outcome"] == "refused" and "answer" not in out["data"]

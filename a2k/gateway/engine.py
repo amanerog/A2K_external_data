@@ -534,6 +534,8 @@ class GatewayEngine:
             conflicts=aware_conflicts,
             usage=self._agent_usage(t0, content, retrieval_count=len(claims)),
             toolCalls=self._agent_tool_calls(content),
+            coverage=content.get("coverage"),
+            missing=list(content.get("missing") or []),
         )
         self._cache(request_id, envelope)
         if shadow_task is not None:
