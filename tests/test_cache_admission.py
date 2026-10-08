@@ -752,3 +752,51 @@ def test_basic_still_requires_a_source_and_a_self_contained_question():
 
 def test_parse_json_object_tolerates_raw_control_characters_in_strings():
     assert parse_json_object('{"reason": "line one\nline two\tend"}') == {"reason": "line one\nline two\tend"}
+
+
+# --- citations checked against the tool output on every live answer ----------------
+
+
+def _calls(output_url="https://www.reuters.com/sustainability/bbva-bid/", fetched="https://www.vw.com/report.html"):
+    return [
+        {"vendor": "linkup", "toolName": "linkup-search", "input": {"query": "q"},
+         "output": _tool_output({"results": [{"url": output_url, "content": "BBVA launches bid"}]}), "status": "success", "errorType": None},
+        {"vendor": "linkup", "toolName": "linkup-fetch", "input": {"url": fetched},
+         "output": _tool_output({"markdown": "Group structure ..."}), "status": "success", "errorType": None},
+        {"vendor": "linkup", "toolName": "linkup-fetch", "input": {"url": "https://blocked.example/page"},
+         "output": "403", "status": "error", "errorType": "HTTPError"},
+    ]
+
+
+def test_citations_with_urls_no_tool_returned_are_flagged():
+    citations = [
+        {"sourceUrl": "https://www.reuters.com/sustainability/bbva-bid/"},          # returned by the search
+        {"sourceUrl": "https://www.reuters.com/business/finance/bbva-bid/"},        # rewritten path: invented
+        {"sourceUrl": "https://www.vw.com/report.html"},                            # page fetched successfully
+        {"sourceUrl": "https://blocked.example/page"},                              # its fetch failed
+        {"sourceUrl": None, "documentId": "query_c308df84"},                        # internal id, not in the output
+        {"title": "no reference at all"},
+    ]
+    assert filters.unverified_citations(citations, _calls()) == [1, 3, 4]
+
+
+def test_t5_accepts_a_page_the_agent_fetched():
+    c = make_candidate(tool_calls=_calls(), citations=[{"sourceUrl": "https://www.vw.com/report.html"}])
+    assert filters.t5_sources_real(c).passed
+
+
+def test_engine_empties_invented_citations_but_keeps_their_place(capsys):
+    from a2k.gateway.engine import GatewayEngine
+
+    content = {"toolCalls": _calls(), "citations": [
+        {"sourceUrl": "https://www.reuters.com/sustainability/bbva-bid/", "title": "a"},
+        {"sourceUrl": "https://www.reuters.com/business/finance/bbva-bid/", "title": "b"},
+    ]}
+    cleaned = GatewayEngine._without_invented_sources(content, "req-1")
+    assert cleaned["citations"][0]["sourceUrl"].endswith("sustainability/bbva-bid/")
+    assert cleaned["citations"][1] == {"sourceUrl": None, "title": "b", "documentId": None}
+    log = json.loads([line for line in capsys.readouterr().out.splitlines() if line.startswith("{")][-1])
+    assert log["event"] == "agent.citations_dropped" and log["dropped"] == 1
+    # A cache hit (no tool calls) is left alone: its sources were checked at admission.
+    hit = {"toolCalls": [], "citations": [{"sourceUrl": "https://x.example"}]}
+    assert GatewayEngine._without_invented_sources(hit, "req-2") is hit

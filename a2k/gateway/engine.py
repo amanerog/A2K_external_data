@@ -40,7 +40,7 @@ from ..models.envelope import (
 from ..models.request import A2KRequest, ExplainRequest, GetDocumentRequest
 from . import audit as gw_audit
 from . import conflict, synthesis, tracing
-from ..cache import admission, retrieval
+from ..cache import admission, filters, retrieval
 from ..cache.models import Candidate
 from ..cache.store import AuroraStore, S3EvidenceStore
 
@@ -250,6 +250,7 @@ class GatewayEngine:
         retrieved_at = None
         decision_reason = None
 
+        content = self._without_invented_sources(content, request_id)
         citations = [
             self._citation_from_agent(i, c, retrieved_at=retrieved_at)
             for i, c in enumerate(content.get("citations") or [])
@@ -464,6 +465,7 @@ class GatewayEngine:
             retrieved_at = None
             decision_reason = None
 
+        content = self._without_invented_sources(content, request_id)
         citations = [
             self._citation_from_agent(i, c, retrieved_at=retrieved_at)
             for i, c in enumerate(content.get("citations") or [])
@@ -1000,6 +1002,27 @@ class GatewayEngine:
         if not body.get("ok"):
             raise A2KError(ErrorCode.UPSTREAM_ERROR, f"Agent reported failure: {body.get('error')}")
         return body.get("content") or {}
+
+    @staticmethod
+    def _without_invented_sources(content: dict, request_id: str) -> dict:
+        """The agent's citations whose URL no vendor tool returned are emptied
+        (no sourceUrl, no documentId): it rewrites URLs when it writes the
+        answer, and K2 must never get a link the vendor did not give. The
+        citation keeps its place, so claims still point at the right indexes;
+        an empty one has no resolver and the A2K 0.1 adapter leaves it out, and
+        a claim citing only that becomes INSUFFICIENT_EVIDENCE. Cache hits are
+        not checked here: their sources were verified at admission (T5)."""
+        tool_calls = content.get("toolCalls") or []
+        citations = content.get("citations") or []
+        if not tool_calls or not citations:
+            return content
+        dropped = filters.unverified_citations(citations, tool_calls)
+        if not dropped:
+            return content
+        emit({"event": "agent.citations_dropped", "request_id": request_id, "dropped": len(dropped), "of": len(citations),
+              "urls": [citations[i].get("sourceUrl") or citations[i].get("documentId") for i in dropped][:10]})
+        cleaned = [dict(c, sourceUrl=None, documentId=None) if i in dropped else c for i, c in enumerate(citations)]
+        return {**content, "citations": cleaned}
 
     def _citation_from_agent(self, index: int, citation: dict, *, retrieved_at: str | None = None) -> Citation:
         """Builds a real Citation from the agent's lightweight CitationOut

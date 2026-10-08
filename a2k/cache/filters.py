@@ -113,12 +113,10 @@ def t5_sources_real(candidate: Candidate) -> FilterResult:
     literally in some tool output; a source that is not there is treated as
     invented and the answer is not cached. At least one source is required.
     The verified citations are what gets stored as the entry's `sources`."""
-    corpus = normalize_for_match(
-        "\n".join(tool_output_text(tc.get("output")) for tc in vendor_tool_calls(candidate.tool_calls))
-    )
+    corpus = tool_corpus(candidate.tool_calls)
 
     def found(value: str) -> bool:
-        return any(v and v in corpus for v in _url_variants(value))
+        return source_found(value, corpus)
 
     verified: list[dict[str, Any]] = []
     invented: list[str] = []
@@ -157,3 +155,34 @@ def run(candidate: Candidate, *, min_chars: int, fallback_messages: tuple[str, .
         if not result.passed:
             return result
     return result
+
+
+# --- citations checked against the tool output, on every live answer ---------
+
+
+def tool_corpus(tool_calls: list[dict[str, Any]]) -> str:
+    """What the vendor tools returned, normalised for source lookups -- plus
+    the URLs of the pages that successful calls read (a page fetch carries
+    its URL in its input, not in the page it returns)."""
+    calls = vendor_tool_calls(tool_calls)
+    read = [url for tc in calls if not _failed(tc) for url in _input_urls(tc)]
+    return normalize_for_match("\n".join([tool_output_text(tc.get("output")) for tc in calls] + read))
+
+
+def source_found(ref: str, corpus: str) -> bool:
+    return any(v and v in corpus for v in _url_variants(ref))
+
+
+def unverified_citations(citations: list[dict[str, Any]], tool_calls: list[dict[str, Any]]) -> list[int]:
+    """Indexes of the citations whose URL (or, with none, documentId) appears
+    in no vendor tool output -- written by the agent, not returned by the
+    vendor. Routing run 2026-10-08: 9 answers cited URLs with a rewritten
+    path (reuters.com/business/finance/... for the returned
+    reuters.com/sustainability/...)."""
+    corpus = tool_corpus(tool_calls)
+    out = []
+    for i, citation in enumerate(citations):
+        ref = citation.get("sourceUrl") or citation.get("documentId")
+        if ref and not source_found(ref, corpus):
+            out.append(i)
+    return out

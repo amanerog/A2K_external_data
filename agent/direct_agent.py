@@ -744,6 +744,12 @@ or complete a partial one (a truncated ID, an incomplete address, a relationship
 link) -- pass it along exactly as incomplete as the tool gave it to you, rather than closing the
 gap yourself.
 
+- The same applies to every URL you put in a citation's sourceUrl: copy it exactly as a tool
+returned it, character for character -- never write a URL from memory, rebuild it from a title, or
+change its path, section, language or region segment. Every cited URL is checked against the tool
+outputs and one that is not there is removed. If a tool gave no URL for a source, leave sourceUrl
+empty rather than guessing one.
+
 - The same applies to quoted or reported text a tool returns -- a review, a quote attributed to
 someone, the wording of a clause or provision. When the question asks what something
 specifically says, reproduce the tool's own wording rather than a paraphrase of its general
