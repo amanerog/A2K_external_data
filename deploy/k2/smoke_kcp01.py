@@ -68,7 +68,10 @@ class Session:
         result = self.rpc("tools/call", {"name": tool, "arguments": arguments})
         if result.get("isError"):
             raise RuntimeError(f"{tool}: isError true -- an A2K envelope is never isError: {result}")
-        return result["structuredContent"], time.monotonic() - t0
+        if "structuredContent" in result:  # a2k.ask / a2k.search
+            return result["structuredContent"], time.monotonic() - t0
+        # The internal.* tools return their result as JSON text only.
+        return json.loads(result["content"][0]["text"]), time.monotonic() - t0
 
 
 def main() -> None:
