@@ -392,3 +392,11 @@ def test_claims_are_located_ignoring_markdown_emphasis():
         start, end = _locate(claim, answer)
         assert answer[start:end].replace("*", "") == claim
     assert _locate("Not in the answer at all", answer) is None
+
+
+def test_a_claim_closed_with_a_full_stop_mid_sentence_is_located():
+    from a2k.kcp01.adapter import _locate
+
+    answer = "A REVOLUT LTD está registada no Reino Unido e o seu histórico societário é longo."
+    start, end = _locate("A REVOLUT LTD está registada no Reino Unido.", answer)
+    assert answer[start:end] == "A REVOLUT LTD está registada no Reino Unido"

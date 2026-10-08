@@ -886,7 +886,11 @@ class GatewayEngine:
         pool -- separate from anything the Cala/Sayari adapters use. Mirrors
         agent/core.py's get_bearer_token() (same client-credentials shape,
         different pool/URL) -- see config.py's agent_pool_* fields."""
-        if self._agent_token and time.monotonic() < self._agent_token_expires_at:
+        # Wall clock, not monotonic: an AgentCore microVM can sit frozen between
+        # sessions, monotonic time does not advance while it does, and a token
+        # that expired meanwhile looked fresh -- 8 consecutive 401s from one
+        # session in the routing run of 2026-10-08.
+        if self._agent_token and time.time() < self._agent_token_expires_at:
             return self._agent_token
 
         data = {"grant_type": "client_credentials"}
@@ -907,7 +911,7 @@ class GatewayEngine:
                 raise A2KError(ErrorCode.UPSTREAM_ERROR, f"Agent pool token request failed: {exc}") from exc
 
         self._agent_token = payload["access_token"]
-        self._agent_token_expires_at = time.monotonic() + float(payload.get("expires_in", 3600)) - 30
+        self._agent_token_expires_at = time.time() + float(payload.get("expires_in", 3600)) - 30
         return self._agent_token
 
     async def _call_agent(self, operation: str, query: str, sources: list[str] | None, request_id: str) -> dict:
@@ -972,15 +976,22 @@ class GatewayEngine:
         # answer, so a question needing 3+ searches can't fit in 240s.
         async with httpx.AsyncClient(timeout=600.0, verify=config.httpx_verify) as client:
             try:
-                resp = await client.post(
-                    config.agent_runtime_url,
-                    json=payload,
-                    headers={
-                        "Authorization": f"Bearer {token}",
-                        "Content-Type": "application/json",
-                        "Accept": "application/json",
-                    },
-                )
+                for attempt in (1, 2):
+                    resp = await client.post(
+                        config.agent_runtime_url,
+                        json=payload,
+                        headers={
+                            "Authorization": f"Bearer {token}",
+                            "Content-Type": "application/json",
+                            "Accept": "application/json",
+                        },
+                    )
+                    if resp.status_code == 401 and attempt == 1:
+                        # A token the pool no longer accepts: fetch a new one, once.
+                        self._agent_token = None
+                        token = await self._get_agent_token()
+                        continue
+                    break
                 resp.raise_for_status()
                 body = resp.json()
             except httpx.HTTPError as exc:

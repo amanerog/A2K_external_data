@@ -272,6 +272,17 @@ _MARKDOWN = set("*_`")
 
 
 def _locate(text: str, answer: str) -> tuple[int, int] | None:
+    """A claim's span in the answer (see _locate_exact). A claim the agent
+    closed with a full stop where the answer's sentence goes on ("…no Reino
+    Unido." for "…no Reino Unido e o seu histórico…") is found without it."""
+    span = _locate_exact(text, answer)
+    trimmed = text.strip().rstrip(".;:,")
+    if span is None and trimmed and trimmed != text.strip():
+        span = _locate_exact(trimmed, answer)
+    return span
+
+
+def _locate_exact(text: str, answer: str) -> tuple[int, int] | None:
     """Where a claim sits in the answer: an exact match; else the same words
     with any whitespace between them; else the same once markdown emphasis
     is ignored on both sides -- the agent writes "Q4 2022: $9.9 billion" for
