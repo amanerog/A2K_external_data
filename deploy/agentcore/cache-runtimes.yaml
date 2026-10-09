@@ -1,0 +1,127 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'a2k cache Runtimes (E2.1): a2k-box (Box) and the agent (Agent). Generated from the live Runtimes by deploy/agentcore/runtimes_stack.py export; secrets are NoEcho parameters.'
+Parameters:
+  BoxCodeBucket:
+    Type: String
+  BoxCodeKey:
+    Type: String
+    Description: S3 key of the code zip (update_cache_runtime.py sets it)
+  BoxEnvA2kSecretsArn:
+    Type: String
+    NoEcho: true
+  BoxEnvAgentPoolClientSecret:
+    Type: String
+    NoEcho: true
+  BoxEnvAgentPoolTokenUrl:
+    Type: String
+    NoEcho: true
+  BoxEnvAuroraSecretArn:
+    Type: String
+    NoEcho: true
+  BoxCacheDomainModes:
+    Type: String
+    Description: CACHE_DOMAIN_MODES on a2k_cache_mcp
+  BoxCacheMode:
+    Type: String
+    Description: CACHE_MODE on a2k_cache_mcp
+  AgentCodeBucket:
+    Type: String
+  AgentCodeKey:
+    Type: String
+    Description: S3 key of the code zip (update_cache_runtime.py sets it)
+  AgentEnvAgentSecretsArn:
+    Type: String
+    NoEcho: true
+Resources:
+  Box:
+    Type: AWS::BedrockAgentCore::Runtime
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      AgentRuntimeName: a2k_cache_mcp
+      RoleArn: arn:aws:iam::396961015428:role/BedrockAgentCoreLeapfrog
+      AgentRuntimeArtifact:
+        CodeConfiguration:
+          Code:
+            S3:
+              Bucket:
+                Ref: BoxCodeBucket
+              Prefix:
+                Ref: BoxCodeKey
+          EntryPoint:
+          - entrypoint.py
+          Runtime: PYTHON_3_13
+      EnvironmentVariables:
+        A2K_BOX_MODE: live
+        A2K_INTERNAL_TOOLS: 'true'
+        A2K_SECRETS_ARN:
+          Ref: BoxEnvA2kSecretsArn
+        ADMISSION_ALLOWED_VENDORS: cala,linkup
+        AGENT_POOL_CLIENT_ID: 5lia20atorb7749d40cdofgjrs
+        AGENT_POOL_CLIENT_SECRET:
+          Ref: BoxEnvAgentPoolClientSecret
+        AGENT_POOL_SCOPE: a2k-box-to-agent/invoke
+        AGENT_POOL_TOKEN_URL:
+          Ref: BoxEnvAgentPoolTokenUrl
+        AGENT_RUNTIME_URL: https://bedrock-agentcore.eu-west-1.amazonaws.com/runtimes/arn%3Aaws%3Abedrock-agentcore%3Aeu-west-1%3A396961015428%3Aruntime%2Fa2k_cache_agent-oEBeCrBECq/invocations?qualifier=DEFAULT
+        AURORA_CLUSTER_ARN: arn:aws:rds:eu-west-1:396961015428:cluster:a2k-cache
+        AURORA_DATABASE: a2k_cache
+        AURORA_SECRET_ARN:
+          Ref: BoxEnvAuroraSecretArn
+        CACHE_DOMAIN_MODES:
+          Ref: BoxCacheDomainModes
+        CACHE_EVIDENCE_BUCKET: a2k-cache-evidence-396961015428-euw1
+        CACHE_MODE:
+          Ref: BoxCacheMode
+        VENDOR_CARDS_TABLE: A2K_external_data_vendors
+      ProtocolConfiguration: MCP
+      NetworkConfiguration:
+        NetworkMode: PUBLIC
+      LifecycleConfiguration:
+        IdleRuntimeSessionTimeout: 900
+        MaxLifetime: 28800
+  Agent:
+    Type: AWS::BedrockAgentCore::Runtime
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      AgentRuntimeName: a2k_cache_agent
+      RoleArn: arn:aws:iam::396961015428:role/BedrockAgentCoreLeapfrog
+      AgentRuntimeArtifact:
+        CodeConfiguration:
+          Code:
+            S3:
+              Bucket:
+                Ref: AgentCodeBucket
+              Prefix:
+                Ref: AgentCodeKey
+          EntryPoint:
+          - entrypoint_a2k.py
+          Runtime: PYTHON_3_13
+      EnvironmentVariables:
+        AGENT_SECRETS_ARN:
+          Ref: AgentEnvAgentSecretsArn
+        AWS_REGION: eu-west-1
+        BEDROCK_MODEL_ID: eu.anthropic.claude-sonnet-4-5-20250929-v1:0
+      ProtocolConfiguration: HTTP
+      NetworkConfiguration:
+        NetworkMode: PUBLIC
+      AuthorizerConfiguration:
+        CustomJWTAuthorizer:
+          DiscoveryUrl: https://cognito-idp.eu-west-1.amazonaws.com/eu-west-1_PCj6HGcJP/.well-known/openid-configuration
+          AllowedClients:
+          - 5lia20atorb7749d40cdofgjrs
+      LifecycleConfiguration:
+        IdleRuntimeSessionTimeout: 900
+        MaxLifetime: 28800
+Outputs:
+  BoxRuntimeArn:
+    Value:
+      Fn::GetAtt:
+      - Box
+      - AgentRuntimeArn
+  AgentRuntimeArn:
+    Value:
+      Fn::GetAtt:
+      - Agent
+      - AgentRuntimeArn
