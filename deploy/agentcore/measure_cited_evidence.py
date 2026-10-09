@@ -12,6 +12,11 @@ answer and variant (a Linkup answer with full evidence ~0.10-0.30 USD).
 Usage:
     python deploy/agentcore/measure_cited_evidence.py ../A2K_external_data/deploy/agentcore/routing_p1.jsonl \\
         [--per-vendor linkup=15,cala=5 | --ids 1,2,3] [--cap 20000] [--workers 4] --output cited_evidence.jsonl
+
+Judge noise: Sonnet 5 takes no temperature, so the same evidence can get a
+different verdict. --variants full --baseline cited_evidence.jsonl runs the
+full evidence again on the same answers and compares it with the earlier
+full run -- how much the judge disagrees with itself.
 """
 
 from __future__ import annotations
@@ -69,7 +74,14 @@ def main() -> None:
     parser.add_argument("--cap", type=int, default=20000)
     parser.add_argument("--workers", type=int, default=4)
     parser.add_argument("--output", default="cited_evidence.jsonl")
+    parser.add_argument("--variants", default=",".join(VARIANTS))
+    parser.add_argument("--baseline", help="earlier output: its full run is compared with this run's variants")
     args = parser.parse_args()
+    variants = tuple(args.variants.split(","))
+    baseline = {}
+    if args.baseline:
+        baseline = {r["id"]: r["variants"]["full"] for r in map(json.loads, open(args.baseline, encoding="utf-8")) if "full" in r.get("variants", {})}
+        args.ids = args.ids or ",".join(baseline)
 
     per_vendor = {k: int(v) for k, v in (x.split("=") for x in args.per_vendor.split(","))}
     rows = load(args.jsonl, set(args.ids.split(",")) if args.ids else None, per_vendor)
@@ -91,7 +103,7 @@ def main() -> None:
         cited, how = cited_evidence_text(candidate)
         texts = {"full": full, "cited": cited, "capped": cited if grounding else cap_sections(cited, args.cap)}
         out.update(domain=cls.domain_primary, grounding=grounding, cut=how, self_contained=cls.self_contained)
-        for name in VARIANTS:
+        for name in variants:
             text = texts[name]
             v: dict = {"chars": len(text)}
             if len(text) > config.admission_max_evidence_chars:
@@ -125,25 +137,31 @@ def main() -> None:
                 fh.flush()
                 vs = res["variants"]
                 print(f"id={res['id']:>4} {res['vendor']:<6} {res.get('domain', '?'):<4} "
-                      + "  ".join(f"{n}={vs[n]['outcome']}/{vs[n].get('data_as_of')}/{vs[n]['chars'] // 1000}k" for n in VARIANTS if n in vs)
+                      + "  ".join(f"{n}={vs[n]['outcome']}/{vs[n].get('data_as_of')}/{vs[n]['chars'] // 1000}k" for n in variants if n in vs)
                       + (f"  ERROR {res['error']}" if res.get("error") else ""), flush=True)
 
     done = [r for r in results if not r.get("error")]
     print(f"\n{len(done)} answer(s) compared")
-    for name in ("cited", "capped"):
-        same_outcome = sum(r["variants"]["full"]["outcome"] == r["variants"][name]["outcome"] for r in done)
-        same_date = sum(r["variants"]["full"].get("data_as_of") == r["variants"][name].get("data_as_of") for r in done)
-        same_kind = sum(r["variants"]["full"].get("data_kind") == r["variants"][name].get("data_kind") for r in done)
-        print(f"{name:>6} vs full: same outcome {same_outcome}/{len(done)}, same data_as_of {same_date}/{len(done)}, same data_kind {same_kind}/{len(done)}")
+    if baseline:
         for r in done:
-            a, b = r["variants"]["full"], r["variants"][name]
+            r["variants"]["baseline full"] = baseline[r["id"]]
+    reference = "baseline full" if baseline else "full"
+    for name in [v for v in variants if v != reference or baseline]:
+        if name == reference:
+            continue
+        same_outcome = sum(r["variants"][reference]["outcome"] == r["variants"][name]["outcome"] for r in done)
+        same_date = sum(r["variants"][reference].get("data_as_of") == r["variants"][name].get("data_as_of") for r in done)
+        same_kind = sum(r["variants"][reference].get("data_kind") == r["variants"][name].get("data_kind") for r in done)
+        print(f"{name:>6} vs {reference}: same outcome {same_outcome}/{len(done)}, same data_as_of {same_date}/{len(done)}, same data_kind {same_kind}/{len(done)}")
+        for r in done:
+            a, b = r["variants"][reference], r["variants"][name]
             if a["outcome"] != b["outcome"]:
                 print(f"         id={r['id']} {r['vendor']} {r.get('domain')}: full {a['outcome']} ({a.get('reason', '')[:70]}) -> {name} {b['outcome']} ({b.get('reason', '')[:70]})")
     for vendor in sorted({r["vendor"] for r in done}):
         mine = [r for r in done if r["vendor"] == vendor]
-        costs = {n: [r["variants"][n]["usage"]["cost_usd"] for r in mine if "usage" in r["variants"][n]] for n in VARIANTS}
+        costs = {n: [r["variants"][n]["usage"]["cost_usd"] for r in mine if "usage" in r["variants"][n]] for n in variants}
         print(f"{vendor}: mean judge cost " + ", ".join(f"{n} {statistics.mean(c):.3f}" for n, c in costs.items() if c) + " USD")
-    print("by outcome: " + "; ".join(f"{n} {dict(Counter(r['variants'][n]['outcome'] for r in done))}" for n in VARIANTS))
+    print("by outcome: " + "; ".join(f"{n} {dict(Counter(r['variants'][n]['outcome'] for r in done))}" for n in variants))
 
 
 if __name__ == "__main__":
