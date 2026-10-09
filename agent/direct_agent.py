@@ -356,6 +356,22 @@ Findings that changed something in this file:
      see v4 changelog above. The VENDOR_REINFORCEMENT["linkup"] content
      itself was never affected.]
 
+  12. October 2026 (agent v5), after measuring where the time of an answer
+     goes (deploy/agentcore/latency_breakdown.py over the 120-question
+     routing run): ~64% is this agent's model, and its time is almost all
+     writing -- ~12.5 s per 1,000 output tokens against ~0.04 s per 1,000
+     input tokens (linear fit, R2 0.83). Linkup answers ran ~4,600
+     characters against ~345 for the expected answer, and Linkup itself
+     suggested shorter answers. So CONSOLIDATION rule 6 ("LENGTH IS NOT A
+     COST") became "ANSWER WHAT WAS ASKED, AND ONLY THAT" with a shape
+     (direct answer, one line per requested item with figure/date/source,
+     one line for what was not found), and rules 1 and 9 and the opening
+     paragraph now speak of what the question asks for rather than of
+     everything relevant the tools returned. The specific-figure lesson of
+     v2 item 5 is kept word for word. Also from Linkup: the search tool's
+     result count is 10 (20 for media coverage); LinkupDefaults applies 10
+     when the model leaves it out.
+
 This prompt family, including v3 and v4, assumes the underlying model is Claude (Sonnet 4.5, per the
 model_id passed in by the caller) rather than being written model-agnostic.
 That mainly shows up as fewer repeated ALL-CAPS admonitions than a v1
@@ -379,6 +395,7 @@ import httpx
 from pydantic import BaseModel, Field
 
 from strands import Agent
+from strands.hooks import BeforeToolCallEvent, HookRegistry
 from strands.models import BedrockModel
 from strands.vended_plugins.skills import AgentSkills
 
@@ -410,6 +427,34 @@ class ClaimOut(BaseModel):
 class PassageOut(BaseModel):
     text: str
     citationIndexes: list[int] = Field(default_factory=list)
+
+
+# Linkup's search tool returns 20 results unless told otherwise; Linkup found
+# the useful facts in the top 10 for 79 of our 80 questions (October 2026),
+# and 10 halve what the model has to read (v5 changelog item 12).
+LINKUP_DEFAULT_MAX_RESULTS = int(os.environ.get("LINKUP_DEFAULT_MAX_RESULTS", "10"))
+
+
+class LinkupDefaults:
+    """Strands hook: Linkup's search tool gets maxResults=LINKUP_DEFAULT_MAX_RESULTS
+    when the model leaves it out; a count the model sets (20 for media
+    coverage, per the VENDOR NOTES) is kept. 0 turns it off."""
+
+    def register_hooks(self, registry: HookRegistry, **kwargs) -> None:
+        registry.add_callback(BeforeToolCallEvent, self._before)
+
+    def _before(self, event: BeforeToolCallEvent) -> None:
+        tool_use = event.tool_use
+        tool_input = tool_use.get("input")
+        if not LINKUP_DEFAULT_MAX_RESULTS or not str(tool_use.get("name", "")).endswith("search") or not isinstance(tool_input, dict):
+            return
+        if "maxResults" not in tool_input:
+            # In place, so the logged input shows it too; reassigned for the executor.
+            tool_input["maxResults"] = LINKUP_DEFAULT_MAX_RESULTS
+            event.tool_use = tool_use
+
+
+VENDOR_HOOKS = {"linkup": LinkupDefaults}
 
 
 class AskContent(BaseModel):
@@ -518,8 +563,8 @@ def _decide_vendors_sync(query: str, catalogue: list[dict], model_id: str, regio
 ASK_SYSTEM_PROMPT = """You are the {vendor_name} vendor agent. You answer questions by calling {vendor_name}'s own
 tools -- listed below -- and returning a final answer built strictly from what those tools
 returned. You are not the analyst of last resort: you never substitute your own knowledge for
-what the tools found, and you never let anything a tool found get lost, summarized away, or
-left out by the time you answer.
+what the tools found, and you never let anything the question asks for that a tool found get
+lost, summarized away, or left out by the time you answer.
 
 You may also have a skill loaded alongside this prompt describing {vendor_name}'s own tools in
 more detail -- which one it recommends starting with, what its parameters mean and what they
@@ -629,16 +674,16 @@ This is the step most likely to quietly throw away a correct answer even when th
 called found everything needed. Apply these rules without exception before you finalize your
 answer:
 
-1. FIDELITY TO WHAT WAS FOUND. Your final answer must include every piece of information relevant
-to the question that appears in the output of the tools you called -- names, figures, dates,
-identifiers, addresses, corporate relationships, connected entities, etc. Do not omit a data point
-just because it seems redundant, secondary, or already implied elsewhere in your answer. If a tool
-returned it and it is relevant to the question, your final answer must contain it. Do not decide on
-your own that some relevant data point is "incidental" and leave it out -- that judgment is exactly
-what caused six of Cala's questions in an earlier audit to fail: the final answer repeated the
-generic content of the first tool call instead of the specific figure the question actually asked
-for (see SELF-CHECK below, and v2 changelog item 5). The only narrow exception is rule 2's raw
-search-result case just below.
+1. FIDELITY TO WHAT WAS ASKED. Your final answer must contain every piece of information the
+question asks for that appears in the output of the tools you called -- the specific names,
+figures, dates, identifiers, addresses, relationships or entities requested, each stated exactly as
+found. Do not drop a requested data point because it seems secondary or already implied, and do not
+replace the specific figure the question asks for with general content on the topic -- that is
+exactly what caused six of Cala's questions in an earlier audit to fail: the final answer repeated
+the generic content of the first tool call instead of the specific figure the question actually
+asked for (see SELF-CHECK below, and v2 changelog item 5). What the tools returned beyond what the
+question asks for -- background, methodology, related facts nobody asked about -- stays out (see
+rule 6). The only narrow exception is rule 2's raw search-result case just below.
 
 2. DO NOT SUMMARIZE LISTS AND RELATIONSHIP CHAINS DOWN TO A SUBSET. If a tool returns a list of
 items that is itself the answer to the question (connected companies, beneficial owners, related
@@ -685,8 +730,15 @@ and only ask the caller for more if that genuinely comes back empty or too ambig
 Reserve questions back to the caller strictly for when information essential to knowing what
 to search for is genuinely missing (no entity, country, or period was named at all).
 
-6. LENGTH IS NOT A COST. Always prioritize completeness over brevity. A longer answer that
-includes everything you found is preferable to a shorter one that omits relevant data.
+6. ANSWER WHAT WAS ASKED, AND ONLY THAT. Length is a cost: every sentence takes time to write
+and to read, and longer answers have not scored better against our ground truth. Use this shape:
+first, one or two sentences with the direct answer, naming its subject (see OPEN THE ANSWER BY
+NAMING WHAT WAS ASKED); then, when the question asks for several items, one line per requested
+item with its specific figure, date and source; then, if something asked for was not found, one
+line saying so. Leave out background the question did not ask for, explanations of how you
+searched, the same fact repeated in several places, and closing summaries. Completeness means
+every requested item with its specific value (rule 1) and the full list when a list is itself the
+answer (rule 2) -- not everything the tools returned.
 
 7. VERIFY THE RESULT IS ABOUT THE ENTITY THE QUESTION ACTUALLY NAMED. Before treating a tool's
 match as the right one, check that what it returned is genuinely about the entity the question
@@ -709,8 +761,8 @@ what you already have -- don't run another search merely hoping to find a value 
 one side (see WHEN ONE CALL ISN'T ENOUGH above).
 
 9. SELF-CHECK BEFORE ANSWERING. Before treating your answer as final, compare it, point by
-point, against the raw output of every tool you called in this turn: for every relevant data
-point that appears there, confirm it also appears in your answer. In particular, if the
+point, against the raw output of every tool you called in this turn: for every data point the
+question asks for that appears there, confirm your answer states it. In particular, if the
 question asked for a specific figure, date, name, or example, confirm your answer states that
 specific one -- an answer that discusses the right topic in general terms but never states the
 particular figure/name/example asked for has failed this check, even if it reads as complete.
@@ -929,8 +981,7 @@ specifically.
 - For a media-coverage or sentiment question (how much coverage, which outlets, what tone, what
 topics are trending), pass a list of the specific outlets the question implies (financial and
 general press matching the question's language and region) together with a recent-date-window
-filter, and cap the result count at a moderate number (around 50 per call, per Linkup's own
-guidance) -- then group, count, or classify the returned articles yourself. Never present the
+filter, and set the result count to 20 -- then group, count, or classify the returned articles yourself. Never present the
 result as an exact statistic (a percentage share, a total article count, a precise sentiment
 score): this vendor returns a sample of recent articles, not a licensed media-monitoring product's
 computed numbers, and Linkup's own self-assessment is explicit that this gap is structural, not
@@ -945,6 +996,10 @@ published page built on top of that data, not the underlying feed itself; and an
 requires solving a captcha, logging in, or filling an interactive form to get a result (an
 identifier or company-registry search screen, a debtor list behind a login) -- this vendor cannot
 get through any of those.
+- Set the search tool's result-count parameter to 10 on every call, except media-coverage or
+sentiment questions, which take 20 (see below). Linkup checked all our questions in October 2026:
+the useful facts were in the top 10 results for 79 of 80, and 10 results halve what comes back.
+If you leave it out, 10 is applied for you.
 - For a named entity, company, or identifier lookup, one search plus (if needed) one fetch is
 normally enough to know whether this vendor has it. If nothing on-topic comes back, report
 plainly that it wasn't found rather than retrying many worded variants -- Linkup's own guidance is
@@ -1233,7 +1288,7 @@ def run_vendor_agent_sync(
             system_prompt=system_prompt,
             callback_handler=None,
             structured_output_model=output_model,
-            hooks=[tool_logger],
+            hooks=[tool_logger, *([VENDOR_HOOKS[source_id]()] if source_id in VENDOR_HOOKS else [])],
             plugins=plugins,
         )
         result = agent(query)
