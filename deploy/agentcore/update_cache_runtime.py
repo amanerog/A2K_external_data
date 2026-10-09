@@ -105,11 +105,14 @@ def main() -> None:
 
 def owning_stack(cfn, runtime_id: str) -> tuple[str, str] | None:
     """(stack name, logical id) of the stack the Runtime was imported into, if any."""
+    # Given a PhysicalResourceId, CloudFormation returns every resource of the
+    # stack that holds it -- the Runtime is the one with that id.
     try:
         resources = cfn.describe_stack_resources(PhysicalResourceId=runtime_id)["StackResources"]
     except ClientError:
         return None
-    return (resources[0]["StackName"], resources[0]["LogicalResourceId"]) if resources else None
+    mine = [r for r in resources if r.get("PhysicalResourceId") == runtime_id]
+    return (mine[0]["StackName"], mine[0]["LogicalResourceId"]) if mine else None
 
 
 def deploy_through_stack(cfn, control, rt: dict, owner: tuple[str, str], *, zip_path: Path, key: str, bucket: str, sets: list[str], region: str, apply: bool) -> None:
