@@ -876,3 +876,8 @@ def test_the_size_limit_applies_to_what_the_judge_reads():
 def test_the_evidence_mode_is_recorded_in_the_admission_versions():
     assert BASIC.versions("p")["evidence"] == "capped-20000"
     assert admission.AdmissionSettings(light_model_id="l", judge_model_id="j", embedding_model_id="t", mode="strict").versions("p")["evidence"] == "full"
+
+
+def test_two_json_objects_in_a_row_take_the_first():
+    assert parse_json_object('{"a": 1}\n{"b": 2}') == {"a": 1}
+    assert parse_json_object('Here: {"a": {"x": "}"}} and then {"b": 2}') == {"a": {"x": "}"}}

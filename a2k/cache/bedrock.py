@@ -44,7 +44,12 @@ def parse_json_object(text: str) -> dict[str, Any]:
         # (invalid control character, POCv3 id 32 in basic mode, 2026-10-06).
         parsed = json.loads(text[start : end + 1], strict=False)
     except json.JSONDecodeError as exc:
-        raise ModelOutputError(f"invalid JSON in model output: {exc}") from exc
+        # Two objects in a row ("{...}\n{...}", Haiku in retrieval, 2026-10-09):
+        # the first complete one is the answer.
+        try:
+            parsed, _ = json.JSONDecoder(strict=False).raw_decode(text[start:])
+        except json.JSONDecodeError:
+            raise ModelOutputError(f"invalid JSON in model output: {exc}") from exc
     if not isinstance(parsed, dict):
         raise ModelOutputError("model output is JSON but not an object")
     return parsed
