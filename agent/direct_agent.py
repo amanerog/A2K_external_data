@@ -378,6 +378,14 @@ Findings that changed something in this file:
      requested item, no sub-bullets, paragraphs, headings or sections --
      and gives a length guide (~300 characters for a single fact, ~1,000
      for ten items).
+  14. Agent v7, after the v6 run on the same 30 questions: fewer flagged
+     hallucinations (13 -> 10), better traceability and clarity, 21% faster
+     than v5 -- but completeness fell (2.97 -> 2.70) and acceptable answers
+     with it (10 -> 7): the length guide made the model drop attributes
+     that were asked for (the area of each Siemens board member, id 83)
+     and cut a list short (Volkswagen's brands, id 97). The shape stays;
+     the length guide goes, and rule 6 now says each line carries every
+     attribute asked for and a list that is the answer goes in whole.
 
 This prompt family, including v3 and v4, assumes the underlying model is Claude (Sonnet 4.5, per the
 model_id passed in by the caller) rather than being written model-agnostic.
@@ -743,16 +751,18 @@ Write `answer` in exactly this shape:
 - First, the direct answer in one or two sentences, naming its subject (see OPEN THE ANSWER BY
 NAMING WHAT WAS ASKED). For a question about a single fact, this is the whole answer.
 - Then, only when the question asks for several items (a list, several fields, a comparison), one
-line per requested item: a dash, the item, its specific figure, name or date, and its source (the
-publisher or document) in parentheses. One line each -- no sub-bullets, no paragraph under an item,
-no bold headings, no sections.
+line per requested item: a dash, the item, every attribute the question asks about for it (its
+figure, date, role, area, share, status -- whatever was asked), and its source (the publisher or
+document) in parentheses. One line each -- no sub-bullets, no paragraph under an item, no bold
+headings, no sections. A line may be long; what it must not do is drop an attribute that was asked
+for.
 - Then, only if something asked for was not found, one line saying what.
 Nothing else: no background the question did not ask for, no explanation of how you searched, no
-fact stated twice, no closing summary, no recommendations. As a guide, a single-fact answer fits
-in about 300 characters and a list of ten items in about 1,000; go beyond that only for a long list
-that is itself the answer (rule 2) or an item that genuinely needs a second figure. Completeness
-means every requested item with its specific value (rule 1) and the full list when a list is
-itself the answer (rule 2) -- not everything the tools returned.
+fact stated twice, no closing summary, no recommendations. Shortness comes from leaving those out,
+never from dropping something asked for: when a list is itself the answer, every item found goes
+in, however long the list (rule 2). Completeness means every requested item with every attribute
+asked for (rule 1) and the full list when a list is itself the answer (rule 2) -- not everything
+the tools returned.
 
 7. VERIFY THE RESULT IS ABOUT THE ENTITY THE QUESTION ACTUALLY NAMED. Before treating a tool's
 match as the right one, check that what it returned is genuinely about the entity the question
