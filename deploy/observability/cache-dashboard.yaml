@@ -296,7 +296,7 @@ Resources:
            "height": 7,
            "properties": {
             "title": "Retrieval steps p95 (ms)",
-            "query": "SOURCE '${BoxLogGroup}' | filter event = \"cache.retrieval\" | stats count(*) as asks, pct(timings_ms.normalize_classify, 95) as classify, pct(timings_ms.embed, 95) as embed, pct(timings_ms.reformulation_wait, 95) as reformulation, pct(timings_ms.search, 95) as search, pct(timings_ms.checker, 95) as checker, pct(total_ms, 95) as total by mode",
+            "query": "SOURCE '${BoxLogGroup}' | filter event = \"cache.retrieval\" | stats count(*) as asks, pct(timings_ms.normalize_classify, 95) as classify_p95, pct(timings_ms.embed, 95) as embed_p95, pct(timings_ms.reformulation_wait, 95) as reformulation_p95, pct(timings_ms.search, 95) as search_p95, pct(timings_ms.checker, 95) as checker_p95, pct(total_ms, 95) as total_p95 by mode",
             "region": "${AWS::Region}",
             "view": "table"
            }

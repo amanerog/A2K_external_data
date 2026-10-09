@@ -68,7 +68,8 @@ def main() -> None:
                 queries.append(q)
             try:
                 result = cw.get_metric_data(MetricDataQueries=queries, StartTime=start, EndTime=end)["MetricDataResults"]
-                series = [f"{r['Label'] or r['Id']}={sum(r['Values']):g} ({len(r['Values'])} pts)" for r in result]
+                # Values per period, oldest first: a sum would be wrong for the rates and percentiles.
+                series = [f"{r['Label'] or r['Id']}=[{', '.join(f'{v:g}' for v in reversed(r['Values'][:12]))}]" for r in result]
                 errors = [m["Value"] for m in cw_messages(result)]
                 print(f"{'OK  ' if not errors else 'FAIL'} metric  {props['title']}: {', '.join(series) or 'no series'}{' -- ' + '; '.join(errors) if errors else ''}")
                 failures += bool(errors)
