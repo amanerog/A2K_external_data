@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from datetime import date
 
+from . import usage
 from .bedrock import parse_json_object
 
 # v2: the only change to the prompts as tested (D4) is the dates block: the
@@ -82,6 +83,7 @@ def _converse(bedrock_client, model_id: str, prompt: str) -> dict:
         messages=[{"role": "user", "content": [{"text": prompt}]}],
         inferenceConfig={"maxTokens": 200, "temperature": 0},
     )
+    usage.record_converse(model_id, response)
     for block in response["output"]["message"]["content"]:
         if "text" in block:
             return parse_json_object(block["text"])

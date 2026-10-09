@@ -62,6 +62,7 @@ class CacheStore(Protocol):
     def deprecate(self, entry_id: str, reason: str) -> bool: ...
     def last_turn(self, session_id: str, *, window_seconds: float) -> dict[str, Any] | None: ...
     def record_turn(self, session_id: str, query: str, served_entry_id: str | None, *, window_seconds: float) -> None: ...
+    def size(self) -> list[dict[str, Any]]: ...
 
 
 class EvidenceStore(Protocol):
@@ -277,6 +278,18 @@ class AuroraStore:
             ],
         )
 
+    def size(self) -> list[dict[str, Any]]:
+        """Entries by state and primary domain (E7.4): PENDING, ACTIVE (still
+        servable), EXPIRED (ACTIVE past expires_at -- nothing removes them
+        until the cleanup pipeline exists) and DEPRECATED."""
+        result = self._execute(
+            """SELECT CASE WHEN status = 'ACTIVE' AND expires_at <= now() THEN 'EXPIRED' ELSE status END,
+                      coalesce(domain_primary, 'NONE'), count(*)
+               FROM cache_entry GROUP BY 1, 2""",
+            [],
+        )
+        return [{"state": r[0]["stringValue"], "domain": r[1]["stringValue"], "entries": r[2]["longValue"]} for r in result.get("records") or []]
+
     def retrieval_policy(self) -> dict[str, float]:
         result = self._execute("SELECT domain, min_cosine FROM retrieval_policy", [])
         return {row[0]["stringValue"]: float(_field(row[1])) for row in result.get("records") or []}
@@ -376,6 +389,16 @@ class MemoryStore:
 
     def expiry_policy(self) -> tuple[dict[str, timedelta], str]:
         return dict(self._policy), "memory"
+
+    def size(self) -> list[dict[str, Any]]:
+        now = datetime.now(timezone.utc)
+        counts: dict[tuple[str, str], int] = {}
+        for row in self.rows.values():
+            a: Activation | None = row.get("activation")
+            state = "EXPIRED" if row["status"] == "ACTIVE" and a is not None and a.expires_at <= now else row["status"]
+            key = (state, (a.domain_primary if a else None) or "NONE")
+            counts[key] = counts.get(key, 0) + 1
+        return [{"state": s, "domain": d, "entries": n} for (s, d), n in sorted(counts.items())]
 
     def retrieval_policy(self) -> dict[str, float]:
         return dict(self._min_cosine)

@@ -14,6 +14,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from . import usage
+
 
 class ModelOutputError(ValueError):
     """The model answered, but not with a usable JSON object."""
@@ -74,6 +76,7 @@ def converse_json(
             inferenceConfig=inference,
             **extra,
         )
+        usage.record_converse(model_id, response)  # every attempt is paid
         if response.get("stopReason") == "max_tokens":
             last_error = ModelOutputError(f"model output truncated at maxTokens={max_tokens}")
             continue
@@ -90,4 +93,6 @@ def embed(bedrock_client, *, model_id: str, text: str) -> list[float]:
         modelId=model_id,
         body=json.dumps({"inputText": text, "dimensions": 1024, "normalize": True}),
     )
-    return json.loads(response["body"].read())["embedding"]
+    body = json.loads(response["body"].read())
+    usage.record_embedding(model_id, body.get("inputTextTokenCount", 0))
+    return body["embedding"]

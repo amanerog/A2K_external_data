@@ -136,7 +136,7 @@ HIT = retrieval.CacheHit(
 def gateway(monkeypatch):
     """GatewayEngine with the vendor call, retrieval and admission faked.
     `state` records what happened; set state["mode"] before calling."""
-    state = {"mode": "shadow", "vendor_calls": 0, "lookups": 0, "submitted": [], "hit": HIT, "lookup_delay": 0.0, "session_ids": [], "turns": [], "max_ages": []}
+    state = {"mode": "shadow", "vendor_calls": 0, "lookups": 0, "submitted": [], "hit": HIT, "lookup_delay": 0.0, "session_ids": [], "turns": [], "max_ages": [], "shadow_checks": []}
 
     monkeypatch.setattr(Config, "cache_ready", property(lambda self: state["mode"] in ("shadow", "serve")))
     monkeypatch.setattr(Config, "cache_serving", property(lambda self: state["mode"] == "serve"))
@@ -161,6 +161,9 @@ def gateway(monkeypatch):
     monkeypatch.setattr(GatewayEngine, "_cache_lookup_sync", fake_lookup_sync)
     monkeypatch.setattr(admission, "submit", lambda candidate, **kw: state["submitted"].append(candidate))
     monkeypatch.setattr(GatewayEngine, "_record_turn", lambda self, sid, q, entry: state["turns"].append((sid, q, entry)))
+    monkeypatch.setattr(
+        GatewayEngine, "_submit_shadow_check", lambda self, q, rid, lookup, content: state["shadow_checks"].append((lookup.hit.entry_id, content["answer"]))
+    )
     return GatewayEngine(), state
 
 
@@ -802,3 +805,26 @@ async def test_cache_metrics_can_be_turned_off(gateway, monkeypatch, capsys):
     monkeypatch.setitem(config.__dict__, "cache_metrics_namespace", "")
     await engine._ask_via_agent(A2KRequest(operation="ask", query="q"))
     assert _metric_lines(capsys) == []
+
+
+async def test_an_unserved_would_be_hit_is_compared_with_the_fresh_vendor_answer(gateway):
+    engine, state = gateway
+    await engine._ask_via_agent(A2KRequest(operation="ask", query="q"))
+    assert state["shadow_checks"] == [("cached-1", VENDOR_CONTENT["answer"])]
+
+
+async def test_no_shadow_check_when_the_hit_is_served_or_there_is_none(gateway):
+    engine, state = gateway
+    state["mode"] = "serve"
+    await engine._ask_via_agent(A2KRequest(operation="ask", query="q"))  # served from the cache
+    state["hit"] = None
+    await engine._ask_via_agent(A2KRequest(operation="ask", query="q"))  # a miss
+    assert state["shadow_checks"] == []
+
+
+async def test_a_domain_still_in_shadow_gets_a_shadow_check_in_serve_mode(gateway):
+    engine, state = gateway
+    state["mode"] = "serve"
+    config.__dict__["cache_domain_modes"]["REG"] = "shadow"
+    await engine._ask_via_agent(A2KRequest(operation="ask", query="q"))
+    assert state["vendor_calls"] == 1 and len(state["shadow_checks"]) == 1

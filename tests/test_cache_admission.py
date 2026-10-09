@@ -21,7 +21,7 @@ from a2k.cache.judge import parse_findings
 from a2k.cache.models import Candidate, Classification
 from a2k.cache.store import MemoryEvidenceStore, MemoryStore
 import a2k.config as config_module
-from a2k.config import Config
+from a2k.config import Config, config
 from a2k.models.request import A2KRequest
 
 NOW = datetime(2026, 10, 1, 12, 0, tzinfo=timezone.utc)
@@ -138,14 +138,14 @@ class FakeBedrock:
         else:
             raise AssertionError(f"unexpected prompt: {prompt[:60]}")
         self.calls.append(kind)
-        return {"output": {"message": {"content": [{"reasoningContent": {}}, {"text": text}]}}, "stopReason": "end_turn"}
+        return {"output": {"message": {"content": [{"reasoningContent": {}}, {"text": text}]}}, "stopReason": "end_turn", "usage": {"inputTokens": 1000, "outputTokens": 100}}
 
     def invoke_model(self, *, modelId, body):
         self.calls.append("embed")
 
         class _Body:
             def read(self_inner):
-                return json.dumps({"embedding": [0.1] * 1024}).encode()
+                return json.dumps({"embedding": [0.1] * 1024, "inputTextTokenCount": 12}).encode()
 
         return {"body": _Body()}
 
@@ -357,7 +357,8 @@ def _admit(candidate=None, bedrock=None, store=None):
     return result, store, evidence_store, bedrock
 
 
-def test_admit_fit_answer_becomes_active(capsys):
+def test_admit_fit_answer_becomes_active(capsys, monkeypatch):
+    monkeypatch.setitem(config.__dict__, "cache_model_prices", {"light": (1.0, 5.0), "judge": (3.0, 15.0), "titan": (0.02, 0.0)})
     result, store, evidence_store, bedrock = _admit()
     assert result.outcome == "ACTIVE"
     row = store.rows[result.entry_id]
@@ -376,8 +377,13 @@ def test_admit_fit_answer_becomes_active(capsys):
     (bundle,) = evidence_store.objects.values()
     assert [tc["tool"] for tc in bundle["tool_calls"]] == ["knowledge_search"]
     lines = [json.loads(line) for line in capsys.readouterr().out.strip().splitlines()]
-    log, metric = lines[-2], lines[-1]
-    assert log["event"] == "cache.admission" and log["outcome"] == "ACTIVE" and "judge" in log["timings_ms"]
+    (log,) = [x for x in lines if x["event"] == "cache.admission"]
+    (metric,) = [x for x in lines if x["event"] == "cache.metrics" and x["source"] == "cache.admission"]
+    assert log["outcome"] == "ACTIVE" and "judge" in log["timings_ms"]
+    # Tokens of its six model calls (five Converse at 1000/100, one embedding) and their estimated cost.
+    assert (log["usage"]["input_tokens"], log["usage"]["output_tokens"]) == (5000 + 12, 500)
+    assert log["usage"]["cost_usd"] > 0 and log["usage"]["unpriced"] == []
+    assert (metric["InputTokens"], metric["CostUSD"]) == (5012, log["usage"]["cost_usd"])
     # Its EMF line: one admission, by outcome, domain and vendor.
     directives = metric["_aws"]["CloudWatchMetrics"]
     assert metric["event"] == "cache.metrics" and [d["Dimensions"] for d in directives] == [[["Outcome"]], [["Domain", "Outcome"], ["Vendor", "Outcome"]]]

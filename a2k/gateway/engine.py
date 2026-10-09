@@ -42,6 +42,7 @@ from . import audit as gw_audit
 from . import conflict, synthesis, tracing
 from ..cache import admission, filters, retrieval
 from ..cache import metrics as cache_metrics
+from ..cache import shadow_check
 from ..cache.models import Candidate
 from ..cache.store import AuroraStore, S3EvidenceStore
 
@@ -556,6 +557,8 @@ class GatewayEngine:
         # cached entry exactly as it would in serve mode.
         would_hit = lookup.hit if lookup is not None else None
         vendor_entry_id = self._submit_admission(req, content) if would_hit is None else None
+        if would_hit is not None and hit is None:
+            self._submit_shadow_check(req.query, request_id, lookup, content)
         self._record_turn(session_id, req.query, would_hit.entry_id if would_hit is not None else vendor_entry_id)
         if lookup is not None:
             self._log_retrieval(
@@ -826,6 +829,7 @@ class GatewayEngine:
             "within_budget": lookup.total_ms <= config.cache_time_budget_seconds * 1000,
             "vendor_entry_id": vendor_entry_id,
             "ask_ms": ask_ms,
+            "usage": lookup.usage,
         }
         emit(record)
         cache_metrics.emit_retrieval(record)
@@ -847,6 +851,38 @@ class GatewayEngine:
                 print(f"a2k-box: cache session turn not recorded: {type(exc).__name__}: {exc}", file=sys.stdout, flush=True)
 
         admission.run_in_background(_write, workers=config.admission_workers)
+
+    def _submit_shadow_check(self, query: str, request_id: str, lookup: retrieval.RetrievalResult, content: dict) -> None:
+        """A would-be hit that was not served: the user got a fresh vendor
+        answer, so compare it with the cached one in the background
+        (a2k/cache/shadow_check.py). Never raises."""
+        hit = lookup.hit
+        if not config.cache_shadow_check or hit is None or not content.get("answer"):
+            return
+
+        def _check() -> None:
+            try:
+                bedrock_client = _cache_clients()[4]
+            except Exception as exc:  # noqa: BLE001
+                print(f"a2k-box: shadow check skipped: {type(exc).__name__}: {exc}", file=sys.stdout, flush=True)
+                return
+            shadow_check.run(
+                bedrock_client=bedrock_client,
+                model_id=config.cache_checker_model_id,
+                question=query,
+                request_id=request_id,
+                entry_id=hit.entry_id,
+                domain=lookup.domains[0] if lookup.domains else None,
+                cosine=hit.cosine,
+                cached_answer=hit.answer,
+                cached_at=hit.admitted_at,
+                fresh_answer=content["answer"],
+            )
+
+        try:
+            admission.run_in_background(_check, workers=config.admission_workers)
+        except Exception as exc:  # noqa: BLE001
+            print(f"a2k-box: shadow check submit failed: {type(exc).__name__}: {exc}", file=sys.stdout, flush=True)
 
     def _submit_admission(self, req: A2KRequest, content: dict) -> str | None:
         """Hands a live vendor answer to the cache admission pipeline

@@ -50,34 +50,20 @@ The schema stays outside the template: `apply_schema.py` is idempotent and is
 re-run whenever `schema.sql` changes.
 
 **Dev (`sds01-dev`), created by hand on 1 Oct 2026**, is brought under the
-stack with a resource import rather than recreated. The template matches what
-was created (`a2k-cache`, 16.15, `a2k-cache-subnets`, `a2k-cache-aurora`,
-`a2k-cache-evidence-396961015428-euw1`, 90 days); `RuntimeRoleName` stays empty.
+stack with a resource import rather than recreated. `import_stack.py` reads
+every parameter from the live cluster (engine version, subnets, scaling,
+deletion protection), imports the six resources, adds the Outputs and prints
+a drift report; `RuntimeRoleName` stays empty (the platform team owns that
+policy). Without `--apply` it only shows the import change set.
 
 ```bash
-SG=$(aws ec2 describe-security-groups --filters Name=group-name,Values=a2k-cache-aurora --query 'SecurityGroups[0].GroupId' --output text)
-cat > /tmp/a2k-cache-import.json <<EOF
-[
-  {"ResourceType": "AWS::RDS::DBSubnetGroup", "LogicalResourceId": "SubnetGroup", "ResourceIdentifier": {"DBSubnetGroupName": "a2k-cache-subnets"}},
-  {"ResourceType": "AWS::EC2::SecurityGroup", "LogicalResourceId": "SecurityGroup", "ResourceIdentifier": {"Id": "$SG"}},
-  {"ResourceType": "AWS::RDS::DBCluster", "LogicalResourceId": "Cluster", "ResourceIdentifier": {"DBClusterIdentifier": "a2k-cache"}},
-  {"ResourceType": "AWS::RDS::DBInstance", "LogicalResourceId": "Instance", "ResourceIdentifier": {"DBInstanceIdentifier": "a2k-cache-1"}},
-  {"ResourceType": "AWS::S3::Bucket", "LogicalResourceId": "EvidenceBucket", "ResourceIdentifier": {"BucketName": "a2k-cache-evidence-396961015428-euw1"}},
-  {"ResourceType": "AWS::S3::BucketPolicy", "LogicalResourceId": "EvidenceBucketPolicy", "ResourceIdentifier": {"Bucket": "a2k-cache-evidence-396961015428-euw1"}}
-]
-EOF
-aws cloudformation create-change-set --stack-name a2k-cache --change-set-name import-dev --change-set-type IMPORT \
-  --template-body file://deploy/aurora/cache-infra.yaml --resources-to-import file:///tmp/a2k-cache-import.json \
-  --parameters ParameterKey=VpcId,ParameterValue=$VPC_ID \
-    ParameterKey=SubnetIds,ParameterValue='subnet-011daf3db9daf43b9\,subnet-00116e564b42646cd\,subnet-0f5842174715240ef' \
-    ParameterKey=EvidenceBucketName,ParameterValue=a2k-cache-evidence-396961015428-euw1
-aws cloudformation describe-change-set --stack-name a2k-cache --change-set-name import-dev --query '[Status,StatusReason,Changes[].ResourceChange.[Action,LogicalResourceId]]'
-aws cloudformation execute-change-set --stack-name a2k-cache --change-set-name import-dev
+python deploy/aurora/import_stack.py --bucket a2k-cache-evidence-396961015428-euw1            # plan
+python deploy/aurora/import_stack.py --bucket a2k-cache-evidence-396961015428-euw1 --apply
 ```
 
-An import changes nothing in the resources; run `aws cloudformation
-detect-stack-drift --stack-name a2k-cache` afterwards to confirm the template
-and the live configuration agree.
+The Runtimes have their own stack: `deploy/agentcore/runtimes_stack.py`
+(`export`, then `import`); after that `update_cache_runtime.py` deploys
+through it. The dashboard: `deploy/observability/cache-dashboard.yaml`.
 
 ## 1. Database
 
@@ -132,6 +118,13 @@ admission and the search at retrieval), `CACHE_TIME_BUDGET_SECONDS` (10, D15), `
 `ADMISSION_MAX_EVIDENCE_CHARS` (400000), `ADMISSION_REQUIRE_VERIFIED_QUOTES`
 (true), `ADMISSION_CONFIRM_FIT` (true: a FIT verdict needs a second, confirming
 judgement), `ADMISSION_WORKERS` (2).
+
+Metrics (E7.4, `a2k/cache/metrics.py`): `CACHE_METRICS_NAMESPACE` (`A2K/Cache`;
+empty turns the EMF lines off), `CACHE_MODEL_PRICES` (JSON price overrides for
+the cost estimate, `{"model id substring": [USD per M input, USD per M output]}`),
+`CACHE_SIZE_METRIC_SECONDS` (300, how often admission reports the cache size),
+`CACHE_SHADOW_CHECK` (true: an unserved would-be hit is compared with the
+fresh vendor answer by the Checker model -- one call per would-be hit).
 
 Execution-role permissions to add:
 

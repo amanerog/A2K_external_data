@@ -41,7 +41,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
-from . import classifier, decision, filters, judge, judge_basic, metrics, normalize, retrieval
+from . import classifier, decision, filters, judge, judge_basic, metrics, normalize, retrieval, usage
 from ..logline import emit, query_hash
 from .bedrock import embed
 from .evidence import bundle, evidence_key, evidence_text
@@ -352,6 +352,7 @@ def log_result(result: AdmissionResult, *, candidate: Candidate, evidence_uri: s
         "expires_at": result.expires_at.isoformat() if result.expires_at else None,
         "evidence_uri": evidence_uri,
         "timings_ms": result.timings_ms,
+        "usage": tracked.summary() if (tracked := usage.current()) else None,
     }
     emit(record)
     metrics.emit_admission(record)
@@ -366,7 +367,23 @@ def admit(
     settings: AdmissionSettings,
 ) -> AdmissionResult:
     """Steps 1-9. Never raises: an admission failure only means an answer
-    that does not get cached; the user already has it."""
+    that does not get cached; the user already has it. Its log line carries
+    the tokens and estimated cost of its model calls; afterwards the cache
+    size is reported, at most every config.cache_size_metric_seconds."""
+    with usage.track():
+        result = _admit_steps(candidate, bedrock_client=bedrock_client, store=store, evidence_store=evidence_store, settings=settings)
+    metrics.maybe_emit_cache_size(store)
+    return result
+
+
+def _admit_steps(
+    candidate: Candidate,
+    *,
+    bedrock_client,
+    store: CacheStore,
+    evidence_store: EvidenceStore,
+    settings: AdmissionSettings,
+) -> AdmissionResult:
     evidence_uri = None
     try:
         evidence_uri = evidence_store.put(evidence_key(candidate), bundle(candidate))

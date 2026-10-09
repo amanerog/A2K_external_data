@@ -274,6 +274,16 @@ class Config:
     # E7.4: CloudWatch namespace of the cache metrics (a2k/cache/metrics.py,
     # Embedded Metric Format on stdout); empty turns them off.
     cache_metrics_namespace: str = field(default_factory=lambda: os.environ.get("CACHE_METRICS_NAMESPACE", "A2K/Cache").strip())
+    # Price overrides for the cost estimate (a2k/cache/usage.py), JSON:
+    # {"model id substring": [USD per M input tokens, USD per M output tokens]}.
+    cache_model_prices: dict[str, tuple[float, float]] = field(
+        default_factory=lambda: {k: tuple(v) for k, v in json.loads(os.environ.get("CACHE_MODEL_PRICES") or "{}").items()}
+    )
+    # How often, at most, admission reports the cache size by state (seconds).
+    cache_size_metric_seconds: float = field(default_factory=lambda: float(os.environ.get("CACHE_SIZE_METRIC_SECONDS", "300")))
+    # Shadow check (E7.4, false hits): a would-be hit that is not served is
+    # compared, in the background, with the fresh vendor answer.
+    cache_shadow_check: bool = field(default_factory=lambda: os.environ.get("CACHE_SHADOW_CHECK", "true").strip().lower() == "true")
 
     # Aurora PostgreSQL + pgvector, reached through the RDS Data API (see
     # a2k/cache/store.py for why not a driver connection). Schema in

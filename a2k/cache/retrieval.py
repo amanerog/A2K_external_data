@@ -20,13 +20,14 @@ serving log records, in shadow mode as well as when serving.
 
 from __future__ import annotations
 
+import contextvars
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Callable
 
-from . import checker, reformulation
+from . import checker, reformulation, usage
 from .bedrock import ModelOutputError, converse_json, embed
 from .normalize import LANGUAGE_RULE
 from .store import CacheStore
@@ -103,6 +104,7 @@ class RetrievalResult:
     reformulation: dict[str, Any] | None = None  # step 1 outcome, None without a session id
     error: str | None = None
     timings_ms: dict[str, int] = field(default_factory=dict)
+    usage: dict[str, Any] | None = None  # tokens and estimated cost of the lookup's model calls (usage.py)
 
     @property
     def total_ms(self) -> int:
@@ -159,7 +161,15 @@ def _eligible(
     return kept
 
 
-def lookup(
+def lookup(question: str, **kwargs: Any) -> RetrievalResult:
+    """_lookup, with the tokens and cost of its model calls in `usage`."""
+    with usage.track() as tracked:
+        result = _lookup(question, **kwargs)
+    result.usage = tracked.summary()
+    return result
+
+
+def _lookup(
     question: str,
     *,
     bedrock_client,
@@ -183,7 +193,9 @@ def lookup(
     pool: ThreadPoolExecutor | None = None
     if session_id:
         pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="cache-reformulation")
+        # With a copy of this context, so its model calls count in this lookup's usage.
         step1 = pool.submit(
+            contextvars.copy_context().run,
             reformulation.check,
             question,
             session_id,

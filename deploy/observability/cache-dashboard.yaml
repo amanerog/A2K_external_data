@@ -339,6 +339,170 @@ Resources:
             "region": "${AWS::Region}",
             "view": "table"
            }
+          },
+          {
+           "type": "text",
+           "x": 0,
+           "y": 34,
+           "width": 24,
+           "height": 1,
+           "properties": {
+            "markdown": "### Cost, size and false hits -- cost is an estimate: tokens x list prices (`CACHE_MODEL_PRICES` overrides them)"
+           }
+          },
+          {
+           "type": "metric",
+           "x": 0,
+           "y": 35,
+           "width": 8,
+           "height": 6,
+           "properties": {
+            "title": "Model cost of the cache (USD per hour, estimate)",
+            "view": "timeSeries",
+            "stacked": true,
+            "region": "${AWS::Region}",
+            "metrics": [
+             [
+              {
+               "expression": "SUM(SEARCH('{${MetricsNamespace},Outcome} MetricName=\"CostUSD\"', 'Sum', 3600))",
+               "label": "admission",
+               "id": "a"
+              }
+             ],
+             [
+              {
+               "expression": "SUM(SEARCH('{${MetricsNamespace},Mode} MetricName=\"CostUSD\"', 'Sum', 3600))",
+               "label": "retrieval",
+               "id": "r"
+              }
+             ],
+             [
+              {
+               "expression": "SUM(SEARCH('{${MetricsNamespace},Verdict} MetricName=\"CostUSD\"', 'Sum', 3600))",
+               "label": "shadow check",
+               "id": "s"
+              }
+             ]
+            ],
+            "period": 3600
+           }
+          },
+          {
+           "type": "metric",
+           "x": 8,
+           "y": 35,
+           "width": 8,
+           "height": 6,
+           "properties": {
+            "title": "Cache size: entries by state",
+            "view": "timeSeries",
+            "stacked": false,
+            "region": "${AWS::Region}",
+            "metrics": [
+             [
+              {
+               "expression": "SEARCH('{${MetricsNamespace},State} MetricName=\"Entries\"', 'Maximum', 300)",
+               "id": "e"
+              }
+             ]
+            ],
+            "period": 300
+           }
+          },
+          {
+           "type": "metric",
+           "x": 16,
+           "y": 35,
+           "width": 8,
+           "height": 6,
+           "properties": {
+            "title": "Shadow: false-hit rate % (outdated or contradicting)",
+            "view": "timeSeries",
+            "stacked": false,
+            "region": "${AWS::Region}",
+            "metrics": [
+             [
+              {
+               "expression": "SUM(SEARCH('{${MetricsNamespace},Domain} MetricName=\"FalseHits\"', 'Sum', 3600))",
+               "id": "f",
+               "visible": false
+              }
+             ],
+             [
+              {
+               "expression": "SUM(SEARCH('{${MetricsNamespace},Domain} MetricName=\"ShadowChecks\"', 'Sum', 3600))",
+               "id": "c",
+               "visible": false
+              }
+             ],
+             [
+              {
+               "expression": "100*f/c",
+               "label": "false hits %",
+               "id": "fr"
+              }
+             ]
+            ],
+            "period": 3600,
+            "yAxis": {
+             "left": {
+              "min": 0,
+              "max": 100
+             }
+            }
+           }
+          },
+          {
+           "type": "log",
+           "x": 0,
+           "y": 41,
+           "width": 8,
+           "height": 7,
+           "properties": {
+            "title": "Cost per admission by outcome and vendor (USD)",
+            "query": "SOURCE '${BoxLogGroup}' | filter event = \"cache.admission\" and ispresent(usage.cost_usd) | stats count(*) as n, round(avg(usage.cost_usd), 4) as avg_usd, round(sum(usage.cost_usd), 3) as total_usd, round(avg(usage.input_tokens), 0) as avg_input_tokens by outcome, vendor | sort total_usd desc",
+            "region": "${AWS::Region}",
+            "view": "table"
+           }
+          },
+          {
+           "type": "log",
+           "x": 8,
+           "y": 41,
+           "width": 8,
+           "height": 7,
+           "properties": {
+            "title": "Cache size per domain (latest)",
+            "query": "SOURCE '${BoxLogGroup}' | filter event = \"cache.metrics\" and source = \"cache.size\" and ispresent(Domain) | stats latest(Entries) as entries by Domain, State | sort Domain, State",
+            "region": "${AWS::Region}",
+            "view": "table"
+           }
+          },
+          {
+           "type": "log",
+           "x": 16,
+           "y": 41,
+           "width": 8,
+           "height": 7,
+           "properties": {
+            "title": "Shadow checks per domain",
+            "query": "SOURCE '${BoxLogGroup}' | filter event = \"cache.metrics\" and source = \"cache.shadow_check\" | stats sum(ShadowChecks) as checks, sum(FalseHits) as false_hits, round(100 * sum(FalseHits) / sum(ShadowChecks), 1) as false_hit_pct by Domain | sort checks desc",
+            "region": "${AWS::Region}",
+            "view": "table"
+           }
+          },
+          {
+           "type": "log",
+           "x": 0,
+           "y": 48,
+           "width": 24,
+           "height": 6,
+           "properties": {
+            "title": "Shadow checks: latest false hits",
+            "query": "SOURCE '${BoxLogGroup}' | filter event = \"cache.shadow_check\" and verdict in [\"cached_outdated\", \"contradicts\"] | fields @timestamp, domain, verdict, entry_id, cosine, reason | sort @timestamp desc | limit 20",
+            "region": "${AWS::Region}",
+            "view": "table"
+           }
           }
          ]
         }
