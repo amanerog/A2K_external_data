@@ -25,6 +25,60 @@ session is taken from the `mcp-session-id` header, or else from AgentCore's
 the serving log's `session_source` says which, so the re-ask rate (D14) can be
 computed on caller-provided sessions only (`session_source = "caller"`).
 
+## 0. Infrastructure as code (E2.1)
+
+`cache-infra.yaml` (CloudFormation) holds sections 1 and 2 below: the subnet
+group, a security group with no inbound rules, the Aurora Serverless v2
+cluster (0-4 ACU, pause after 10 min, encrypted, RDS-managed password, Data
+API on) and its `db.serverless` instance, and the evidence bucket (no public
+access, SSE, TLS only, `cache-evidence/` expiring after `EvidenceRetentionDays`).
+With `RuntimeRoleName` set it also creates the execution-role policy of
+section 3; leave it empty where the platform team owns that policy (dev).
+
+A new environment:
+
+```bash
+aws cloudformation deploy --stack-name a2k-cache --template-file deploy/aurora/cache-infra.yaml \
+  --capabilities CAPABILITY_NAMED_IAM --parameter-overrides \
+  VpcId=vpc-... SubnetIds=subnet-a,subnet-b,subnet-c \
+  EvidenceBucketName=a2k-cache-evidence-<account>-<region> [RuntimeRoleName=<role>]
+O() { aws cloudformation describe-stacks --stack-name a2k-cache --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" --output text; }
+python deploy/aurora/apply_schema.py --cluster-arn "$(O ClusterArn)" --secret-arn "$(O SecretArn)"
+```
+
+The schema stays outside the template: `apply_schema.py` is idempotent and is
+re-run whenever `schema.sql` changes.
+
+**Dev (`sds01-dev`), created by hand on 1 Oct 2026**, is brought under the
+stack with a resource import rather than recreated. The template matches what
+was created (`a2k-cache`, 16.15, `a2k-cache-subnets`, `a2k-cache-aurora`,
+`a2k-cache-evidence-396961015428-euw1`, 90 days); `RuntimeRoleName` stays empty.
+
+```bash
+SG=$(aws ec2 describe-security-groups --filters Name=group-name,Values=a2k-cache-aurora --query 'SecurityGroups[0].GroupId' --output text)
+cat > /tmp/a2k-cache-import.json <<EOF
+[
+  {"ResourceType": "AWS::RDS::DBSubnetGroup", "LogicalResourceId": "SubnetGroup", "ResourceIdentifier": {"DBSubnetGroupName": "a2k-cache-subnets"}},
+  {"ResourceType": "AWS::EC2::SecurityGroup", "LogicalResourceId": "SecurityGroup", "ResourceIdentifier": {"Id": "$SG"}},
+  {"ResourceType": "AWS::RDS::DBCluster", "LogicalResourceId": "Cluster", "ResourceIdentifier": {"DBClusterIdentifier": "a2k-cache"}},
+  {"ResourceType": "AWS::RDS::DBInstance", "LogicalResourceId": "Instance", "ResourceIdentifier": {"DBInstanceIdentifier": "a2k-cache-1"}},
+  {"ResourceType": "AWS::S3::Bucket", "LogicalResourceId": "EvidenceBucket", "ResourceIdentifier": {"BucketName": "a2k-cache-evidence-396961015428-euw1"}},
+  {"ResourceType": "AWS::S3::BucketPolicy", "LogicalResourceId": "EvidenceBucketPolicy", "ResourceIdentifier": {"Bucket": "a2k-cache-evidence-396961015428-euw1"}}
+]
+EOF
+aws cloudformation create-change-set --stack-name a2k-cache --change-set-name import-dev --change-set-type IMPORT \
+  --template-body file://deploy/aurora/cache-infra.yaml --resources-to-import file:///tmp/a2k-cache-import.json \
+  --parameters ParameterKey=VpcId,ParameterValue=$VPC_ID \
+    ParameterKey=SubnetIds,ParameterValue='subnet-011daf3db9daf43b9\,subnet-00116e564b42646cd\,subnet-0f5842174715240ef' \
+    ParameterKey=EvidenceBucketName,ParameterValue=a2k-cache-evidence-396961015428-euw1
+aws cloudformation describe-change-set --stack-name a2k-cache --change-set-name import-dev --query '[Status,StatusReason,Changes[].ResourceChange.[Action,LogicalResourceId]]'
+aws cloudformation execute-change-set --stack-name a2k-cache --change-set-name import-dev
+```
+
+An import changes nothing in the resources; run `aws cloudformation
+detect-stack-drift --stack-name a2k-cache` afterwards to confirm the template
+and the live configuration agree.
+
 ## 1. Database
 
 - **Aurora PostgreSQL** (Serverless v2 is enough for shadow mode), engine

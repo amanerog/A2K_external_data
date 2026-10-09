@@ -1,0 +1,194 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  a2k cache (E2.1) - Aurora PostgreSQL Serverless v2 + pgvector reached through
+  the RDS Data API, the S3 evidence bucket and, optionally, the execution-role
+  policy a2k-box needs. The schema is not created here: run apply_schema.py
+  with the ClusterArn and SecretArn outputs once the stack is up (README.md).
+
+Parameters:
+  ClusterId:
+    Type: String
+    Default: a2k-cache
+  EngineVersion:
+    Type: String
+    Default: "16.15"
+    Description: Aurora PostgreSQL with pgvector >= 0.8 (16.8 or later in the 16 branch).
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Private subnets in at least two availability zones.
+  MinCapacity:
+    Type: Number
+    Default: 0
+    Description: ACUs; 0 lets the cluster pause when idle.
+  MaxCapacity:
+    Type: Number
+    Default: 4
+  SecondsUntilAutoPause:
+    Type: Number
+    Default: 600
+  DeletionProtection:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+  EvidenceBucketName:
+    Type: String
+    Description: Globally unique, e.g. a2k-cache-evidence-<account>-euw1.
+  EvidenceRetentionDays:
+    Type: Number
+    Default: 90
+    Description: Provisional (D10) - should match the retention of the serving log.
+  RuntimeRoleName:
+    Type: String
+    Default: ""
+    Description: >-
+      Execution role of the a2k-box Runtime. Empty: no policy is created (in dev
+      the platform team owns BedrockAgentCoreLeapfrog-cache-policy).
+
+Conditions:
+  CreateRuntimePolicy: !Not [!Equals [!Ref RuntimeRoleName, ""]]
+
+Resources:
+  SubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      DBSubnetGroupName: !Sub ${ClusterId}-subnets
+      DBSubnetGroupDescription: a2k cache - Aurora + pgvector
+      SubnetIds: !Ref SubnetIds
+
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      GroupName: !Sub ${ClusterId}-aurora
+      GroupDescription: a2k cache Aurora - no inbound, accessed through RDS Data API
+      VpcId: !Ref VpcId
+
+  Cluster:
+    Type: AWS::RDS::DBCluster
+    DeletionPolicy: Snapshot
+    UpdateReplacePolicy: Snapshot
+    Properties:
+      DBClusterIdentifier: !Ref ClusterId
+      Engine: aurora-postgresql
+      EngineVersion: !Ref EngineVersion
+      DatabaseName: a2k_cache
+      MasterUsername: a2k_admin
+      ManageMasterUserPassword: true
+      ServerlessV2ScalingConfiguration:
+        MinCapacity: !Ref MinCapacity
+        MaxCapacity: !Ref MaxCapacity
+        SecondsUntilAutoPause: !Ref SecondsUntilAutoPause
+      DBSubnetGroupName: !Ref SubnetGroup
+      VpcSecurityGroupIds: [!Ref SecurityGroup]
+      StorageEncrypted: true
+      EnableHttpEndpoint: true
+      DeletionProtection: !Ref DeletionProtection
+
+  Instance:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      DBInstanceIdentifier: !Sub ${ClusterId}-1
+      DBClusterIdentifier: !Ref Cluster
+      DBInstanceClass: db.serverless
+      Engine: aurora-postgresql
+
+  EvidenceBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Ref EvidenceBucketName
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        IgnorePublicAcls: true
+        BlockPublicPolicy: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+            BucketKeyEnabled: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: expire-cache-evidence
+            Status: Enabled
+            Prefix: cache-evidence/
+            ExpirationInDays: !Ref EvidenceRetentionDays
+
+  EvidenceBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      Bucket: !Ref EvidenceBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: s3:*
+            Resource:
+              - !GetAtt EvidenceBucket.Arn
+              - !Sub ${EvidenceBucket.Arn}/*
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+
+  # What a2k-box calls (a2k/cache/store.py, a2k/cache/bedrock.py, checker.py).
+  # The eu. inference profiles route to any EU region, hence the region
+  # wildcard on the foundation models; Titan v2 is called in-region.
+  RuntimePolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Condition: CreateRuntimePolicy
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      ManagedPolicyName: !Sub ${RuntimeRoleName}-cache-policy
+      Roles: [!Ref RuntimeRoleName]
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AuroraDataApi
+            Effect: Allow
+            Action: rds-data:ExecuteStatement
+            Resource: !GetAtt Cluster.DBClusterArn
+          - Sid: AuroraSecret
+            Effect: Allow
+            Action: secretsmanager:GetSecretValue
+            Resource: !GetAtt Cluster.MasterUserSecret.SecretArn
+          - Sid: EvidenceBucket
+            Effect: Allow
+            Action: s3:PutObject
+            Resource: !Sub ${EvidenceBucket.Arn}/cache-evidence/*
+          - Sid: CacheModels
+            Effect: Allow
+            Action: bedrock:InvokeModel  # Converse is authorised by InvokeModel
+            Resource:
+              - !Sub arn:${AWS::Partition}:bedrock:*:${AWS::AccountId}:inference-profile/eu.anthropic.claude-haiku-4-5-20251001-v1:0
+              - !Sub arn:${AWS::Partition}:bedrock:*:${AWS::AccountId}:inference-profile/eu.anthropic.claude-sonnet-5
+              - !Sub arn:${AWS::Partition}:bedrock:*:${AWS::AccountId}:inference-profile/eu.anthropic.claude-sonnet-4-5-20250929-v1:0
+              - !Sub arn:${AWS::Partition}:bedrock:*::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0
+              - !Sub arn:${AWS::Partition}:bedrock:*::foundation-model/anthropic.claude-sonnet-5
+              - !Sub arn:${AWS::Partition}:bedrock:*::foundation-model/anthropic.claude-sonnet-4-5-20250929-v1:0
+              - !Sub arn:${AWS::Partition}:bedrock:${AWS::Region}::foundation-model/amazon.titan-embed-text-v2:0
+
+Outputs:
+  ClusterArn:
+    Description: AURORA_CLUSTER_ARN on the a2k-box Runtime
+    Value: !GetAtt Cluster.DBClusterArn
+  SecretArn:
+    Description: AURORA_SECRET_ARN on the a2k-box Runtime
+    Value: !GetAtt Cluster.MasterUserSecret.SecretArn
+  EvidenceBucketName:
+    Description: CACHE_EVIDENCE_BUCKET on the a2k-box Runtime
+    Value: !Ref EvidenceBucket
+  SecurityGroupId:
+    Value: !Ref SecurityGroup

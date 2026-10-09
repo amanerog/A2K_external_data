@@ -1,0 +1,348 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  a2k cache dashboard (E7.4): the cache metrics a2k-box emits as Embedded
+  Metric Format (a2k/cache/metrics.py) plus Logs Insights tables over the
+  a2k-box and agent log groups. The tables follow the dashboard's time range.
+
+Parameters:
+  DashboardName:
+    Type: String
+    Default: a2k-cache
+  MetricsNamespace:
+    Type: String
+    Default: A2K/Cache
+    Description: CACHE_METRICS_NAMESPACE on the a2k-box Runtime.
+  AgentMetricsNamespace:
+    Type: String
+    Default: A2K/RouterAgent
+    Description: A2K_AGENT_METRICS_NAMESPACE on the agent Runtime.
+  BoxLogGroup:
+    Type: String
+    Default: /aws/bedrock-agentcore/runtimes/a2k_cache_mcp-48ImkT2F9a-DEFAULT
+  AgentLogGroup:
+    Type: String
+    Default: /aws/bedrock-agentcore/runtimes/a2k_cache_agent-oEBeCrBECq-DEFAULT
+
+Resources:
+  Dashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Ref DashboardName
+      DashboardBody: !Sub |
+        {
+         "start": "-P7D",
+         "periodOverride": "inherit",
+         "widgets": [
+          {
+           "type": "text",
+           "x": 0,
+           "y": 0,
+           "width": 24,
+           "height": 2,
+           "properties": {
+            "markdown": "## a2k cache (E7.4)\nMetrics: namespace `${MetricsNamespace}` (EMF lines `cache.metrics` from a2k-box). Tables: Logs Insights over the a2k-box and agent log groups -- they follow the dashboard's time range. Hit rate is over asks with the cache on; *would-hit* is what serve mode would have served (shadow)."
+           }
+          },
+          {
+           "type": "metric",
+           "x": 0,
+           "y": 2,
+           "width": 8,
+           "height": 6,
+           "properties": {
+            "title": "Hit rate % (all domains)",
+            "view": "timeSeries",
+            "stacked": false,
+            "region": "${AWS::Region}",
+            "metrics": [
+             [
+              {
+               "expression": "SUM(SEARCH('{${MetricsNamespace},Mode} MetricName=\"Hits\"', 'Sum', 300))",
+               "id": "h",
+               "visible": false
+              }
+             ],
+             [
+              {
+               "expression": "SUM(SEARCH('{${MetricsNamespace},Mode} MetricName=\"WouldHits\"', 'Sum', 300))",
+               "id": "wh",
+               "visible": false
+              }
+             ],
+             [
+              {
+               "expression": "SUM(SEARCH('{${MetricsNamespace},Mode} MetricName=\"Asks\"', 'Sum', 300))",
+               "id": "a",
+               "visible": false
+              }
+             ],
+             [
+              {
+               "expression": "100*h/a",
+               "label": "served from cache %",
+               "id": "hr"
+              }
+             ],
+             [
+              {
+               "expression": "100*wh/a",
+               "label": "would-hit %",
+               "id": "whr"
+              }
+             ]
+            ],
+            "period": 300,
+            "yAxis": {
+             "left": {
+              "min": 0,
+              "max": 100
+             }
+            }
+           }
+          },
+          {
+           "type": "metric",
+           "x": 8,
+           "y": 2,
+           "width": 8,
+           "height": 6,
+           "properties": {
+            "title": "Asks, hits and would-hits",
+            "view": "timeSeries",
+            "stacked": false,
+            "region": "${AWS::Region}",
+            "metrics": [
+             [
+              {
+               "expression": "SUM(SEARCH('{${MetricsNamespace},Mode} MetricName=\"Asks\"', 'Sum', 300))",
+               "label": "asks",
+               "id": "a"
+              }
+             ],
+             [
+              {
+               "expression": "SUM(SEARCH('{${MetricsNamespace},Mode} MetricName=\"Hits\"', 'Sum', 300))",
+               "label": "served from cache",
+               "id": "h"
+              }
+             ],
+             [
+              {
+               "expression": "SUM(SEARCH('{${MetricsNamespace},Mode} MetricName=\"WouldHits\"', 'Sum', 300))",
+               "label": "would-hit",
+               "id": "wh"
+              }
+             ]
+            ],
+            "period": 300
+           }
+          },
+          {
+           "type": "metric",
+           "x": 16,
+           "y": 2,
+           "width": 8,
+           "height": 6,
+           "properties": {
+            "title": "Ask latency p50 by where the answer came from (ms)",
+            "view": "timeSeries",
+            "stacked": false,
+            "region": "${AWS::Region}",
+            "metrics": [
+             [
+              {
+               "expression": "SEARCH('{${MetricsNamespace},ServedFrom} MetricName=\"AskMs\"', 'p50', 300)",
+               "id": "p50"
+              }
+             ]
+            ],
+            "period": 300
+           }
+          },
+          {
+           "type": "metric",
+           "x": 0,
+           "y": 8,
+           "width": 8,
+           "height": 6,
+           "properties": {
+            "title": "Admissions by outcome",
+            "view": "timeSeries",
+            "stacked": true,
+            "region": "${AWS::Region}",
+            "metrics": [
+             [
+              {
+               "expression": "SEARCH('{${MetricsNamespace},Outcome} MetricName=\"Admissions\"', 'Sum', 300)",
+               "id": "o"
+              }
+             ]
+            ],
+            "period": 300
+           }
+          },
+          {
+           "type": "metric",
+           "x": 8,
+           "y": 8,
+           "width": 8,
+           "height": 6,
+           "properties": {
+            "title": "Retrieval time p95 (ms) and over the D15 budget",
+            "view": "timeSeries",
+            "stacked": false,
+            "region": "${AWS::Region}",
+            "metrics": [
+             [
+              {
+               "expression": "MAX(SEARCH('{${MetricsNamespace},Mode} MetricName=\"RetrievalMs\"', 'p95', 300))",
+               "label": "retrieval p95 ms",
+               "id": "r"
+              }
+             ],
+             [
+              {
+               "expression": "SUM(SEARCH('{${MetricsNamespace},Mode} MetricName=\"OverBudget\"', 'Sum', 300))",
+               "label": "over budget",
+               "id": "ob",
+               "yAxis": "right"
+              }
+             ]
+            ],
+            "period": 300
+           }
+          },
+          {
+           "type": "metric",
+           "x": 16,
+           "y": 8,
+           "width": 8,
+           "height": 6,
+           "properties": {
+            "title": "Errors: cache, cache bypassed, agent",
+            "view": "timeSeries",
+            "stacked": false,
+            "region": "${AWS::Region}",
+            "metrics": [
+             [
+              {
+               "expression": "SUM(SEARCH('{${MetricsNamespace},Mode} MetricName=\"Errors\"', 'Sum', 300))",
+               "label": "cache errors",
+               "id": "e"
+              }
+             ],
+             [
+              {
+               "expression": "SUM(SEARCH('{${MetricsNamespace},Mode} MetricName=\"Skipped\"', 'Sum', 300))",
+               "label": "cache bypassed",
+               "id": "s"
+              }
+             ],
+             [
+              {
+               "expression": "SUM(SEARCH('{${AgentMetricsNamespace},internal_client} MetricName=\"ErrorCount\"', 'Sum', 300))",
+               "label": "agent queries with an error",
+               "id": "ae"
+              }
+             ]
+            ],
+            "period": 300
+           }
+          },
+          {
+           "type": "log",
+           "x": 0,
+           "y": 14,
+           "width": 12,
+           "height": 7,
+           "properties": {
+            "title": "Per domain: asks, hits, would-hits, re-asks",
+            "query": "SOURCE '${BoxLogGroup}' | filter event = \"cache.metrics\" and source = \"cache.retrieval\" | stats sum(Asks) as asks, sum(Hits) as hits, sum(WouldHits) as would_hits, round(100 * sum(Hits) / sum(Asks), 1) as hit_pct, round(100 * sum(WouldHits) / sum(Asks), 1) as would_hit_pct, sum(Reformulations) as reasks, round(100 * sum(Reformulations) / sum(Asks), 1) as reask_pct by Domain | sort asks desc",
+            "region": "${AWS::Region}",
+            "view": "table"
+           }
+          },
+          {
+           "type": "log",
+           "x": 12,
+           "y": 14,
+           "width": 12,
+           "height": 7,
+           "properties": {
+            "title": "Per domain: admission outcomes",
+            "query": "SOURCE '${BoxLogGroup}' | filter event = \"cache.metrics\" and source = \"cache.admission\" | stats sum(Admissions) as n, round(avg(AdmissionMs) / 1000, 1) as avg_s by Domain, Outcome | sort Domain, n desc",
+            "region": "${AWS::Region}",
+            "view": "table"
+           }
+          },
+          {
+           "type": "log",
+           "x": 0,
+           "y": 21,
+           "width": 12,
+           "height": 7,
+           "properties": {
+            "title": "Why answers are not admitted (top reasons)",
+            "query": "SOURCE '${BoxLogGroup}' | filter event = \"cache.admission\" and outcome != \"ACTIVE\" | stats count(*) as n by outcome, vendor, reason | sort n desc | limit 25",
+            "region": "${AWS::Region}",
+            "view": "table"
+           }
+          },
+          {
+           "type": "log",
+           "x": 12,
+           "y": 21,
+           "width": 12,
+           "height": 7,
+           "properties": {
+            "title": "Retrieval steps p95 (ms)",
+            "query": "SOURCE '${BoxLogGroup}' | filter event = \"cache.retrieval\" | stats count(*) as asks, pct(timings_ms.normalize_classify, 95) as classify, pct(timings_ms.embed, 95) as embed, pct(timings_ms.reformulation_wait, 95) as reformulation, pct(timings_ms.search, 95) as search, pct(timings_ms.checker, 95) as checker, pct(total_ms, 95) as total by mode",
+            "region": "${AWS::Region}",
+            "view": "table"
+           }
+          },
+          {
+           "type": "log",
+           "x": 0,
+           "y": 28,
+           "width": 8,
+           "height": 6,
+           "properties": {
+            "title": "Cache errors, bypasses and exclusions",
+            "query": "SOURCE '${BoxLogGroup}' | filter event = \"cache.retrieval\" and (error like /./ or skipped like /./ or excluded.0.reason like /./) | stats count(*) as n by error, skipped, excluded.0.reason | sort n desc | limit 20",
+            "region": "${AWS::Region}",
+            "view": "table"
+           }
+          },
+          {
+           "type": "log",
+           "x": 8,
+           "y": 28,
+           "width": 8,
+           "height": 6,
+           "properties": {
+            "title": "Citations dropped (URL no vendor tool returned)",
+            "query": "SOURCE '${BoxLogGroup}' | filter event = \"agent.citations_dropped\" | stats count(*) as answers, sum(dropped) as dropped, sum(of) as of_citations by bin(1d)",
+            "region": "${AWS::Region}",
+            "view": "table"
+           }
+          },
+          {
+           "type": "log",
+           "x": 16,
+           "y": 28,
+           "width": 8,
+           "height": 6,
+           "properties": {
+            "title": "Agent: vendor unavailable and failed tool calls",
+            "query": "SOURCE '${AgentLogGroup}' | filter event = \"agent.vendor_unavailable\" or (event = \"agent.tool_call\" and error_type like /./) | stats count(*) as n by event, error_type | sort n desc",
+            "region": "${AWS::Region}",
+            "view": "table"
+           }
+          }
+         ]
+        }
+
+Outputs:
+  DashboardUrl:
+    Value: !Sub https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards/dashboard/${DashboardName}

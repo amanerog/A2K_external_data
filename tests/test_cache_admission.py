@@ -375,8 +375,13 @@ def test_admit_fit_answer_becomes_active(capsys):
     # Evidence bundle written, without the agent's own AskContent call.
     (bundle,) = evidence_store.objects.values()
     assert [tc["tool"] for tc in bundle["tool_calls"]] == ["knowledge_search"]
-    log = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    lines = [json.loads(line) for line in capsys.readouterr().out.strip().splitlines()]
+    log, metric = lines[-2], lines[-1]
     assert log["event"] == "cache.admission" and log["outcome"] == "ACTIVE" and "judge" in log["timings_ms"]
+    # Its EMF line: one admission, by outcome, domain and vendor.
+    assert metric["event"] == "cache.metrics" and metric["_aws"]["CloudWatchMetrics"][0]["Dimensions"] == [["Outcome"], ["Domain", "Outcome"], ["Vendor", "Outcome"]]
+    assert (metric["Outcome"], metric["Vendor"], metric["Admissions"]) == ("ACTIVE", log["vendor"], 1)
+    assert metric["Domain"] == log["domains"][0] and metric["AdmissionMs"] == sum(log["timings_ms"].values())
 
 
 def test_admit_not_fit_deletes_pending_row():

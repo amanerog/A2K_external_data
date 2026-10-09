@@ -639,8 +639,8 @@ async def test_serving_and_admission_logs_carry_the_query_hash(gateway, capsys):
     from a2k.cache.models import AdmissionResult
 
     adm.log_result(AdmissionResult("e1", "NOT_FIT", "r"), candidate=state["submitted"][0], evidence_uri=None)
-    line = [json.loads(x) for x in capsys.readouterr().out.splitlines() if x.startswith("{")][-1]
-    assert line["event"] == "cache.admission" and line["query_sha256"] == log["query_sha256"]
+    (line,) = [y for y in (json.loads(x) for x in capsys.readouterr().out.splitlines() if x.startswith("{")) if y["event"] == "cache.admission"]
+    assert line["query_sha256"] == log["query_sha256"]
 
 
 class _ReformulationModel:
@@ -772,3 +772,31 @@ def test_checker_dates_block_does_not_tie_current_to_the_day():
 
     block = checker.dates_block(date(2026, 10, 8), date(2026, 10, 6))
     assert "do NOT make the two questions different" in block and "this week" in block
+
+
+def _metric_lines(capsys) -> list[dict]:
+    lines = [json.loads(line) for line in capsys.readouterr().out.splitlines() if line.startswith("{")]
+    return [line for line in lines if line.get("event") == "cache.metrics"]
+
+
+async def test_serve_hit_emits_cache_metrics_next_to_the_serving_log(gateway, capsys):
+    engine, state = gateway
+    state["mode"] = "serve"
+    await engine._ask_via_agent(A2KRequest(operation="ask", query="q"))
+    (m,) = _metric_lines(capsys)
+    directives = m["_aws"]["CloudWatchMetrics"]
+    assert directives[0]["Namespace"] == "A2K/Cache"
+    assert directives[0]["Dimensions"] == [["Mode"], ["Mode", "Domain"]]
+    assert directives[1]["Dimensions"] == [["ServedFrom"]] and directives[1]["Metrics"] == [{"Name": "AskMs", "Unit": "Milliseconds"}]
+    assert (m["Mode"], m["ServedFrom"], m["Asks"], m["Hits"], m["WouldHits"], m["Errors"]) == ("serve", "cache", 1, 1, 1, 0)
+    assert isinstance(m["AskMs"], int) and m["AskMs"] >= 0
+    # Every declared metric and dimension is a member of the line (EMF rejects it otherwise).
+    for d in directives:
+        assert all(m[x["Name"]] is not None for x in d["Metrics"]) and all(k in m for dims in d["Dimensions"] for k in dims)
+
+
+async def test_cache_metrics_can_be_turned_off(gateway, monkeypatch, capsys):
+    engine, _ = gateway
+    monkeypatch.setitem(config.__dict__, "cache_metrics_namespace", "")
+    await engine._ask_via_agent(A2KRequest(operation="ask", query="q"))
+    assert _metric_lines(capsys) == []

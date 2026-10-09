@@ -41,6 +41,7 @@ from ..models.request import A2KRequest, ExplainRequest, GetDocumentRequest
 from . import audit as gw_audit
 from . import conflict, synthesis, tracing
 from ..cache import admission, filters, retrieval
+from ..cache import metrics as cache_metrics
 from ..cache.models import Candidate
 from ..cache.store import AuroraStore, S3EvidenceStore
 
@@ -460,7 +461,8 @@ class GatewayEngine:
                 content = await self._call_agent("ask", req.query, req.sources, request_id)
             except A2KError as err:
                 if shadow_task is not None:
-                    self._log_retrieval(await shadow_task, query=req.query, request_id=request_id, session_id=session_id, served_from="vendor_error", vendor_entry_id=None)
+                    self._log_retrieval(await shadow_task, query=req.query, request_id=request_id, session_id=session_id, served_from="vendor_error", vendor_entry_id=None,
+                                        ask_ms=self._elapsed_ms(t0))
                 return self._error_envelope("ask", source_kb_id, err, request_id)
             retrieved_at = None
             decision_reason = None
@@ -489,7 +491,7 @@ class GatewayEngine:
                 lookup = await shadow_task
             if lookup is not None:
                 self._log_retrieval(lookup, query=req.query, request_id=request_id, session_id=session_id,
-                                    served_from="vendor_no_answer", vendor_entry_id=None)
+                                    served_from="vendor_no_answer", vendor_entry_id=None, ask_ms=self._elapsed_ms(t0))
             return self._insufficient_evidence(source_kb_id, request_id, req)
 
         grounded_ratio = float(content.get("groundedRatio") or 0.0)
@@ -563,6 +565,7 @@ class GatewayEngine:
                 session_id=session_id,
                 served_from="cache" if hit is not None else "vendor",
                 vendor_entry_id=vendor_entry_id,
+                ask_ms=self._elapsed_ms(t0),
             )
         tracing.trace(
             "engine.ask.response",
@@ -785,6 +788,7 @@ class GatewayEngine:
         session_id: str | None,
         served_from: str,
         vendor_entry_id: str | None,
+        ask_ms: int | None = None,
     ) -> None:
         """The serving log (proposal Sheet 6): one JSON line per ask with the
         cache on. In shadow mode `would_hit` is what the cache would have
@@ -821,8 +825,10 @@ class GatewayEngine:
             "total_ms": lookup.total_ms,
             "within_budget": lookup.total_ms <= config.cache_time_budget_seconds * 1000,
             "vendor_entry_id": vendor_entry_id,
+            "ask_ms": ask_ms,
         }
         emit(record)
+        cache_metrics.emit_retrieval(record)
 
     def _record_turn(self, session_id: str | None, query: str, served_entry_id: str | None) -> None:
         """Session memory for the next turn's reformulation check: the question

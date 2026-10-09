@@ -271,6 +271,9 @@ class Config:
     cache_reformulation_window_seconds: float = field(
         default_factory=lambda: float(os.environ.get("CACHE_REFORMULATION_WINDOW_SECONDS", "600"))
     )
+    # E7.4: CloudWatch namespace of the cache metrics (a2k/cache/metrics.py,
+    # Embedded Metric Format on stdout); empty turns them off.
+    cache_metrics_namespace: str = field(default_factory=lambda: os.environ.get("CACHE_METRICS_NAMESPACE", "A2K/Cache").strip())
 
     # Aurora PostgreSQL + pgvector, reached through the RDS Data API (see
     # a2k/cache/store.py for why not a driver connection). Schema in
