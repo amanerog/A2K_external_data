@@ -813,3 +813,66 @@ def test_engine_empties_invented_citations_but_keeps_their_place(capsys):
     # A cache hit (no tool calls) is left alone: its sources were checked at admission.
     hit = {"toolCalls": [], "citations": [{"sourceUrl": "https://x.example"}]}
     assert GatewayEngine._without_invented_sources(hit, "req-2") is hit
+
+
+# --- what the basic judge reads (AdmissionSettings.evidence) ---------------------
+
+UNCITED = "https://example.com/unrelated"
+
+
+def _candidate_with_noise(cited_page_chars: int = 100):
+    """The default candidate plus a fetched page nobody cites and a cited page."""
+    base = make_candidate()
+    noise = {"vendor": "cala", "toolName": "fetch", "input": {"url": UNCITED}, "output": _tool_output({"markdown": "NOISE " * 2000}),
+             "status": "success", "errorType": None}
+    cited = {"vendor": "cala", "toolName": "fetch", "input": {"url": URL}, "output": _tool_output({"markdown": "CITED " + "x" * cited_page_chars}),
+             "status": "success", "errorType": None}
+    return make_candidate(tool_calls=[*base.tool_calls, noise, cited])
+
+
+def _judge_prompt(bedrock: FakeBedrock) -> str:
+    (request,) = [r for r in bedrock.requests if r["system"].startswith("You check whether an answer")]
+    return request["prompt"]
+
+
+def _admit_with(candidate, bedrock, settings=BASIC):
+    return admission.admit(candidate, bedrock_client=bedrock, store=MemoryStore(), evidence_store=MemoryEvidenceStore(), settings=settings)
+
+
+def test_by_default_the_judge_reads_only_the_cited_pages_capped(capsys):
+    bedrock = FakeBedrock()
+    result = _admit_with(_candidate_with_noise(cited_page_chars=30_000), bedrock)
+    prompt = _judge_prompt(bedrock)
+    assert result.outcome == "ACTIVE"
+    assert "NOISE" not in prompt and "CITED" in prompt and "[... cut]" in prompt
+    (log,) = [y for y in map(json.loads, capsys.readouterr().out.splitlines()) if y["event"] == "cache.admission"]
+    assert log["evidence"]["mode"] == "capped" and log["evidence"]["chars"] < log["evidence"]["full_chars"]
+
+
+def test_a_grounding_domain_reads_the_cited_pages_whole():
+    bedrock = FakeBedrock(classification={**CLASSIFICATION, "domain_primary": "RSK"})
+    result = _admit_with(_candidate_with_noise(cited_page_chars=30_000), bedrock)
+    prompt = _judge_prompt(bedrock)
+    assert "NOISE" not in prompt and "[... cut]" not in prompt and "x" * 30_000 in prompt
+    assert result.evidence["mode"] == "cited"
+
+
+def test_full_evidence_mode_reads_everything():
+    bedrock = FakeBedrock()
+    settings = admission.AdmissionSettings(light_model_id="light", judge_model_id="judge", embedding_model_id="titan", evidence="full")
+    result = _admit_with(_candidate_with_noise(), bedrock, settings)
+    assert "NOISE" in _judge_prompt(bedrock) and result.evidence["mode"] == "full"
+
+
+def test_the_size_limit_applies_to_what_the_judge_reads():
+    """The full output is over the limit; what the judge reads is not."""
+    settings = admission.AdmissionSettings(light_model_id="light", judge_model_id="judge", embedding_model_id="titan", max_evidence_chars=10_000)
+    result = _admit_with(_candidate_with_noise(), FakeBedrock(), settings)
+    assert result.outcome == "ACTIVE" and result.evidence["full_chars"] > 10_000
+    full = admission.AdmissionSettings(light_model_id="light", judge_model_id="judge", embedding_model_id="titan", max_evidence_chars=10_000, evidence="full")
+    assert _admit_with(_candidate_with_noise(), FakeBedrock(), full).outcome == "FILTERED"
+
+
+def test_the_evidence_mode_is_recorded_in_the_admission_versions():
+    assert BASIC.versions("p")["evidence"] == "capped-20000"
+    assert admission.AdmissionSettings(light_model_id="l", judge_model_id="j", embedding_model_id="t", mode="strict").versions("p")["evidence"] == "full"

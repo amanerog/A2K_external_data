@@ -65,6 +65,8 @@ def _admission_settings() -> admission.AdmissionSettings:
         confirm_fit=config.admission_confirm_fit,
         mode=config.admission_mode,
         grounding_domains=config.admission_grounding_domains,
+        evidence=config.admission_evidence,
+        evidence_cap_chars=config.admission_evidence_cap_chars,
     )
 
 

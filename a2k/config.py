@@ -320,6 +320,9 @@ class Config:
     admission_confirm_fit: bool = field(default_factory=lambda: _bool_env("ADMISSION_CONFIRM_FIT", True))
     # "basic" (default) or "strict" -- see a2k/cache/judge_basic.py.
     admission_mode: str = field(default_factory=lambda: os.environ.get("ADMISSION_MODE", "basic").strip().lower())
+    # Basic mode: what the judge reads of the raw tool output -- see AdmissionSettings.evidence.
+    admission_evidence: str = field(default_factory=lambda: os.environ.get("ADMISSION_EVIDENCE", "capped").strip().lower())
+    admission_evidence_cap_chars: int = field(default_factory=lambda: int(os.environ.get("ADMISSION_EVIDENCE_CAP_CHARS", "20000")))
     # Basic mode: domains where every statement must be grounded in the tool output (C3).
     admission_grounding_domains: tuple[str, ...] = field(
         default_factory=lambda: tuple(

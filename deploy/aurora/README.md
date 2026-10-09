@@ -115,7 +115,7 @@ a domain never goes beyond `CACHE_MODE`; an `off` domain skips the judge at
 admission and the search at retrieval), `CACHE_TIME_BUDGET_SECONDS` (10, D15), `CACHE_CHECKER_MODEL_ID`
 (Sonnet 4.5, the Checker as tested, D4), `CACHE_EMBEDDING_MODEL_ID` (Titan v2),
 `ADMISSION_MIN_ANSWER_CHARS` (150, D17),
-`ADMISSION_MAX_EVIDENCE_CHARS` (400000), `ADMISSION_REQUIRE_VERIFIED_QUOTES`
+`ADMISSION_MAX_EVIDENCE_CHARS` (400000, applied to what the judge reads), `ADMISSION_EVIDENCE` (basic mode: `capped` by default -- only the cited pages, each tool call capped at `ADMISSION_EVIDENCE_CAP_CHARS`, 20000, outside the grounding domains; `cited`; `full`), `ADMISSION_REQUIRE_VERIFIED_QUOTES`
 (true), `ADMISSION_CONFIRM_FIT` (true: a FIT verdict needs a second, confirming
 judgement), `ADMISSION_WORKERS` (2).
 

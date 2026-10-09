@@ -44,7 +44,7 @@ from typing import Any, Callable
 from . import classifier, decision, filters, judge, judge_basic, metrics, normalize, retrieval, usage
 from ..logline import emit, query_hash
 from .bedrock import embed
-from .evidence import bundle, evidence_key, evidence_text
+from .evidence import bundle, cap_sections, cited_evidence_text, evidence_key, evidence_text
 from .expiry import expires_at
 from .models import AdmissionResult, Candidate, Normalized
 from .store import Activation, CacheStore, EvidenceStore
@@ -80,6 +80,16 @@ class AdmissionSettings:
     # modules, verified quotes and confirm_fit (prompts/, judge.py).
     mode: str = "basic"
     grounding_domains: tuple[str, ...] = ("RSK",)
+    # Basic mode: what the judge reads (decided 2026-10-09, after
+    # measure_cited_evidence.py on 20 recorded answers: the outcome changed as
+    # often as between two identical full runs -- 18/20 -- at 58% less cost
+    # for Linkup). "full": the whole raw tool output. "cited": only what the
+    # answer cites (evidence.cited_evidence_text). "capped": cited, and outside
+    # the grounding domains each tool call capped at evidence_cap_chars -- there
+    # the judge only looks for the date of the data. Strict mode always reads
+    # the full output. The S3 bundle always keeps it whole.
+    evidence: str = "capped"
+    evidence_cap_chars: int = 20_000
 
     def versions(self, expiry_policy_version: str) -> dict[str, str]:
         strict = self.mode == "strict"
@@ -94,6 +104,7 @@ class AdmissionSettings:
             "expiry_policy": expiry_policy_version,
             "light_model": self.light_model_id,
             "judge_model": self.judge_model_id,
+            "evidence": "full" if strict else (f"{self.evidence}-{self.evidence_cap_chars}" if self.evidence == "capped" else self.evidence),
         }
 
 
@@ -171,9 +182,9 @@ def _evaluate_steps(
     if not checked.passed:
         result.outcome, result.reason = "FILTERED", f"{checked.failed}: {checked.reason}"
         return evaluation
-    if len(evidence) > settings.max_evidence_chars:
-        result.outcome = "FILTERED"
-        result.reason = f"evidence too large for the judge: {len(evidence):,} chars > {settings.max_evidence_chars:,}"
+    # Basic mode checks the size of what its judge will read, once the
+    # domain is known (_judge_evidence); strict mode reads it all.
+    if settings.mode == "strict" and _too_large(evidence, result, settings):
         return evaluation
     result.verified_sources = checked.verified_sources or []
     # The agent itself says the answer does not give all that was asked: not
@@ -201,13 +212,16 @@ def _evaluate_steps(
 
     if settings.mode != "strict":
         grounding = any(d in settings.grounding_domains for d in result.classification.domains)
+        judged = _judge_evidence(candidate, evidence, grounding=grounding, settings=settings, result=result)
+        if _too_large(judged, result, settings):
+            return evaluation
         with timer.step("judge"):
             result.findings = judge_basic.judge(
                 bedrock_client,
                 model_id=settings.judge_model_id,
                 question=candidate.question,
                 answer=candidate.answer,
-                evidence=evidence,
+                evidence=judged,
                 classification=result.classification,
                 citations=candidate.citations,
                 today=now().date(),
@@ -305,6 +319,29 @@ def _expire_normalize_embed(
     return evaluation
 
 
+def _too_large(evidence: str, result: AdmissionResult, settings: AdmissionSettings) -> bool:
+    if len(evidence) <= settings.max_evidence_chars:
+        return False
+    result.outcome = "FILTERED"
+    result.reason = f"evidence too large for the judge: {len(evidence):,} chars > {settings.max_evidence_chars:,}"
+    return True
+
+
+def _judge_evidence(candidate: Candidate, full: str, *, grounding: bool, settings: AdmissionSettings, result: AdmissionResult) -> str:
+    """What the basic judge reads (AdmissionSettings.evidence); recorded in
+    result.evidence for the log."""
+    if settings.evidence == "full":
+        text, how = full, {"mode": "full"}
+    else:
+        text, how = cited_evidence_text(candidate)
+        if how["mode"] == "cited" and settings.evidence == "capped" and not grounding:
+            capped = cap_sections(text, settings.evidence_cap_chars)
+            if len(capped) < len(text):
+                text, how = capped, {**how, "mode": "capped", "cap_chars": settings.evidence_cap_chars}
+    result.evidence = {**how, "chars": len(text), "full_chars": len(full)}
+    return text
+
+
 def _stored_claims(claims: list[dict[str, Any]], claims_en: list[str]) -> dict[str, Any]:
     """{"original": [{"text", "sources"}], "en": [...]}: each served version of
     the answer keeps its own claims, located in it again when served."""
@@ -352,6 +389,7 @@ def log_result(result: AdmissionResult, *, candidate: Candidate, evidence_uri: s
         "expires_at": result.expires_at.isoformat() if result.expires_at else None,
         "evidence_uri": evidence_uri,
         "timings_ms": result.timings_ms,
+        "evidence": result.evidence,
         "usage": tracked.summary() if (tracked := usage.current()) else None,
     }
     emit(record)

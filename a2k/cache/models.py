@@ -134,3 +134,6 @@ class AdmissionResult:
     expires_at: datetime | None = None
     verified_sources: list[dict[str, Any]] = field(default_factory=list)
     timings_ms: dict[str, int] = field(default_factory=dict)
+    # What the judge read in basic mode: {"mode": full|cited|capped, "chars",
+    # "full_chars", ...} (admission._judge_evidence).
+    evidence: dict[str, Any] | None = None
