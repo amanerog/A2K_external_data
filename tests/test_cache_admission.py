@@ -379,7 +379,9 @@ def test_admit_fit_answer_becomes_active(capsys):
     log, metric = lines[-2], lines[-1]
     assert log["event"] == "cache.admission" and log["outcome"] == "ACTIVE" and "judge" in log["timings_ms"]
     # Its EMF line: one admission, by outcome, domain and vendor.
-    assert metric["event"] == "cache.metrics" and metric["_aws"]["CloudWatchMetrics"][0]["Dimensions"] == [["Outcome"], ["Domain", "Outcome"], ["Vendor", "Outcome"]]
+    directives = metric["_aws"]["CloudWatchMetrics"]
+    assert metric["event"] == "cache.metrics" and [d["Dimensions"] for d in directives] == [[["Outcome"]], [["Domain", "Outcome"], ["Vendor", "Outcome"]]]
+    assert [x["Name"] for x in directives[1]["Metrics"]] == ["Admissions"]
     assert (metric["Outcome"], metric["Vendor"], metric["Admissions"]) == ("ACTIVE", log["vendor"], 1)
     assert metric["Domain"] == log["domains"][0] and metric["AdmissionMs"] == sum(log["timings_ms"].values())
 

@@ -786,8 +786,10 @@ async def test_serve_hit_emits_cache_metrics_next_to_the_serving_log(gateway, ca
     (m,) = _metric_lines(capsys)
     directives = m["_aws"]["CloudWatchMetrics"]
     assert directives[0]["Namespace"] == "A2K/Cache"
-    assert directives[0]["Dimensions"] == [["Mode"], ["Mode", "Domain"]]
-    assert directives[1]["Dimensions"] == [["ServedFrom"]] and directives[1]["Metrics"] == [{"Name": "AskMs", "Unit": "Milliseconds"}]
+    assert [d["Dimensions"] for d in directives] == [[["Mode"]], [["Mode", "Domain"]], [["ServedFrom"]]]
+    assert [x["Name"] for x in directives[1]["Metrics"]] == ["Asks", "Hits", "WouldHits"]
+    assert directives[2]["Metrics"] == [{"Name": "AskMs", "Unit": "Milliseconds"}]
+    assert m["Domain"] == "REG"
     assert (m["Mode"], m["ServedFrom"], m["Asks"], m["Hits"], m["WouldHits"], m["Errors"]) == ("serve", "cache", 1, 1, 1, 0)
     assert isinstance(m["AskMs"], int) and m["AskMs"] >= 0
     # Every declared metric and dimension is a member of the line (EMF rejects it otherwise).

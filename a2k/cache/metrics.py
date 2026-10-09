@@ -7,12 +7,18 @@ the dashboard and the alarms (E7.5) read, the log lines what Logs Insights
 breaks down further.
 
 Retrieval, one per ask:
-  by Mode and by Mode+Domain -- Asks, Hits (served from the cache), WouldHits,
-  Errors, Skipped (cache bypassed), Reformulations, OverBudget, RetrievalMs;
+  by Mode -- Asks, Hits (served from the cache), WouldHits, Errors, Skipped
+  (cache bypassed), Reformulations, OverBudget, RetrievalMs;
+  by Mode+Domain -- Asks, Hits, WouldHits only;
   by ServedFrom (cache / vendor / vendor_error / vendor_no_answer) -- AskMs,
   the whole ask as a2k-box saw it, to compare a hit with a vendor answer.
 Admission, one per candidate:
-  by Outcome, Domain+Outcome and Vendor+Outcome -- Admissions, AdmissionMs.
+  by Outcome -- Admissions, AdmissionMs;
+  by Domain+Outcome and Vendor+Outcome -- Admissions only.
+
+Every dimension combination is a billed custom metric, so the per-domain and
+per-vendor ones are kept to the counts; the dashboard's per-domain tables
+come from Logs Insights over these same lines.
 
 A question with no domain (bypassed, or retrieval failed before classifying)
 is counted under Domain "NONE".
@@ -67,7 +73,7 @@ def retrieval_metrics(record: dict[str, Any], namespace: str) -> dict[str, Any]:
         "RetrievalMs": record.get("total_ms") or 0,
     }
     per_ask = [_count(n) for n in ("Asks", "Hits", "WouldHits", "Errors", "Skipped", "Reformulations", "OverBudget")] + [_ms("RetrievalMs")]
-    directives = [([["Mode"], ["Mode", "Domain"]], per_ask)]
+    directives = [([["Mode"]], per_ask), ([["Mode", "Domain"]], [_count(n) for n in ("Asks", "Hits", "WouldHits")])]
     if record.get("ask_ms") is not None:
         values["AskMs"] = record["ask_ms"]
         directives.append(([["ServedFrom"]], [_ms("AskMs")]))
@@ -85,7 +91,11 @@ def admission_metrics(record: dict[str, Any], namespace: str) -> dict[str, Any]:
         "Admissions": 1,
         "AdmissionMs": sum((record.get("timings_ms") or {}).values()),
     }
-    return _envelope(namespace, [([["Outcome"], ["Domain", "Outcome"], ["Vendor", "Outcome"]], [_count("Admissions"), _ms("AdmissionMs")])], values)
+    return _envelope(
+        namespace,
+        [([["Outcome"]], [_count("Admissions"), _ms("AdmissionMs")]), ([["Domain", "Outcome"], ["Vendor", "Outcome"]], [_count("Admissions")])],
+        values,
+    )
 
 
 def emit_retrieval(record: dict[str, Any]) -> None:
