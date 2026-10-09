@@ -24,7 +24,9 @@ outside_agent are only given when that match is found.
 
 Usage (credentials for the account in the environment):
     python deploy/agentcore/latency_breakdown.py ../A2K_external_data/deploy/agentcore/routing_p1.jsonl \\
-        --date 2026-10-08 [--mode shadow] --output latency_breakdown.csv
+        --date 2026-10-08 [--since 14:30] [--mode shadow] --output latency_breakdown.csv
+
+--since (UTC, HH:MM) leaves out earlier runs of the same day on the same questions.
 """
 
 from __future__ import annotations
@@ -99,6 +101,7 @@ def main() -> None:
     parser.add_argument("jsonl")
     parser.add_argument("--date", required=True, help="UTC day of the run, YYYY-MM-DD")
     parser.add_argument("--mode", default="shadow", help="cache mode of the run's cache.retrieval lines")
+    parser.add_argument("--since", help="UTC time HH:MM on --date; lines before it are ignored")
     parser.add_argument("--box-log-group", default=BOX_LOG_GROUP)
     parser.add_argument("--agent-log-group", default=AGENT_LOG_GROUP)
     parser.add_argument("--region", default=os.environ.get("AWS_REGION", "eu-west-1"))
@@ -117,6 +120,9 @@ def main() -> None:
                        'filter event = "agent.tool_call" | fields @timestamp, @logStream, session_id, tool_start_time, tool_end_time, error_type', start, end)
     agent_totals = query(logs, args.agent_log_group,
                          "filter ispresent(QueryCount) and ispresent(Latency) | fields @timestamp, @logStream, Latency, InvocationCount", start, end)
+    if args.since:
+        since = datetime.fromisoformat(f"{args.date}T{args.since}").replace(tzinfo=timezone.utc)
+        retrievals = [r for r in retrievals if ts(r["@timestamp"]) >= since]
     chosen = pick_run(retrievals, set(by_hash))
     print(f"logs: {len(retrievals)} cache.retrieval, {len(tool_calls)} agent.tool_call, {len(agent_totals)} agent totals; "
           f"{len(chosen)}/{len(rows)} questions found in the run window")
