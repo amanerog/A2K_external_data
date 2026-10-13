@@ -1,0 +1,136 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  a2k frontend as an AWS Lambda behind a Function URL: the same FastAPI app
+  (grc/), served by Mangum (grc/lambda_handler.py). It calls a2k-box's MCP
+  Runtime with this function's role. The URL is public, so the page asks for
+  a user and password (HTTP Basic); the password is generated here, in
+  Secrets Manager.
+
+Parameters:
+  FunctionName:
+    Type: String
+    Default: a2k-frontend
+  CodeBucket:
+    Type: String
+    Description: Bucket holding the zip built by deploy/lambda/build.sh.
+  CodeKey:
+    Type: String
+  RuntimeArn:
+    Type: String
+    Default: arn:aws:bedrock-agentcore:eu-west-1:396961015428:runtime/a2k_cache_mcp-48ImkT2F9a
+    Description: a2k-box's MCP Runtime (needs A2K_INTERNAL_TOOLS=true -- the page calls internal.ask/internal.search).
+  User:
+    Type: String
+    Default: a2k
+  ExistingRoleArn:
+    Type: String
+    Default: ""
+    Description: >-
+      An execution role created elsewhere (where IAM roles are created by the
+      platform team). Empty: this stack creates it. It needs
+      bedrock-agentcore:InvokeAgentRuntime on RuntimeArn and RuntimeArn/*,
+      secretsmanager:GetSecretValue on the password secret, and CloudWatch Logs.
+
+Conditions:
+  CreateRole: !Equals [!Ref ExistingRoleArn, ""]
+
+Resources:
+  PasswordSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub ${FunctionName}/password
+      Description: !Sub HTTP Basic password of the ${FunctionName} page (user ${User})
+      GenerateSecretString:
+        PasswordLength: 24
+        ExcludePunctuation: true
+
+  Role:
+    Type: AWS::IAM::Role
+    Condition: CreateRole
+    Properties:
+      RoleName: !Sub ${FunctionName}-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: {Service: lambda.amazonaws.com}
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: a2k-frontend
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: InvokeA2kBox
+                Effect: Allow
+                Action: bedrock-agentcore:InvokeAgentRuntime
+                Resource: [!Ref RuntimeArn, !Sub "${RuntimeArn}/*"]
+              - Sid: Password
+                Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Ref PasswordSecret
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${FunctionName}
+      RetentionInDays: 30
+
+  Function:
+    Type: AWS::Lambda::Function
+    DependsOn: LogGroup
+    Properties:
+      FunctionName: !Ref FunctionName
+      Description: a2k frontend (FastAPI via Mangum) over a2k-box's MCP Runtime
+      Runtime: python3.13
+      Architectures: [x86_64]
+      Handler: lambda_handler.handler
+      Code:
+        S3Bucket: !Ref CodeBucket
+        S3Key: !Ref CodeKey
+      Role: !If [CreateRole, !GetAtt Role.Arn, !Ref ExistingRoleArn]
+      MemorySize: 512
+      # An ask through the vendor takes up to ~150 s (p90 139 s, agent v7);
+      # a Function URL waits as long as the function runs.
+      Timeout: 600
+      Environment:
+        Variables:
+          A2K_BOX_RUNTIME_ARN: !Ref RuntimeArn
+          A2K_FRONTEND_USER: !Ref User
+          A2K_FRONTEND_PASSWORD_SECRET_ARN: !Ref PasswordSecret
+
+  Url:
+    Type: AWS::Lambda::Url
+    Properties:
+      TargetFunctionArn: !Ref Function
+      AuthType: NONE
+      InvokeMode: BUFFERED
+
+  # A public Function URL needs both: invoking the URL, and invoking the
+  # function -- the latter only when the call comes through the URL.
+  UrlPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref Function
+      Action: lambda:InvokeFunctionUrl
+      Principal: "*"
+      FunctionUrlAuthType: NONE
+
+  InvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref Function
+      Action: lambda:InvokeFunction
+      Principal: "*"
+      InvokedViaFunctionUrl: true
+
+Outputs:
+  Url:
+    Description: The page (user and password asked by the browser)
+    Value: !GetAtt Url.FunctionUrl
+  User:
+    Value: !Ref User
+  PasswordSecretArn:
+    Description: aws secretsmanager get-secret-value --secret-id <this> --query SecretString --output text
+    Value: !Ref PasswordSecret

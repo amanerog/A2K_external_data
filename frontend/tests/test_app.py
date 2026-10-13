@@ -125,3 +125,46 @@ def test_index_prefixes_its_urls_with_the_base_path(client, monkeypatch):
 def test_index_without_a_base_path_keeps_root_urls(client):
     html = client.get("/").text
     assert 'href="/static/style.css"' in html and 'window.A2K_BASE_PATH = ""' in html
+
+
+# --- HTTP Basic auth (on when a password is configured) ---------------------
+
+
+@pytest.fixture
+def protected(monkeypatch):
+    monkeypatch.setattr(app_module, "_password", lambda: "s3cret")
+    return TestClient(app_module.app)
+
+
+def test_without_a_password_everything_is_open(client, monkeypatch):
+    monkeypatch.setattr(app_module, "_password", lambda: None)
+    assert client.get("/").status_code == 200
+
+
+def test_with_a_password_the_page_and_api_need_it(protected):
+    resp = protected.get("/")
+    assert resp.status_code == 401 and resp.headers["www-authenticate"].startswith("Basic")
+    assert protected.post("/api/ask", json={"query": "q"}).status_code == 401
+    assert protected.get("/", auth=("a2k", "wrong")).status_code == 401
+    assert protected.get("/", auth=("someone", "s3cret")).status_code == 401
+    assert protected.get("/", auth=("a2k", "s3cret")).status_code == 200
+
+
+def test_health_stays_open(protected):
+    assert protected.get("/health").status_code == 200
+
+
+def test_lambda_handler_serves_a_function_url_event(monkeypatch):
+    """The Lambda entry point answers a Function URL (payload 2.0) event."""
+    pytest.importorskip("mangum")
+    import lambda_handler
+
+    event = {
+        "version": "2.0", "routeKey": "$default", "rawPath": "/health", "rawQueryString": "",
+        "headers": {"host": "abc.lambda-url.eu-west-1.on.aws"},
+        "requestContext": {"http": {"method": "GET", "path": "/health", "sourceIp": "1.2.3.4", "protocol": "HTTP/1.1"},
+                           "domainName": "abc.lambda-url.eu-west-1.on.aws", "stage": "$default"},
+        "isBase64Encoded": False,
+    }
+    resp = lambda_handler.handler(event, None)
+    assert resp["statusCode"] == 200 and '"status":"ok"' in resp["body"]

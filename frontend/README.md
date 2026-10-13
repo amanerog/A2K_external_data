@@ -117,6 +117,29 @@ reads `Pipfile`'s `[packages]` only, not `[dev-packages]`).
 A request can take anywhere from a few seconds (cache hit) to roughly a minute (a live vendor
 lookup through the agent) -- the UI shows a loading state for this, it's expected, not a bug.
 
+## Lambda deployment (Function URL)
+
+The same app as an AWS Lambda behind a Function URL (`deploy/lambda/`): Mangum
+(`grc/lambda_handler.py`) serves FastAPI, the function's role calls a2k-box's Runtime, and
+the URL -- public, reachable from any network -- asks for a user and password (HTTP Basic,
+`a2k` + a password the stack generates in Secrets Manager). Calls of up to 10 minutes; an
+ask through the vendor takes up to ~150 s.
+
+```bash
+cd frontend
+./deploy/lambda/build.sh                       # -> dist/a2k-frontend-lambda.zip (Linux x86_64 wheels)
+BUCKET=<a bucket for the code>; KEY=a2k-frontend/$(date +%Y%m%d-%H%M%S).zip
+aws s3 cp dist/a2k-frontend-lambda.zip s3://$BUCKET/$KEY
+aws cloudformation deploy --stack-name a2k-frontend --template-file deploy/lambda/frontend-lambda.yaml \
+  --capabilities CAPABILITY_NAMED_IAM --parameter-overrides CodeBucket=$BUCKET CodeKey=$KEY
+aws cloudformation describe-stacks --stack-name a2k-frontend --query 'Stacks[0].Outputs' --output table
+aws secretsmanager get-secret-value --secret-id a2k-frontend/password --query SecretString --output text
+```
+
+Where IAM roles are created by the platform team, pass `ExistingRoleArn=<their role>` (the
+template's parameter describes the permissions it needs). A new version of the code: build,
+upload under a new key, and deploy again with that `CodeKey`.
+
 ## EKS deployment
 
 Single FastAPI process serving both the JSON API and the static/template files -- one container,
