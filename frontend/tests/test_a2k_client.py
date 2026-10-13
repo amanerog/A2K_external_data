@@ -144,3 +144,12 @@ def test_call_tool_raises_when_tool_result_is_error():
     client = _FakeAgentCoreClient(tool_response_body=body)
     with pytest.raises(a2k_client.A2KClientError, match="tool error"):
         a2k_client.call_ask(client, "sess-1", "q")
+
+
+def test_ask_and_search_call_the_internal_tools():
+    """a2k.ask/a2k.search speak A2K 0.1 now; this page renders a2k-box's own envelope."""
+    client = _FakeAgentCoreClient(tool_response_body=_envelope_rpc_body({"ok": True}))
+    a2k_client.call_ask(client, "sess-abc", "q")
+    assert json.loads(client.calls[-1]["payload"])["params"]["name"] == "internal.ask"
+    a2k_client.call_search(client, "sess-abc", "q")
+    assert json.loads(client.calls[-1]["payload"])["params"]["name"] == "internal.search"

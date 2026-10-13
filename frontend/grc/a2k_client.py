@@ -23,19 +23,24 @@ import os
 from typing import Any, Optional
 
 REGION = os.environ.get("AWS_REGION", "eu-west-1")
-# The a2k-box MCP Runtime this frontend talks to -- NOT the same as the
-# original a2k_external_data_mcp-A3c4F0Cyx7 ARN that older deploy/agentcore/
-# scripts (predating the `cache` branch) still point at. This must be the
-# Runtime that actually has the answer-cache code deployed (ANSWER_CACHE_*
-# env vars set, the IAM permissions from this branch's plan) -- confirmed
-# live 2026-09-22 that pointing this at the wrong Runtime silently "works"
-# (real answers still come back) while never touching the cache at all, no
-# error anywhere to notice by. Overridable so this doesn't need a code
-# change if a2k-box is ever redeployed under yet another Runtime.
+# The a2k-box MCP Runtime this frontend talks to: a2k_cache_mcp, the one with
+# the Aurora answer cache and the current agent (stack a2k-cache-runtimes).
+# Pointing this at another Runtime silently "works" -- real answers still
+# come back -- without the cache that Runtime lacks (confirmed live
+# 2026-09-22 with the earlier DynamoDB-cache Runtime). Overridable so this
+# needs no code change if a2k-box is redeployed under another Runtime.
 AGENT_RUNTIME_ARN = os.environ.get(
     "A2K_BOX_RUNTIME_ARN",
-    "arn:aws:bedrock-agentcore:eu-west-1:396961015428:runtime/mcp_cache_hosted_agent-YHUBZcF0g2",
+    "arn:aws:bedrock-agentcore:eu-west-1:396961015428:runtime/a2k_cache_mcp-48ImkT2F9a",
 )
+# Since the A2K 0.1 migration (2026-10), a2k.ask/a2k.search take the 0.1
+# request and return the 0.1 envelope -- the surface K2 uses. This page
+# renders a2k-box's own CitedResponseEnvelope (audit.decisionReason for the
+# cache badge, freshness, toolCalls, usage), which the same Runtime still
+# serves as internal.ask/internal.search when A2K_INTERNAL_TOOLS=true (test
+# Runtimes only -- the dev Runtime has it).
+ASK_TOOL = os.environ.get("A2K_ASK_TOOL", "internal.ask")
+SEARCH_TOOL = os.environ.get("A2K_SEARCH_TOOL", "internal.search")
 MCP_PROTOCOL_VERSION = "2025-06-18"
 
 
@@ -135,8 +140,8 @@ def call_ask(client, session_id: str, query: str, sources: Optional[list[str]] =
     failed; a well-formed `{"ok": false, "error": {...}}` envelope is
     returned normally, not raised (that's a2k-box's own answer, not a
     transport failure)."""
-    return _call_tool(client, session_id, "a2k.ask", query, sources)
+    return _call_tool(client, session_id, ASK_TOOL, query, sources)
 
 
 def call_search(client, session_id: str, query: str, sources: Optional[list[str]] = None) -> dict[str, Any]:
-    return _call_tool(client, session_id, "a2k.search", query, sources)
+    return _call_tool(client, session_id, SEARCH_TOOL, query, sources)

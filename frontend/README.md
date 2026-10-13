@@ -42,7 +42,8 @@ root -- see "Project layout" below for why.)
 
 | Var | Default | What it's for |
 |---|---|---|
-| `A2K_BOX_RUNTIME_ARN` | the current a2k-box MCP Runtime ARN (`a2k_external_data_mcp-...`) | Which Runtime to call -- override if a2k-box is ever redeployed under a different Runtime. |
+| `A2K_BOX_RUNTIME_ARN` | the a2k-box MCP Runtime with the cache (`a2k_cache_mcp-...`) | Which Runtime to call -- override if a2k-box is ever redeployed under a different Runtime. |
+| `A2K_ASK_TOOL` / `A2K_SEARCH_TOOL` | `internal.ask` / `internal.search` | The tools called. Since the A2K 0.1 migration, `a2k.ask`/`a2k.search` speak the 0.1 protocol (K2's surface); this page renders a2k-box's own envelope, which the Runtime serves as `internal.*` only with `A2K_INTERNAL_TOOLS=true` (test Runtimes, dev included). |
 | `AWS_REGION` | `eu-west-1` | Region for both the Bedrock AgentCore client and the Runtime ARN above. |
 
 See `grc/a2k_client.py`'s own top for the exact defaults.
