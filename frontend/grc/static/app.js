@@ -77,7 +77,7 @@ form.addEventListener("submit", async (event) => {
 
   const t0 = performance.now();
   try {
-    const response = await fetch(`/api/${operation}`, {
+    const response = await fetch(`${window.A2K_BASE_PATH || ""}/api/${operation}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query, sources }),

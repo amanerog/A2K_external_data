@@ -45,6 +45,10 @@ spec:
               value: "8080"
             - name: AWS_REGION
               value: "eu-west-1"
+            # The sub-path the ingress publishes the page under, if any (it
+            # must strip it before forwarding, e.g. nginx rewrite-target).
+            # - name: A2K_FRONTEND_BASE_PATH
+            #   value: "/a2kfrontexternaldata"
             # Uncomment only if a2k-box is ever redeployed under a different
             # Runtime -- a2k_client.py's own default already matches the
             # Runtime currently live.

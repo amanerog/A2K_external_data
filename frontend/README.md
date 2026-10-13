@@ -43,6 +43,7 @@ root -- see "Project layout" below for why.)
 | Var | Default | What it's for |
 |---|---|---|
 | `A2K_BOX_RUNTIME_ARN` | the a2k-box MCP Runtime with the cache (`a2k_cache_mcp-...`) | Which Runtime to call -- override if a2k-box is ever redeployed under a different Runtime. |
+| `A2K_FRONTEND_BASE_PATH` | empty | The sub-path an ingress publishes the page under (e.g. `/a2kfrontexternaldata`), when it strips it before forwarding (nginx `rewrite-target`). The page then asks for its static files and the JSON API under that path; without it the browser asks for `/static/...` and `/api/...` at the host's root, outside the route. |
 | `A2K_ASK_TOOL` / `A2K_SEARCH_TOOL` | `internal.ask` / `internal.search` | The tools called. Since the A2K 0.1 migration, `a2k.ask`/`a2k.search` speak the 0.1 protocol (K2's surface); this page renders a2k-box's own envelope, which the Runtime serves as `internal.*` only with `A2K_INTERNAL_TOOLS=true` (test Runtimes, dev included). |
 | `AWS_REGION` | `eu-west-1` | Region for both the Bedrock AgentCore client and the Runtime ARN above. |
 

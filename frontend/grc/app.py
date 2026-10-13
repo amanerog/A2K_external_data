@@ -7,6 +7,7 @@ principle a2k/api/rest.py already follows for a2k-box itself.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -20,6 +21,11 @@ from pydantic import BaseModel
 from a2k_client import REGION, A2KClientError, call_ask, call_search, new_session
 
 BASE_DIR = Path(__file__).parent
+# The path prefix the page is published under when an ingress routes a
+# sub-path to it and strips it before forwarding (e.g. "/a2kfrontexternaldata"
+# with nginx's rewrite-target). The app itself always serves from "/"; only
+# the URLs the browser builds -- static files and the JSON API -- need it.
+BASE_PATH = os.environ.get("A2K_FRONTEND_BASE_PATH", "").rstrip("/")
 
 app = FastAPI(title="A2K frontend", description="Local UI over a2k-box's deployed MCP.")
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
@@ -51,7 +57,7 @@ async def index(request: Request):
     # Starlette's TemplateResponse signature is (request, name, context=...)
     # in the version this project pins -- request first, not folded into the
     # context dict (the older, still-common-in-docs calling convention).
-    return templates.TemplateResponse(request, "index.html")
+    return templates.TemplateResponse(request, "index.html", {"base_path": BASE_PATH})
 
 
 @app.post("/api/ask")

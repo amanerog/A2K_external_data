@@ -108,3 +108,20 @@ def test_api_search_transport_error_returns_502(client, monkeypatch):
 
     assert resp.status_code == 502
     assert resp.json()["ok"] is False
+
+
+def test_index_prefixes_its_urls_with_the_base_path(client, monkeypatch):
+    """Behind an ingress that publishes the app under a sub-path (and strips
+    it), the browser must ask for static files and the API under that path."""
+    import app as app_module
+
+    monkeypatch.setattr(app_module, "BASE_PATH", "/a2kfrontexternaldata")
+    html = client.get("/").text
+    assert 'href="/a2kfrontexternaldata/static/style.css"' in html
+    assert 'src="/a2kfrontexternaldata/static/app.js"' in html
+    assert 'window.A2K_BASE_PATH = "/a2kfrontexternaldata"' in html
+
+
+def test_index_without_a_base_path_keeps_root_urls(client):
+    html = client.get("/").text
+    assert 'href="/static/style.css"' in html and 'window.A2K_BASE_PATH = ""' in html
