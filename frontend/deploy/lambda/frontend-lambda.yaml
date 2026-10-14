@@ -3,7 +3,7 @@ Description: >-
   a2k frontend as an AWS Lambda behind a Function URL: the same FastAPI app
   (grc/), served by Mangum (grc/lambda_handler.py). It calls a2k-box's MCP
   Runtime with this function's role. The URL is public, so the page asks for
-  a user and password (HTTP Basic), one per person, managed with
+  a user and password on its own sign-in page, one per person, managed with
   deploy/lambda/users.py in the Secrets Manager secret created here.
 
 Parameters:

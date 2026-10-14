@@ -355,3 +355,14 @@ details.tool-calls pre { margin: 0; white-space: pre-wrap; word-break: break-wor
   .composer button { width: 100%; }
   .msg.user .bubble { max-width: 100%; }
 }
+
+
+/* Sign-in page and the signed-in user in the app bar */
+.appbar-user { margin-left: auto; font-size: 0.9rem; opacity: 0.9; }
+.appbar-user a { color: inherit; }
+.login { display: flex; justify-content: center; padding: 3rem 1rem; }
+.login-form { display: flex; flex-direction: column; gap: 0.9rem; width: 100%; max-width: 360px; }
+.login-form label { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.9rem; }
+.login-form input { padding: 0.55rem 0.7rem; font-size: 1rem; border: 1px solid #ccc; border-radius: 6px; }
+.login-form button { padding: 0.6rem; font-size: 1rem; border: 0; border-radius: 6px; cursor: pointer; background: #ec0000; color: #fff; }
+.login-error { color: #b00020; margin: 0; }

@@ -153,13 +153,14 @@ def test_without_users_everything_is_open(client):
 
 
 def test_each_user_gets_in_with_their_own_password(protected):
-    resp = protected.get("/")
-    assert resp.status_code == 401 and resp.headers["www-authenticate"].startswith("Basic")
-    assert protected.post("/api/ask", json={"query": "q"}).status_code == 401
+    # Basic auth stays, for scripts (curl -u); browsers go through /login.
+    resp = protected.get("/", follow_redirects=False)
+    assert resp.status_code == 303 and resp.headers["location"] == "/login"
+    assert protected.post("/api/ask", json={"query": "q"}).json()["error"]["code"] == "UNAUTHENTICATED"
     assert protected.get("/", auth=("alice", "pw-alice")).status_code == 200
     assert protected.get("/", auth=("bob", "pw-bob")).status_code == 200
-    assert protected.get("/", auth=("alice", "pw-bob")).status_code == 401
-    assert protected.get("/", auth=("carol", "pw-alice")).status_code == 401
+    assert protected.get("/", auth=("alice", "pw-bob"), follow_redirects=False).status_code == 303
+    assert protected.get("/", auth=("carol", "pw-alice"), follow_redirects=False).status_code == 303
 
 
 def test_health_stays_open(protected):
@@ -231,3 +232,45 @@ def test_lambda_handler_serves_a_function_url_event(monkeypatch):
     }
     resp = lambda_handler.handler(event, None)
     assert resp["statusCode"] == 200 and '"status":"ok"' in resp["body"]
+
+
+# --- sign-in page and session cookie (Function URLs strip WWW-Authenticate) ---
+
+
+def test_login_sets_a_session_that_opens_the_page(protected):
+    assert protected.get("/login").status_code == 200
+    bad = protected.post("/login", data={"user": "alice", "password": "nope"}, follow_redirects=False)
+    assert bad.status_code == 401 and "incorrectos" in bad.text
+    ok = protected.post("/login", data={"user": "alice", "password": "pw-alice"}, follow_redirects=False)
+    assert ok.status_code == 303 and ok.headers["location"] == "/"
+    assert "httponly" in ok.headers["set-cookie"].lower() and "samesite=lax" in ok.headers["set-cookie"].lower()
+    page = protected.get("/")
+    assert page.status_code == 200 and "alice" in page.text and "/logout" in page.text
+
+
+def test_the_session_ends_on_logout_and_on_a_password_reset(protected, monkeypatch):
+    protected.post("/login", data={"user": "alice", "password": "pw-alice"})
+    assert protected.get("/", follow_redirects=False).status_code == 200
+    protected.get("/logout")
+    assert protected.get("/", follow_redirects=False).status_code == 303
+    protected.post("/login", data={"user": "alice", "password": "pw-alice"})
+    new = {"alice": hash_password("other", iterations=1000), "bob": hash_password("pw-bob", iterations=1000)}
+    monkeypatch.setattr(app_module, "_users", {"loaded_at": None, "hashes": {}, "verified": set()})
+    monkeypatch.setattr(app_module, "_read_users", lambda: new)
+    assert protected.get("/", follow_redirects=False).status_code == 303  # reset: old session refused
+
+
+def test_a_forged_or_expired_cookie_is_refused(protected):
+    hashes = app_module._current_users()
+    good = app_module._session_cookie("alice", hashes["alice"])
+    name, expires, sig = good.split(".")
+    assert app_module._session_user(good, hashes) == "alice"
+    assert app_module._session_user(f"{name}.{int(expires) + 999}.{sig}", hashes) is None
+    assert app_module._session_user(f"{name}.{expires}.{'0' * 64}", hashes) is None
+    assert app_module._session_user("garbage", hashes) is None
+    assert app_module._session_user(f"{name}.1.{app_module._session_signature('alice', 1, hashes['alice'])}", hashes) is None
+
+
+def test_static_files_and_login_are_open(protected):
+    assert protected.get("/static/style.css").status_code == 200
+    assert protected.get("/login").status_code == 200

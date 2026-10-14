@@ -82,6 +82,11 @@ form.addEventListener("submit", async (event) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query, sources }),
     });
+    if (response.status === 401) {
+      // The session expired (or the user was removed): back to the sign-in page.
+      window.location.href = `${window.A2K_BASE_PATH || ""}/login`;
+      return;
+    }
     const envelope = await response.json();
     const elapsedS = ((performance.now() - t0) / 1000).toFixed(1);
     pendingBubble.classList.remove("pending");

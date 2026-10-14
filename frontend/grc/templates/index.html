@@ -16,6 +16,7 @@
         <h1>A2K External Data</h1>
         <p>Asistente de inteligencia societaria</p>
       </div>
+      {% if user %}<div class="appbar-user">{{ user }} · <a href="{{ base_path }}/logout">Salir</a></div>{% endif %}
     </div>
   </header>
 

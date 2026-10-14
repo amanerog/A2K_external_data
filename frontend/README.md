@@ -121,8 +121,10 @@ lookup through the agent) -- the UI shows a loading state for this, it's expecte
 
 The same app as an AWS Lambda behind a Function URL (`deploy/lambda/`): Mangum
 (`grc/lambda_handler.py`) serves FastAPI, the function's role calls a2k-box's Runtime, and
-the URL -- public, reachable from any network -- asks for a user and password (HTTP Basic,
-`a2k` + a password the stack generates in Secrets Manager). Calls of up to 10 minutes; an
+the URL -- public, reachable from any network -- asks for a user and password on its own
+sign-in page (`/login`), which leaves a 12-hour session cookie. Not the browser's HTTP Basic
+prompt: a Function URL renames the `WWW-Authenticate` header, so the browser never shows it.
+Basic auth still works for scripts (`curl -u user:password`). Calls of up to 10 minutes; an
 ask through the vendor takes up to ~150 s.
 
 ```bash

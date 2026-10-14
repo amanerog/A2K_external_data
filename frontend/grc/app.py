@@ -9,15 +9,17 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import hmac
 import json
 import os
 import time
+from urllib.parse import parse_qs
 from pathlib import Path
 from typing import Optional
 
 import boto3
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -106,11 +108,87 @@ def _log(record: dict) -> None:
     print(json.dumps(record, ensure_ascii=False), flush=True)
 
 
+# Browser sessions. A Lambda Function URL renames a response's
+# WWW-Authenticate header (x-amzn-Remapped-www-authenticate, seen live
+# 2026-10-14), so a browser never shows its Basic-auth prompt there: people
+# sign in on /login instead and get a session cookie. The cookie is signed
+# with a key derived from that user's own stored hash, so `users.py reset`
+# or `remove` ends that user's sessions and nobody else's. Basic auth still
+# works for scripts (curl -u).
+SESSION_COOKIE = "a2k_session"
+SESSION_SECONDS = int(float(os.environ.get("A2K_FRONTEND_SESSION_HOURS", "12")) * 3600)
+OPEN_PATHS = ("/health", "/login", "/logout")
+
+
+def _session_signature(user: str, expires: int, stored_hash: str) -> str:
+    key = hashlib.sha256(f"a2k-session\0{stored_hash}".encode()).digest()
+    return hmac.new(key, f"{user}\0{expires}".encode(), hashlib.sha256).hexdigest()
+
+
+def _session_cookie(user: str, stored_hash: str) -> str:
+    expires = int(time.time()) + SESSION_SECONDS
+    name = base64.urlsafe_b64encode(user.encode()).decode().rstrip("=")
+    return f"{name}.{expires}.{_session_signature(user, expires, stored_hash)}"
+
+
+def _session_user(cookie: str | None, users: dict[str, str]) -> str | None:
+    try:
+        name, expires, signature = (cookie or "").split(".")
+        user = base64.urlsafe_b64decode(name + "=" * (-len(name) % 4)).decode()
+        stored = users.get(user)
+        if stored is None or int(expires) < time.time():
+            return None
+        return user if hmac.compare_digest(signature, _session_signature(user, int(expires), stored)) else None
+    except (ValueError, UnicodeDecodeError):
+        return None
+
+
 @app.middleware("http")
-async def basic_auth(request: Request, call_next):
+async def require_user(request: Request, call_next):
     request.state.user = None
-    if request.url.path == "/health":
+    path = request.url.path
+    if path in OPEN_PATHS or path.startswith("/static/"):
         return await call_next(request)
+    users = _current_users()
+    if users:
+        user = _session_user(request.cookies.get(SESSION_COOKIE), users) or _authenticate(request.headers.get("authorization"), users)
+        if user is None:
+            if request.headers.get("authorization"):
+                _log({"event": "frontend.auth_failed", "path": path, "client": request.client.host if request.client else None})
+            if path.startswith("/api/"):
+                return JSONResponse({"ok": False, "error": {"code": "UNAUTHENTICATED", "message": "Sign in again."}}, status_code=401)
+            return RedirectResponse(f"{BASE_PATH}/login", status_code=303)
+        request.state.user = user
+    return await call_next(request)
+
+
+@app.get("/login")
+async def login_page(request: Request):
+    return templates.TemplateResponse(request, "login.html", {"base_path": BASE_PATH, "error": False})
+
+
+@app.post("/login")
+async def login(request: Request):
+    form = parse_qs((await request.body()).decode("utf-8"))
+    user, password = (form.get("user") or [""])[0].strip(), (form.get("password") or [""])[0]
+    users = _current_users()
+    stored = users.get(user)
+    if stored is None or not verify_password(password, stored):
+        _log({"event": "frontend.auth_failed", "path": "/login", "user_attempted": user[:64], "client": request.client.host if request.client else None})
+        return templates.TemplateResponse(request, "login.html", {"base_path": BASE_PATH, "error": True}, status_code=401)
+    _log({"event": "frontend.login", "user": user})
+    response = RedirectResponse(f"{BASE_PATH}/", status_code=303)
+    secure = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
+    response.set_cookie(SESSION_COOKIE, _session_cookie(user, stored), max_age=SESSION_SECONDS, path=BASE_PATH or "/",
+                        httponly=True, secure=secure, samesite="lax")
+    return response
+
+
+@app.get("/logout")
+async def logout():
+    response = RedirectResponse(f"{BASE_PATH}/login", status_code=303)
+    response.delete_cookie(SESSION_COOKIE, path=BASE_PATH or "/")
+    return response
     users = _current_users()
     if users:
         user = _authenticate(request.headers.get("authorization"), users)
@@ -142,7 +220,7 @@ async def index(request: Request):
     # Starlette's TemplateResponse signature is (request, name, context=...)
     # in the version this project pins -- request first, not folded into the
     # context dict (the older, still-common-in-docs calling convention).
-    return templates.TemplateResponse(request, "index.html", {"base_path": BASE_PATH})
+    return templates.TemplateResponse(request, "index.html", {"base_path": BASE_PATH, "user": request.state.user})
 
 
 @app.post("/api/ask")

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>A2K External Data · Acceso</title>
+  <link rel="stylesheet" href="{{ base_path }}/static/style.css">
+</head>
+<body>
+  <div class="topbar"></div>
+  <header class="appbar">
+    <div class="appbar-inner">
+      <div class="logo-tile">K2</div>
+      <div class="appbar-text">
+        <h1>A2K External Data</h1>
+        <p>Asistente de inteligencia societaria</p>
+      </div>
+    </div>
+  </header>
+  <main class="login">
+    <form class="login-form" method="post" action="{{ base_path }}/login">
+      <h2>Acceso</h2>
+      {% if error %}<p class="login-error">Usuario o contraseña incorrectos.</p>{% endif %}
+      <label>Usuario <input name="user" autocomplete="username" required autofocus></label>
+      <label>Contraseña <input name="password" type="password" autocomplete="current-password" required></label>
+      <button type="submit">Entrar</button>
+    </form>
+  </main>
+</body>
+</html>
