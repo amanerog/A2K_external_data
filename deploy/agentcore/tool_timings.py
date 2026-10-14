@@ -8,6 +8,13 @@ ToolCallLogger appends to its list and logs in the same step), so for one
 answer they come in the same order and are paired by position. Only
 single-vendor answers whose two lists have the same length are used.
 
+Each row also carries the question, the call's input (JSON) and its output
+as readable text (the MCP result's nested JSON strings decoded, as the
+admission judge reads it). The output is cut at --max-output-chars (32,000:
+Excel holds at most 32,767 characters per cell; output_chars and
+output_truncated say how long it really was). The CSV is ;-separated, UTF-8
+with BOM, like the ground-truth files, so Excel opens it as is.
+
 Usage (credentials for the account in the environment):
     python deploy/agentcore/tool_timings.py ../A2K_external_data/deploy/agentcore/routing_v7.jsonl \\
         --date 2026-10-09 --since 11:50 [--vendor cala] --output tool_timings_v7.csv
@@ -24,9 +31,15 @@ import statistics
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
+import sys
+from pathlib import Path
+
 import boto3
 
 from latency_breakdown import AGENT_LOG_GROUP, BOX_LOG_GROUP, pick_run, query, ts
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from a2k.cache.evidence import tool_output_text  # noqa: E402
 
 # Not vendor calls: the agent's structured-output tool and the skills loader.
 LOCAL_TOOLS = {"AskContent", "SearchContent", "skills"}
@@ -41,6 +54,8 @@ def main() -> None:
     parser.add_argument("--vendor", help="only this vendor's answers, e.g. cala")
     parser.add_argument("--region", default=os.environ.get("AWS_REGION", "eu-west-1"))
     parser.add_argument("--output", default="tool_timings.csv")
+    parser.add_argument("--max-output-chars", type=int, default=32000)
+    parser.add_argument("--delimiter", default=";")
     args = parser.parse_args()
 
     rows = [json.loads(line) for line in open(args.jsonl, encoding="utf-8") if line.strip()]
@@ -73,11 +88,16 @@ def main() -> None:
             if tc.get("toolName") in LOCAL_TOOLS:
                 continue
             ms = (ts(line["tool_end_time"]) - ts(line["tool_start_time"])).total_seconds() * 1000
-            calls.append({"id": r["id"], "vendor": tc.get("vendor"), "order": i, "tool": tc.get("toolName"),
-                          "ms": round(ms), "status": tc.get("status"), "error": line.get("error_type") or ""})
+            output = tool_output_text(tc.get("output"))
+            calls.append({"id": r["id"], "question": r["query"], "vendor": tc.get("vendor"), "order": i, "tool": tc.get("toolName"),
+                          "ms": round(ms), "status": tc.get("status"), "error": line.get("error_type") or "",
+                          "input": json.dumps(tc.get("input"), ensure_ascii=False),
+                          "output_chars": len(output), "output_truncated": len(output) > args.max_output_chars,
+                          "output": output[: args.max_output_chars]})
 
-    with open(args.output, "w", newline="", encoding="utf-8") as fh:
-        w = csv.DictWriter(fh, fieldnames=["id", "vendor", "order", "tool", "ms", "status", "error"])
+    with open(args.output, "w", newline="", encoding="utf-8-sig") as fh:
+        fields = ["id", "question", "vendor", "order", "tool", "ms", "status", "error", "input", "output_chars", "output_truncated", "output"]
+        w = csv.DictWriter(fh, fieldnames=fields, delimiter=args.delimiter)
         w.writeheader()
         w.writerows(sorted(calls, key=lambda c: (int(c["id"]), c["order"])))
 
