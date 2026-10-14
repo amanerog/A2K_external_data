@@ -1292,7 +1292,7 @@ def run_vendor_agent_sync(
         output_model = AskContent if operation == "ask" else SearchContent
 
         tool_logger = observability.ToolCallLogger(
-            session_id=session_id, internal_client=internal_client, verbose=True
+            session_id=session_id, internal_client=internal_client, verbose=True, vendor=source_id
         )
 
         # Per-vendor skills, inlined into the system prompt -- see _vendor_skills_block above.

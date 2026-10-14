@@ -63,6 +63,15 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
 
 
+def _duration_ms(start_iso: str, end_iso: str) -> int | None:
+    try:
+        start = datetime.fromisoformat(start_iso.replace("Z", "+00:00"))
+        end = datetime.fromisoformat(end_iso.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return int((end - start).total_seconds() * 1000)
+
+
 def _emit(record: dict[str, Any]) -> None:
     print(json.dumps(record, default=str), file=sys.stdout, flush=True)
 
@@ -90,10 +99,11 @@ class ToolCallLogger:
     """
 
     def __init__(
-        self, *, session_id: str | None, internal_client: str | None, verbose: bool = False
+        self, *, session_id: str | None, internal_client: str | None, verbose: bool = False, vendor: str | None = None
     ) -> None:
         self._session_id = session_id
         self._internal_client = internal_client
+        self._vendor = vendor
         self._verbose = verbose
         self._start_times: dict[str, str] = {}  # toolUseId -> ISO timestamp captured in _before
         self.invocation_count = 0
@@ -177,6 +187,11 @@ class ToolCallLogger:
                 "event": "agent.tool_call",
                 "agent_timestamp": tool_end_time,
                 "session_id": self._session_id,
+                # Which call took how long (deploy/agentcore/tool_timings.py had
+                # to pair these lines with the run's records by position before).
+                "vendor": self._vendor,
+                "tool_name": tool_name,
+                "duration_ms": _duration_ms(tool_start_time, tool_end_time),
                 "chosen_vendor": chosen_vendor,
                 "tool_start_time": tool_start_time,
                 "tool_end_time": tool_end_time,
