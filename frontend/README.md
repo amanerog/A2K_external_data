@@ -140,6 +140,23 @@ Where IAM roles are created by the platform team, pass `ExistingRoleArn=<their r
 template's parameter describes the permissions it needs). A new version of the code: build,
 upload under a new key, and deploy again with that `CodeKey`.
 
+**Users -- one user and password per person**, for the trail of who asked what
+(`deploy/lambda/users.py`, from `frontend/`):
+
+```bash
+python deploy/lambda/users.py add x637800        # prints the password once; hand it over privately
+python deploy/lambda/users.py reset x637800      # a new password (a lost one is never read back)
+python deploy/lambda/users.py remove x637800
+python deploy/lambda/users.py list
+```
+
+Only a PBKDF2 hash is stored, in the stack's secret; the page reloads the list every 5 minutes
+(`A2K_FRONTEND_USERS_TTL`). The first `add` replaces the stack's initial shared password (user
+`a2k`). Each question leaves one `frontend.request` line in the function's log (user, operation,
+`query_sha256`, result, `request_id`, whether it came from the cache, time), and the user reaches
+a2k-box as `onBehalfOf`: `userId` in its audit record and `user` in the cache's serving log --
+`query_sha256` and `request_id` join the three.
+
 ## EKS deployment
 
 Single FastAPI process serving both the JSON API and the static/template files -- one container,

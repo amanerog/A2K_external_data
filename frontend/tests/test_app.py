@@ -33,7 +33,7 @@ def test_index_renders_html(client):
 def test_api_ask_returns_envelope_from_a2k_client(client, monkeypatch):
     monkeypatch.setattr(app_module, "new_session", lambda c: "sess-1")
     monkeypatch.setattr(
-        app_module, "call_ask", lambda c, session_id, query, sources: {"ok": True, "answer": "42", "citations": []}
+        app_module, "call_ask", lambda c, session_id, query, sources, user=None: {"ok": True, "answer": "42", "citations": []}
     )
     resp = client.post("/api/ask", json={"query": "who owns X?"})
     assert resp.status_code == 200
@@ -43,7 +43,7 @@ def test_api_ask_returns_envelope_from_a2k_client(client, monkeypatch):
 def test_api_ask_passes_query_and_sources_through(client, monkeypatch):
     captured = {}
 
-    def fake_call_ask(c, session_id, query, sources):
+    def fake_call_ask(c, session_id, query, sources, user=None):
         captured["session_id"] = session_id
         captured["query"] = query
         captured["sources"] = sources
@@ -64,7 +64,7 @@ def test_api_ask_empty_sources_list_becomes_none(client, monkeypatch):
     reaches a2k_client as None, not as an empty list."""
     captured = {}
     monkeypatch.setattr(app_module, "new_session", lambda c: "sess-1")
-    monkeypatch.setattr(app_module, "call_ask", lambda c, session_id, query, sources: captured.setdefault("sources", sources) or {"ok": True})
+    monkeypatch.setattr(app_module, "call_ask", lambda c, session_id, query, sources, user=None: captured.setdefault("sources", sources) or {"ok": True})
 
     client.post("/api/ask", json={"query": "q", "sources": []})
 
@@ -89,7 +89,7 @@ def test_api_ask_transport_error_returns_502(client, monkeypatch):
 def test_api_search_returns_envelope_from_a2k_client(client, monkeypatch):
     monkeypatch.setattr(app_module, "new_session", lambda c: "sess-1")
     monkeypatch.setattr(
-        app_module, "call_search", lambda c, session_id, query, sources: {"ok": True, "passages": [], "citations": []}
+        app_module, "call_search", lambda c, session_id, query, sources, user=None: {"ok": True, "passages": [], "citations": []}
     )
     resp = client.post("/api/search", json={"query": "q"})
     assert resp.status_code == 200
@@ -99,7 +99,7 @@ def test_api_search_returns_envelope_from_a2k_client(client, monkeypatch):
 def test_api_search_transport_error_returns_502(client, monkeypatch):
     monkeypatch.setattr(app_module, "new_session", lambda c: "sess-1")
 
-    def raise_transport_error(c, session_id, query, sources):
+    def raise_transport_error(c, session_id, query, sources, user=None):
         raise A2KClientError("boom")
 
     monkeypatch.setattr(app_module, "call_search", raise_transport_error)
@@ -127,31 +127,94 @@ def test_index_without_a_base_path_keeps_root_urls(client):
     assert 'href="/static/style.css"' in html and 'window.A2K_BASE_PATH = ""' in html
 
 
-# --- HTTP Basic auth (on when a password is configured) ---------------------
+# --- per-user HTTP Basic auth and the request trail --------------------------
+
+from passwords import hash_password, verify_password  # noqa: E402
+
+REAL_READ_USERS = app_module._read_users
+
+
+@pytest.fixture(autouse=True)
+def _fresh_users(monkeypatch):
+    """No users configured unless a test says so; nothing cached across tests."""
+    monkeypatch.setattr(app_module, "_users", {"loaded_at": None, "hashes": {}, "verified": set()})
+    monkeypatch.setattr(app_module, "_read_users", lambda: {})
 
 
 @pytest.fixture
 def protected(monkeypatch):
-    monkeypatch.setattr(app_module, "_password", lambda: "s3cret")
+    hashes = {"alice": hash_password("pw-alice", iterations=1000), "bob": hash_password("pw-bob", iterations=1000)}
+    monkeypatch.setattr(app_module, "_read_users", lambda: hashes)
     return TestClient(app_module.app)
 
 
-def test_without_a_password_everything_is_open(client, monkeypatch):
-    monkeypatch.setattr(app_module, "_password", lambda: None)
+def test_without_users_everything_is_open(client):
     assert client.get("/").status_code == 200
 
 
-def test_with_a_password_the_page_and_api_need_it(protected):
+def test_each_user_gets_in_with_their_own_password(protected):
     resp = protected.get("/")
     assert resp.status_code == 401 and resp.headers["www-authenticate"].startswith("Basic")
     assert protected.post("/api/ask", json={"query": "q"}).status_code == 401
-    assert protected.get("/", auth=("a2k", "wrong")).status_code == 401
-    assert protected.get("/", auth=("someone", "s3cret")).status_code == 401
-    assert protected.get("/", auth=("a2k", "s3cret")).status_code == 200
+    assert protected.get("/", auth=("alice", "pw-alice")).status_code == 200
+    assert protected.get("/", auth=("bob", "pw-bob")).status_code == 200
+    assert protected.get("/", auth=("alice", "pw-bob")).status_code == 401
+    assert protected.get("/", auth=("carol", "pw-alice")).status_code == 401
 
 
 def test_health_stays_open(protected):
     assert protected.get("/health").status_code == 200
+
+
+def test_the_question_carries_the_user_and_leaves_a_trail(protected, monkeypatch, capsys):
+    seen = {}
+
+    def fake_call_ask(c, session_id, query, sources, user=None):
+        seen["user"] = user
+        return {"ok": True, "answer": "42", "audit": {"requestId": "req-1", "decisionReason": "served from cache entry e1"}}
+
+    monkeypatch.setattr(app_module, "new_session", lambda c: "sess-1")
+    monkeypatch.setattr(app_module, "call_ask", fake_call_ask)
+    resp = protected.post("/api/ask", json={"query": "¿Qué dice la EBA?"}, auth=("alice", "pw-alice"))
+    assert resp.status_code == 200 and seen["user"] == "alice"
+    import hashlib, json as _json
+
+    (line,) = [_json.loads(x) for x in capsys.readouterr().out.splitlines() if '"frontend.request"' in x]
+    assert line["user"] == "alice" and line["request_id"] == "req-1" and line["served_from_cache"] is True
+    assert line["query_sha256"] == hashlib.sha256("¿Qué dice la EBA?".encode()).hexdigest()[:16]
+
+
+def test_a_failed_login_is_logged_without_the_password(protected, capsys):
+    protected.get("/", auth=("alice", "wrong-pw"))
+    out = capsys.readouterr().out
+    assert '"frontend.auth_failed"' in out and "wrong-pw" not in out
+
+
+def test_users_are_reloaded_after_the_ttl(monkeypatch):
+    calls = []
+    monkeypatch.setattr(app_module, "_read_users", lambda: calls.append(1) or {"alice": hash_password("x", iterations=1000)})
+    monkeypatch.setattr(app_module, "USERS_TTL", 300.0)
+    app_module._current_users(); app_module._current_users()
+    assert len(calls) == 1
+    app_module._users["loaded_at"] -= 301
+    app_module._current_users()
+    assert len(calls) == 2
+
+
+def test_a_legacy_single_password_secret_is_user_a2k(monkeypatch):
+    monkeypatch.delenv("A2K_FRONTEND_PASSWORD_SECRET_ARN", raising=False)
+    monkeypatch.setenv("A2K_FRONTEND_PASSWORD", "shared-pw")
+    users = REAL_READ_USERS()
+    assert list(users) == ["a2k"] and verify_password("shared-pw", users["a2k"])
+
+
+def test_users_secret_format_is_read(monkeypatch):
+    import json
+
+    monkeypatch.delenv("A2K_FRONTEND_PASSWORD_SECRET_ARN", raising=False)
+    monkeypatch.setenv("A2K_FRONTEND_PASSWORD", json.dumps({"users": {"alice": hash_password("pw", iterations=1000)}}))
+    users = REAL_READ_USERS()
+    assert list(users) == ["alice"] and verify_password("pw", users["alice"])
 
 
 def test_lambda_handler_serves_a_function_url_event(monkeypatch):

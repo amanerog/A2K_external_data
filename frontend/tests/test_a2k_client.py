@@ -153,3 +153,12 @@ def test_ask_and_search_call_the_internal_tools():
     assert json.loads(client.calls[-1]["payload"])["params"]["name"] == "internal.ask"
     a2k_client.call_search(client, "sess-abc", "q")
     assert json.loads(client.calls[-1]["payload"])["params"]["name"] == "internal.search"
+
+
+def test_the_user_goes_to_a2k_box_as_on_behalf_of_with_their_own_session():
+    client = _FakeAgentCoreClient(tool_response_body=_envelope_rpc_body({"ok": True}))
+    a2k_client.call_ask(client, "sess-abc", "q", user="alice")
+    args = json.loads(client.calls[-1]["payload"])["params"]["arguments"]
+    assert args == {"query": "q", "onBehalfOf": "alice", "sessionId": "frontend:alice"}
+    a2k_client.call_search(client, "sess-abc", "q", user="bob")
+    assert json.loads(client.calls[-1]["payload"])["params"]["arguments"] == {"query": "q", "onBehalfOf": "bob"}

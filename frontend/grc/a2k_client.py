@@ -96,10 +96,11 @@ def _extract_jsonrpc_result(body: str, expected_id: int) -> dict:
     raise A2KClientError(f"no JSON-RPC response with id={expected_id} in AgentCore response body")
 
 
-def _call_tool(client, session_id: str, tool_name: str, query: str, sources: Optional[list[str]]) -> dict[str, Any]:
+def _call_tool(client, session_id: str, tool_name: str, query: str, sources: Optional[list[str]], extra: Optional[dict[str, Any]] = None) -> dict[str, Any]:
     arguments: dict[str, Any] = {"query": query}
     if sources:
         arguments["sources"] = sources
+    arguments.update(extra or {})
 
     response = client.invoke_agent_runtime(
         agentRuntimeArn=AGENT_RUNTIME_ARN,
@@ -133,15 +134,18 @@ def _call_tool(client, session_id: str, tool_name: str, query: str, sources: Opt
     return json.loads(text)
 
 
-def call_ask(client, session_id: str, query: str, sources: Optional[list[str]] = None) -> dict[str, Any]:
+def call_ask(client, session_id: str, query: str, sources: Optional[list[str]] = None, user: Optional[str] = None) -> dict[str, Any]:
     """Returns the parsed CitedResponseEnvelope dict (a2k/models/envelope.py's
     shape) -- `answer`/`claims`/`citations`/`grounding`/`freshness`/`audit`/
     `conflicts`/`usage`/`toolCalls`. Raises A2KClientError if the call itself
     failed; a well-formed `{"ok": false, "error": {...}}` envelope is
     returned normally, not raised (that's a2k-box's own answer, not a
     transport failure)."""
-    return _call_tool(client, session_id, ASK_TOOL, query, sources)
+    # `user` -- the person asking: a2k-box records it in its audit (userId)
+    # and cache log, and keeps one conversation per user for its re-ask check.
+    extra = {"onBehalfOf": user, "sessionId": f"frontend:{user}"} if user else None
+    return _call_tool(client, session_id, ASK_TOOL, query, sources, extra)
 
 
-def call_search(client, session_id: str, query: str, sources: Optional[list[str]] = None) -> dict[str, Any]:
-    return _call_tool(client, session_id, SEARCH_TOOL, query, sources)
+def call_search(client, session_id: str, query: str, sources: Optional[list[str]] = None, user: Optional[str] = None) -> dict[str, Any]:
+    return _call_tool(client, session_id, SEARCH_TOOL, query, sources, {"onBehalfOf": user} if user else None)
