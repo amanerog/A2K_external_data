@@ -75,9 +75,13 @@ def _read_users() -> dict[str, str]:
         return {AUTH_USER: hash_password(raw, iterations=1_000)}  # legacy: one shared plain password
 
 
-def _current_users() -> dict[str, str]:
+def _current_users(*, max_age: float | None = None) -> dict[str, str]:
+    """The user list, reloaded when older than USERS_TTL -- or than `max_age`,
+    which a sign-in by a name not on the list passes, so someone just added
+    with users.py gets in at once rather than after the TTL."""
     now = time.monotonic()
-    if _users["loaded_at"] is None or now - _users["loaded_at"] > USERS_TTL:
+    limit = USERS_TTL if max_age is None else max_age
+    if _users["loaded_at"] is None or now - _users["loaded_at"] > limit:
         _users.update(loaded_at=now, hashes=_read_users(), verified=set())
     return _users["hashes"]
 
@@ -172,6 +176,8 @@ async def login(request: Request):
     form = parse_qs((await request.body()).decode("utf-8"))
     user, password = (form.get("user") or [""])[0].strip(), (form.get("password") or [""])[0]
     users = _current_users()
+    if user and user not in users:
+        users = _current_users(max_age=10)  # just added? (at most one reload every 10 s)
     stored = users.get(user)
     if stored is None or not verify_password(password, stored):
         _log({"event": "frontend.auth_failed", "path": "/login", "user_attempted": user[:64], "client": request.client.host if request.client else None})

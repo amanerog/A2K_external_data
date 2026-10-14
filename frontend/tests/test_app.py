@@ -274,3 +274,14 @@ def test_a_forged_or_expired_cookie_is_refused(protected):
 def test_static_files_and_login_are_open(protected):
     assert protected.get("/static/style.css").status_code == 200
     assert protected.get("/login").status_code == 200
+
+
+def test_a_user_added_after_the_list_was_loaded_can_sign_in_at_once(monkeypatch):
+    lists = [{"alice": hash_password("pw-alice", iterations=1000)}]
+    monkeypatch.setattr(app_module, "_read_users", lambda: lists[-1])
+    client = TestClient(app_module.app)
+    assert client.get("/", follow_redirects=False).status_code == 303  # list loaded: alice only
+    lists.append({**lists[0], "carol": hash_password("pw-carol", iterations=1000)})
+    app_module._users["loaded_at"] -= 11  # more than 10 s ago, well within the 5-minute TTL
+    resp = client.post("/login", data={"user": "carol", "password": "pw-carol"}, follow_redirects=False)
+    assert resp.status_code == 303 and resp.headers["location"] == "/"
