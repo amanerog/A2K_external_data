@@ -168,3 +168,20 @@ async def test_cala_raw_mode_skipped_when_sources_excludes_cala(monkeypatch):
     data = _content_json(result)
     assert called is False
     assert "citations" in data  # normal a2k.search envelope shape
+
+
+async def test_internal_tools_pass_on_behalf_of_to_the_engine(monkeypatch):
+    """The frontend names the person asking; it reaches the request (and so the audit's userId)."""
+    seen = []
+
+    async def _fake(req):
+        seen.append(req)
+        return engine._insufficient_evidence("cala", "r1", req)
+
+    monkeypatch.setattr(engine, "ask", _fake)
+    monkeypatch.setattr(engine, "search", _fake)
+    await mcp.call_tool("internal.ask", {"query": "q", "onBehalfOf": "alice", "sessionId": "frontend:alice"})
+    await mcp.call_tool("internal.search", {"query": "q", "onBehalfOf": "bob"})
+    await mcp.call_tool("internal.ask", {"query": "q"})
+    assert [r.onBehalfOf.subject if r.onBehalfOf else None for r in seen] == ["alice", "bob", None]
+    assert seen[0].requestMetadata.sessionId == "frontend:alice"

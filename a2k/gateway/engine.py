@@ -435,6 +435,7 @@ class GatewayEngine:
         tracing.trace("engine.ask.request", requestId=request_id, query=req.query, sources=sources)
 
         session_id = req.requestMetadata.sessionId if req.requestMetadata else None
+        user = req.onBehalfOf.subject if req.onBehalfOf else None
         lookup: retrieval.RetrievalResult | None = None
         shadow_task: asyncio.Task | None = None
         bypass = self._cache_bypass_reason(req)
@@ -464,7 +465,7 @@ class GatewayEngine:
                 content = await self._call_agent("ask", req.query, req.sources, request_id)
             except A2KError as err:
                 if shadow_task is not None:
-                    self._log_retrieval(await shadow_task, query=req.query, request_id=request_id, session_id=session_id, served_from="vendor_error", vendor_entry_id=None,
+                    self._log_retrieval(await shadow_task, query=req.query, request_id=request_id, session_id=session_id, served_from="vendor_error", vendor_entry_id=None, user=user,
                                         ask_ms=self._elapsed_ms(t0))
                 return self._error_envelope("ask", source_kb_id, err, request_id)
             retrieved_at = None
@@ -494,7 +495,7 @@ class GatewayEngine:
                 lookup = await shadow_task
             if lookup is not None:
                 self._log_retrieval(lookup, query=req.query, request_id=request_id, session_id=session_id,
-                                    served_from="vendor_no_answer", vendor_entry_id=None, ask_ms=self._elapsed_ms(t0))
+                                    served_from="vendor_no_answer", vendor_entry_id=None, ask_ms=self._elapsed_ms(t0), user=user)
             return self._insufficient_evidence(source_kb_id, request_id, req)
 
         grounded_ratio = float(content.get("groundedRatio") or 0.0)
@@ -571,6 +572,7 @@ class GatewayEngine:
                 served_from="cache" if hit is not None else "vendor",
                 vendor_entry_id=vendor_entry_id,
                 ask_ms=self._elapsed_ms(t0),
+                user=user,
             )
         tracing.trace(
             "engine.ask.response",
@@ -794,6 +796,7 @@ class GatewayEngine:
         served_from: str,
         vendor_entry_id: str | None,
         ask_ms: int | None = None,
+        user: str | None = None,
     ) -> None:
         """The serving log (proposal Sheet 6): one JSON line per ask with the
         cache on. In shadow mode `would_hit` is what the cache would have
@@ -807,6 +810,7 @@ class GatewayEngine:
             "request_id": request_id,
             "query_sha256": query_hash(query),
             "session_id": session_id,
+            "user": user,
             # caller (K2's sessionId) or derived from a transport header (see
             # mcp_server/server.py _session_id) -- filter on "caller" for D14.
             "session_source": (session_id.split(":", 1)[0] if session_id.startswith(("mcp:", "agentcore:")) else "caller") if session_id else None,

@@ -828,3 +828,12 @@ async def test_a_domain_still_in_shadow_gets_a_shadow_check_in_serve_mode(gatewa
     config.__dict__["cache_domain_modes"]["REG"] = "shadow"
     await engine._ask_via_agent(A2KRequest(operation="ask", query="q"))
     assert state["vendor_calls"] == 1 and len(state["shadow_checks"]) == 1
+
+
+async def test_the_serving_log_names_the_user_asking(gateway, capsys):
+    from a2k.models.request import OnBehalfOf
+
+    engine, _ = gateway
+    await engine._ask_via_agent(A2KRequest(operation="ask", query="q", onBehalfOf=OnBehalfOf(subject="alice")))
+    (log,) = _serving_log(capsys)
+    assert log["user"] == "alice"

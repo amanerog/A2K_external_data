@@ -34,7 +34,7 @@ from ..gateway.engine import engine
 from ..kcp01 import adapter as kcp01
 from ..kcp01.card import service_card
 from ..models.envelope import CitedResponseEnvelope
-from ..models.request import A2KRequest, ExplainRequest, GetDocumentRequest, RequestMetadata, Requirements
+from ..models.request import A2KRequest, ExplainRequest, GetDocumentRequest, OnBehalfOf, RequestMetadata, Requirements
 
 class _KcpFastMCP(FastMCP):
     """FastMCP builds a tool's arguments from the function signature and drops
@@ -163,7 +163,7 @@ async def _cala_raw_response_if_enabled(query: str, sources: list[str] | None) -
     return await cala_adapter.raw_knowledge_search(query)
 
 
-async def a2k_search(query: str, sources: list[str] | None = None, limit: int = 10) -> dict:
+async def a2k_search(query: str, sources: list[str] | None = None, limit: int = 10, onBehalfOf: str | None = None) -> dict:
     """Retrieve relevant passages with citations from Cala and/or Sayari. No synthesized answer -- use a2k.ask for that.
 
     Call a2k.listVendors first (unconditionally, once per session) if you
@@ -172,11 +172,14 @@ async def a2k_search(query: str, sources: list[str] | None = None, limit: int = 
     vendors and is always safe, just potentially less precise.
 
     `query` should be the company/entity name itself, not a full sentence or
-    question -- see a2k.ask's docstring for why."""
+    question -- see a2k.ask's docstring for why.
+
+    `onBehalfOf` -- the person asking (an id of the calling application's own
+    users, e.g. the frontend's); recorded as userId in the audit record."""
     raw = await _cala_raw_response_if_enabled(query, sources)
     if raw is not None:
         return raw
-    req = A2KRequest(operation="search", query=query, sources=sources, pagination={"limit": limit})
+    req = A2KRequest(operation="search", query=query, sources=sources, pagination={"limit": limit}, onBehalfOf=_on_behalf_of(onBehalfOf))
     return _dump(await engine.search(req))
 
 
@@ -218,6 +221,7 @@ async def a2k_ask(
     strictGrounding: bool = False,
     reportConflicts: bool = True,
     sessionId: str | None = None,
+    onBehalfOf: str | None = None,
     ctx: Context | None = None,
 ) -> dict:
     """Ask a question about a company; returns a cited, synthesized answer.
@@ -261,6 +265,10 @@ async def a2k_ask(
     given, a question that rephrases the previous one within a few minutes is
     recognised as a re-ask and the answer it rephrases is not served again.
     Without it, the MCP/AgentCore session of the connection is used.
+
+    `onBehalfOf` -- the person asking (an id of the calling application's own
+    users, e.g. the frontend's); recorded as userId in the audit record and as
+    `user` in the cache's serving log.
     """
     raw = await _cala_raw_response_if_enabled(query, sources)
     if raw is not None:
@@ -271,8 +279,13 @@ async def a2k_ask(
         sources=sources,
         requirements=Requirements(strictGrounding=strictGrounding, reportConflicts=reportConflicts),
         requestMetadata=RequestMetadata(sessionId=session_id) if (session_id := _session_id(sessionId, ctx)) else None,
+        onBehalfOf=_on_behalf_of(onBehalfOf),
     )
     return _dump(await engine.ask(req))
+
+
+def _on_behalf_of(user: str | None) -> OnBehalfOf | None:
+    return OnBehalfOf(subject=user) if user else None
 
 
 async def a2k_explain(answerRef: str, claimIds: list[str] | None = None) -> dict:
