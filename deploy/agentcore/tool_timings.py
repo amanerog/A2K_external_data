@@ -18,6 +18,10 @@ with BOM, like the ground-truth files, so Excel opens it as is.
 Usage (credentials for the account in the environment):
     python deploy/agentcore/tool_timings.py ../A2K_external_data/deploy/agentcore/routing_v7.jsonl \\
         --date 2026-10-09 --since 11:50 [--vendor cala] --output tool_timings_v7.csv
+
+Writes <output> (one row per vendor tool call, with its question's total and
+vendor time; a question with no call or no time per call gets one row and a
+note) and <output>_preguntas.csv (one row per question).
 """
 
 from __future__ import annotations
@@ -36,7 +40,7 @@ from pathlib import Path
 
 import boto3
 
-from latency_breakdown import AGENT_LOG_GROUP, BOX_LOG_GROUP, pick_run, query, ts
+from latency_breakdown import AGENT_LOG_GROUP, BOX_LOG_GROUP, pick_run, query, ts, union_ms
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from a2k.cache.evidence import tool_output_text  # noqa: E402
@@ -74,34 +78,64 @@ def main() -> None:
     for line in lines:
         by_session[line.get("session_id")].append(line)
 
-    calls, skipped = [], 0
+    calls, questions, skipped = [], [], 0
     for h, r in by_hash.items():
         recorded = r.get("toolCalls") or []
         vendors = {tc.get("vendor") for tc in recorded if tc.get("vendor")}
-        if len(vendors) != 1 or (args.vendor and vendors != {args.vendor}) or h not in chosen:
+        if args.vendor and vendors != {args.vendor}:
             continue
-        logged = sorted(by_session.get(chosen[h]["request_id"], []), key=lambda x: x["tool_end_time"])
-        if len(logged) != len(recorded):
-            skipped += 1
-            continue
-        for i, (tc, line) in enumerate(zip(recorded, logged), start=1):
+        base = {"id": r["id"], "question": r["query"], "question_total_ms": r.get("latencyMs")}
+        logged = sorted(by_session.get(chosen[h]["request_id"], []), key=lambda x: x["tool_end_time"]) if h in chosen else []
+        if not recorded:
+            note = "no vendor call (answered without tools)" if r.get("answer") else f"no answer: {str(r.get('error') or '')[:120]}"
+        elif h not in chosen:
+            note = "not found in the logs of the run"
+        elif len(logged) != len(recorded):
+            note = f"logs ({len(logged)} calls) and record ({len(recorded)}) do not line up: no time per call"
+        else:
+            note = ""
+        aligned = bool(recorded) and not note
+        skipped += bool(recorded) and not aligned
+        vendor_calls = []
+        for i, tc in enumerate(recorded, start=1):
             if tc.get("toolName") in LOCAL_TOOLS:
                 continue
-            ms = (ts(line["tool_end_time"]) - ts(line["tool_start_time"])).total_seconds() * 1000
+            line = logged[i - 1] if aligned else None
+            interval = (ts(line["tool_start_time"]), ts(line["tool_end_time"])) if line else None
             output = tool_output_text(tc.get("output"))
-            calls.append({"id": r["id"], "question": r["query"], "vendor": tc.get("vendor"), "order": i, "tool": tc.get("toolName"),
-                          "ms": round(ms), "status": tc.get("status"), "error": line.get("error_type") or "",
-                          "input": json.dumps(tc.get("input"), ensure_ascii=False),
-                          "output_chars": len(output), "output_truncated": len(output) > args.max_output_chars,
-                          "output": output[: args.max_output_chars]})
+            vendor_calls.append({**base, "vendor": tc.get("vendor"), "order": i, "tool": tc.get("toolName"),
+                                 "ms": round((interval[1] - interval[0]).total_seconds() * 1000) if interval else None,
+                                 "_interval": interval, "status": tc.get("status"), "error": (line or {}).get("error_type") or tc.get("errorType") or "",
+                                 "input": json.dumps(tc.get("input"), ensure_ascii=False),
+                                 "output_chars": len(output), "output_truncated": len(output) > args.max_output_chars,
+                                 "output": output[: args.max_output_chars], "note": note})
+        intervals = [c["_interval"] for c in vendor_calls if c["_interval"]]
+        vendor_ms = round(union_ms(intervals)) if intervals else None
+        for c in vendor_calls:
+            c["question_vendor_ms"] = vendor_ms
+        calls += vendor_calls or [{**base, "vendor": "", "order": "", "tool": "", "ms": None, "_interval": None, "status": "",
+                                   "error": "", "input": "", "output_chars": "", "output_truncated": "", "output": "",
+                                   "question_vendor_ms": None, "note": note}]
+        questions.append({**base, "vendors": ",".join(sorted(vendors)), "vendor_calls": len(vendor_calls),
+                          "question_vendor_ms": vendor_ms, "note": note})
 
     with open(args.output, "w", newline="", encoding="utf-8-sig") as fh:
-        fields = ["id", "question", "vendor", "order", "tool", "ms", "status", "error", "input", "output_chars", "output_truncated", "output"]
-        w = csv.DictWriter(fh, fieldnames=fields, delimiter=args.delimiter)
+        fields = ["id", "question", "question_total_ms", "question_vendor_ms", "vendor", "order", "tool", "ms", "status", "error",
+                  "input", "output_chars", "output_truncated", "output", "note"]
+        w = csv.DictWriter(fh, fieldnames=fields, delimiter=args.delimiter, extrasaction="ignore")
         w.writeheader()
-        w.writerows(sorted(calls, key=lambda c: (int(c["id"]), c["order"])))
+        w.writerows(sorted(calls, key=lambda c: (int(c["id"]), c["order"] or 0)))
+    per_question = str(Path(args.output).with_name(Path(args.output).stem + "_preguntas.csv"))
+    with open(per_question, "w", newline="", encoding="utf-8-sig") as fh:
+        w = csv.DictWriter(fh, fieldnames=["id", "question", "vendors", "vendor_calls", "question_total_ms", "question_vendor_ms", "note"],
+                           delimiter=args.delimiter)
+        w.writeheader()
+        w.writerows(sorted(questions, key=lambda q: int(q["id"])))
 
-    print(f"{len(calls)} vendor tool calls from {len({c['id'] for c in calls})} answers ({skipped} answers skipped: logs and record did not line up)\n")
+    calls = [c for c in calls if c["ms"] is not None]
+    totals = sorted(q["question_total_ms"] / 1000 for q in questions if q["question_total_ms"])
+    print(f"{len(questions)} questions; total time median {statistics.median(totals):.1f} s, p90 {totals[int(0.9 * (len(totals) - 1))]:.1f} s")
+    print(f"{len(calls)} vendor tool calls timed, from {len({c['id'] for c in calls})} answers ({skipped} answers with calls but no time per call)\n")
     print(f"{'vendor/tool':38}{'calls':>6}{'median s':>10}{'p90 s':>8}{'mean s':>8}{'max s':>8}{'errors':>8}")
     groups: dict[tuple, list[dict]] = defaultdict(list)
     for c in calls:
@@ -116,7 +150,7 @@ def main() -> None:
     if per_answer:
         print(f"\nper answer: {statistics.mean(len([c for c in calls if c['id'] == i]) for i in per_answer):.1f} vendor calls, "
               f"{statistics.median(per_answer.values()):.1f} s summed (median; calls in parallel are counted each)")
-    print(f"wrote {args.output}")
+    print(f"wrote {args.output} (one row per call) and {per_question} (one row per question)")
 
 
 if __name__ == "__main__":
