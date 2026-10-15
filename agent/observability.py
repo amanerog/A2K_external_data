@@ -47,7 +47,7 @@ import time
 from datetime import datetime, timezone
 from typing import Any
 
-from strands.hooks import AfterToolCallEvent, BeforeToolCallEvent, HookRegistry
+from strands.hooks import AfterModelCallEvent, AfterToolCallEvent, BeforeModelCallEvent, BeforeToolCallEvent, HookRegistry
 
 _METRICS_NAMESPACE = os.environ.get("A2K_AGENT_METRICS_NAMESPACE", "A2K/RouterAgent")
 
@@ -198,6 +198,62 @@ class ToolCallLogger:
                 "tool_http_status": status,
                 "error_type": error_type,
                 "internal_client": self._internal_client,
+            }
+        )
+
+
+class ModelCallLogger:
+    """Strands HookProvider -- one `agent.model_call` log line per call to the
+    model: how long it took (wall clock around the call, and Bedrock's own
+    latencyMs), its tokens, why it stopped and which tools it asked for. Next
+    to agent.tool_call's lines, it lays out an answer step by step
+    (deploy/agentcore/step_timeline.py). `phase`: "vendor_decision" (phase 1)
+    or "answer" (the vendor agent's loop).
+
+    Strands fires no model-call hook for a separate structured_output() call;
+    the vendor agent produces its AskContent through its loop, so every one of
+    its model calls is here."""
+
+    def __init__(self, *, session_id: str | None, phase: str, vendor: str | None = None) -> None:
+        self._session_id = session_id
+        self._phase = phase
+        self._vendor = vendor
+        self._started: tuple[float, str] | None = None
+        self.calls = 0
+
+    def register_hooks(self, registry: HookRegistry, **kwargs: Any) -> None:
+        registry.add_callback(BeforeModelCallEvent, self._before)
+        registry.add_callback(AfterModelCallEvent, self._after)
+
+    def _before(self, event: BeforeModelCallEvent) -> None:
+        self._started = (time.monotonic(), _now_iso())
+
+    def _after(self, event: AfterModelCallEvent) -> None:
+        started_mono, started_iso = self._started or (time.monotonic(), _now_iso())
+        self._started = None
+        self.calls += 1
+        message = event.stop_response.message if event.stop_response else {}
+        metadata = message.get("metadata") or {}
+        usage = metadata.get("usage") or {}
+        content = message.get("content") or []
+        _emit(
+            {
+                "event": "agent.model_call",
+                "session_id": self._session_id,
+                "phase": self._phase,
+                "vendor": self._vendor,
+                "call": self.calls,
+                "start_time": started_iso,
+                "end_time": _now_iso(),
+                "duration_ms": int((time.monotonic() - started_mono) * 1000),
+                "bedrock_latency_ms": (metadata.get("metrics") or {}).get("latencyMs"),
+                "input_tokens": usage.get("inputTokens"),
+                "output_tokens": usage.get("outputTokens"),
+                "cache_read_tokens": usage.get("cacheReadInputTokens"),
+                "stop_reason": event.stop_response.stop_reason if event.stop_response else None,
+                "tools_requested": [b["toolUse"].get("name") for b in content if isinstance(b, dict) and "toolUse" in b],
+                "text_chars": sum(len(b.get("text") or "") for b in content if isinstance(b, dict)),
+                "error": f"{type(event.exception).__name__}: {event.exception}" if event.exception else None,
             }
         )
 

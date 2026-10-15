@@ -68,7 +68,7 @@ def test_answer_cut_at_max_tokens_never_reaches_the_caller(monkeypatch):
 def test_phase_1_only_sees_active_vendors(monkeypatch):
     seen = {}
 
-    def decide(query, catalogue, model_id, region):
+    def decide(query, catalogue, model_id, region, session_id=None):
         seen["ids"] = [v["sourceId"] for v in catalogue]
         return ["cala"]
 

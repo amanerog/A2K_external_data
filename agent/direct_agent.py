@@ -555,9 +555,15 @@ def _format_catalogue(catalogue: list[dict]) -> str:
     return "\n".join(blocks) if blocks else "(no vendors in catalogue)"
 
 
-def _decide_vendors_sync(query: str, catalogue: list[dict], model_id: str, region: str) -> list[str]:
+def _decide_vendors_sync(query: str, catalogue: list[dict], model_id: str, region: str, session_id: str | None = None) -> list[str]:
     model = BedrockModel(model_id=model_id, region_name=region)
-    agent = Agent(model=model, tools=[], callback_handler=None, structured_output_model=VendorDecision)
+    agent = Agent(
+        model=model,
+        tools=[],
+        callback_handler=None,
+        structured_output_model=VendorDecision,
+        hooks=[observability.ModelCallLogger(session_id=session_id, phase="vendor_decision")],
+    )
     prompt = VENDOR_DECISION_PROMPT.format(catalogue=_format_catalogue(catalogue), query=query)
     result = agent(prompt)
     decision: VendorDecision = result.structured_output
@@ -1312,7 +1318,11 @@ def run_vendor_agent_sync(
             system_prompt=system_prompt,
             callback_handler=None,
             structured_output_model=output_model,
-            hooks=[tool_logger, *([VENDOR_HOOKS[source_id]()] if source_id in VENDOR_HOOKS else [])],
+            hooks=[
+                tool_logger,
+                observability.ModelCallLogger(session_id=session_id, phase="answer", vendor=source_id),
+                *([VENDOR_HOOKS[source_id]()] if source_id in VENDOR_HOOKS else []),
+            ],
             plugins=plugins,
         )
         result = agent(query)
@@ -1567,7 +1577,7 @@ async def handle(
             # pick that one alone and leave the question with no vendor at all (POCv3
             # id 38, a Brazilian registry question, after Sayari was retired 2026-10-08).
             active_catalogue = [v for v in catalogue if v.get("sourceId") in active_ids]
-            source_ids = await asyncio.to_thread(_decide_vendors_sync, query, active_catalogue, model_id, region)
+            source_ids = await asyncio.to_thread(_decide_vendors_sync, query, active_catalogue, model_id, region, session_id)
             source_ids = [s for s in source_ids if s in active_ids]
 
         if not source_ids:
