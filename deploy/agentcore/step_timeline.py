@@ -62,7 +62,9 @@ def main() -> None:
         retrievals = [r for r in retrievals if ts(r["@timestamp"]) >= since]
     chosen = pick_run(retrievals, set(by_hash))
     model_lines = query(logs, AGENT_LOG_GROUP, 'filter event = "agent.model_call" | fields @logStream, session_id, phase, vendor, call, start_time, end_time, '
-                        "duration_ms, bedrock_latency_ms, input_tokens, output_tokens, cache_read_tokens, stop_reason, tools_requested, error", start, end)
+                        "duration_ms, bedrock_latency_ms, input_tokens, output_tokens, cache_read_tokens, stop_reason, error, "
+                        # Logs Insights flattens a JSON array into name.0, name.1, ...
+                        + ", ".join(f"tools_requested.{i}" for i in range(6)), start, end)
     tool_lines = query(logs, AGENT_LOG_GROUP, 'filter event = "agent.tool_call" | fields @logStream, session_id, vendor, tool_name, tool_start_time, tool_end_time, duration_ms, error_type', start, end)
     totals = query(logs, AGENT_LOG_GROUP, "filter ispresent(QueryCount) and ispresent(Latency) | fields @timestamp, @logStream, Latency", start, end)
     if not model_lines:
@@ -70,6 +72,7 @@ def main() -> None:
 
     steps_by_session: dict[str, list[dict]] = defaultdict(list)
     for m in model_lines:
+        m["tools_requested"] = ",".join(m[f"tools_requested.{i}"] for i in range(6) if m.get(f"tools_requested.{i}"))
         steps_by_session[m.get("session_id")].append({"kind": "model", "name": m.get("phase"), "start": ts(m["start_time"]), "end": ts(m["end_time"]),
                                                       "stream": m.get("@logStream"), **{k: m.get(k) for k in ("input_tokens", "output_tokens", "cache_read_tokens", "stop_reason", "tools_requested", "bedrock_latency_ms", "error")}})
     for t in tool_lines:
@@ -86,7 +89,9 @@ def main() -> None:
         base = {"id": r["id"], "question": r["query"]}
         e = chosen.get(h)
         steps = sorted(steps_by_session.get(e["request_id"], []) if e else [], key=lambda s: s["start"])
-        q = {**base, "total_ms": r.get("latencyMs"), "cache_retrieval_ms": float(e["total_ms"]) if e and e.get("total_ms") else None, "note": ""}
+        error = r.get("error") or ("" if r.get("ok", True) else "not ok")
+        q = {**base, "total_ms": r.get("latencyMs"), "cache_retrieval_ms": float(e["total_ms"]) if e and e.get("total_ms") else None,
+             "note": f"the answer did not reach the client: {str(error)[:150]}" if error else ""}
         if not steps:
             q["note"] = "no steps in the logs (answered without the agent, or an error)"
             question_rows.append(q)
