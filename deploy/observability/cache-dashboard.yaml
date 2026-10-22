@@ -36,8 +36,24 @@ Parameters:
     Description: >-
       Linkup's flat rate (a2k/cache/vendor_prices.json contracts): calls avoided save no money, so the
       dashboard shows this amount spread over the questions Linkup answered instead.
+  GoNoGoMinAsks:
+    Type: String
+    Default: 25000
+    Description: Asks a domain needs before it can serve from the cache (go / no-go gate 1).
+  GroundTruthLogGroup:
+    Type: String
+    Default: /a2k/cache/ground-truth
+    Description: >-
+      Where the ground-truth evaluation writes one cache.ground_truth line per domain and run (judge
+      precision, go / no-go gate 3). Created by this stack.
 
 Resources:
+  GroundTruthLog:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Ref GroundTruthLogGroup
+      RetentionInDays: 731
+
   Dashboard:
     Type: AWS::CloudWatch::Dashboard
     Properties:
@@ -58,9 +74,32 @@ Resources:
            }
           },
           {
-           "type": "metric",
+           "type": "text",
            "x": 0,
            "y": 2,
+           "width": 24,
+           "height": 1,
+           "properties": {
+            "markdown": "### Go / no-go per domain -- a domain serves only if it passes all four: asks >= ${GoNoGoMinAsks}, re-ask < 5 %, judge precision >= 95 %, net > 0. Set the time range to the start of shadow (30/10) for the cumulative asks."
+           }
+          },
+          {
+           "type": "log",
+           "x": 0,
+           "y": 3,
+           "width": 24,
+           "height": 8,
+           "properties": {
+            "title": "Go / no-go per domain: asks (>= ${GoNoGoMinAsks}), re-ask % (< 5), judge precision % (>= 95, last ground-truth run), net USD (> 0)",
+            "query": "SOURCE '${BoxLogGroup}' | SOURCE '${GroundTruthLogGroup}' | filter event in [\"cache.metrics\", \"cache.ground_truth\"] and ispresent(Domain) and Domain != \"NONE\" | fields coalesce(VendorCostAvoided, 0) + coalesce(AgentCostAvoided, 0) + coalesce(PotentialVendorCostAvoided, 0) + coalesce(PotentialAgentCostAvoided, 0) as saved_usd, coalesce(CostUSD, 0) as cache_usd, toMillis(@timestamp) * Asks as ask_ms | stats sum(Asks) as asks, round(100 * sum(Asks) / ${GoNoGoMinAsks}, 1) as pct_of_min_asks, round(100 * sum(Reformulations) / sum(Asks), 1) as reask_pct, latest(JudgePrecisionPct) as judge_precision_pct, latest(JudgeEvaluated) as judge_evaluated, latest(GroundTruthRun) as ground_truth_run, round(sum(saved_usd) - sum(cache_usd), 2) as net_usd, ceil((${GoNoGoMinAsks} - sum(Asks)) / (sum(Asks) / greatest((max(ask_ms) - min(ask_ms)) / 86400000, 1))) as days_to_min_asks, round(100 * sum(WouldHits) / sum(Asks), 1) as would_hit_pct, round(100 * sum(FalseHits) / sum(ShadowChecks), 1) as false_hit_pct by Domain | filter asks > 0 or ispresent(judge_precision_pct) | sort asks desc",
+            "region": "${AWS::Region}",
+            "view": "table"
+           }
+          },
+          {
+           "type": "metric",
+           "x": 0,
+           "y": 11,
            "width": 8,
            "height": 6,
            "properties": {
@@ -117,7 +156,7 @@ Resources:
           {
            "type": "metric",
            "x": 8,
-           "y": 2,
+           "y": 11,
            "width": 8,
            "height": 6,
            "properties": {
@@ -154,7 +193,7 @@ Resources:
           {
            "type": "metric",
            "x": 16,
-           "y": 2,
+           "y": 11,
            "width": 8,
            "height": 6,
            "properties": {
@@ -176,7 +215,7 @@ Resources:
           {
            "type": "metric",
            "x": 0,
-           "y": 8,
+           "y": 17,
            "width": 8,
            "height": 6,
            "properties": {
@@ -198,7 +237,7 @@ Resources:
           {
            "type": "metric",
            "x": 8,
-           "y": 8,
+           "y": 17,
            "width": 8,
            "height": 6,
            "properties": {
@@ -229,7 +268,7 @@ Resources:
           {
            "type": "metric",
            "x": 16,
-           "y": 8,
+           "y": 17,
            "width": 8,
            "height": 6,
            "properties": {
@@ -266,7 +305,7 @@ Resources:
           {
            "type": "log",
            "x": 0,
-           "y": 14,
+           "y": 23,
            "width": 12,
            "height": 7,
            "properties": {
@@ -279,7 +318,7 @@ Resources:
           {
            "type": "log",
            "x": 12,
-           "y": 14,
+           "y": 23,
            "width": 12,
            "height": 7,
            "properties": {
@@ -292,7 +331,7 @@ Resources:
           {
            "type": "log",
            "x": 0,
-           "y": 21,
+           "y": 30,
            "width": 12,
            "height": 7,
            "properties": {
@@ -305,7 +344,7 @@ Resources:
           {
            "type": "log",
            "x": 12,
-           "y": 21,
+           "y": 30,
            "width": 12,
            "height": 7,
            "properties": {
@@ -318,7 +357,7 @@ Resources:
           {
            "type": "log",
            "x": 0,
-           "y": 28,
+           "y": 37,
            "width": 8,
            "height": 6,
            "properties": {
@@ -331,7 +370,7 @@ Resources:
           {
            "type": "log",
            "x": 8,
-           "y": 28,
+           "y": 37,
            "width": 8,
            "height": 6,
            "properties": {
@@ -344,7 +383,7 @@ Resources:
           {
            "type": "log",
            "x": 16,
-           "y": 28,
+           "y": 37,
            "width": 8,
            "height": 6,
            "properties": {
@@ -357,7 +396,7 @@ Resources:
           {
            "type": "text",
            "x": 0,
-           "y": 34,
+           "y": 43,
            "width": 24,
            "height": 1,
            "properties": {
@@ -367,7 +406,7 @@ Resources:
           {
            "type": "metric",
            "x": 0,
-           "y": 35,
+           "y": 44,
            "width": 8,
            "height": 6,
            "properties": {
@@ -404,7 +443,7 @@ Resources:
           {
            "type": "metric",
            "x": 8,
-           "y": 35,
+           "y": 44,
            "width": 8,
            "height": 6,
            "properties": {
@@ -426,7 +465,7 @@ Resources:
           {
            "type": "metric",
            "x": 16,
-           "y": 35,
+           "y": 44,
            "width": 8,
            "height": 6,
            "properties": {
@@ -469,7 +508,7 @@ Resources:
           {
            "type": "log",
            "x": 0,
-           "y": 41,
+           "y": 50,
            "width": 8,
            "height": 7,
            "properties": {
@@ -482,7 +521,7 @@ Resources:
           {
            "type": "log",
            "x": 8,
-           "y": 41,
+           "y": 50,
            "width": 8,
            "height": 7,
            "properties": {
@@ -495,7 +534,7 @@ Resources:
           {
            "type": "log",
            "x": 16,
-           "y": 41,
+           "y": 50,
            "width": 8,
            "height": 7,
            "properties": {
@@ -508,7 +547,7 @@ Resources:
           {
            "type": "log",
            "x": 0,
-           "y": 48,
+           "y": 57,
            "width": 24,
            "height": 6,
            "properties": {
@@ -521,7 +560,7 @@ Resources:
           {
            "type": "text",
            "x": 0,
-           "y": 54,
+           "y": 63,
            "width": 24,
            "height": 2,
            "properties": {
@@ -531,7 +570,7 @@ Resources:
           {
            "type": "log",
            "x": 0,
-           "y": 56,
+           "y": 65,
            "width": 24,
            "height": 7,
            "properties": {
@@ -544,7 +583,7 @@ Resources:
           {
            "type": "log",
            "x": 0,
-           "y": 63,
+           "y": 72,
            "width": 12,
            "height": 7,
            "properties": {
@@ -557,7 +596,7 @@ Resources:
           {
            "type": "log",
            "x": 12,
-           "y": 63,
+           "y": 72,
            "width": 12,
            "height": 7,
            "properties": {
@@ -570,7 +609,7 @@ Resources:
           {
            "type": "log",
            "x": 0,
-           "y": 70,
+           "y": 79,
            "width": 12,
            "height": 7,
            "properties": {
@@ -583,7 +622,7 @@ Resources:
           {
            "type": "log",
            "x": 12,
-           "y": 70,
+           "y": 79,
            "width": 12,
            "height": 7,
            "properties": {
@@ -596,7 +635,7 @@ Resources:
           {
            "type": "log",
            "x": 0,
-           "y": 77,
+           "y": 86,
            "width": 12,
            "height": 6,
            "properties": {
@@ -609,7 +648,7 @@ Resources:
           {
            "type": "text",
            "x": 12,
-           "y": 77,
+           "y": 86,
            "width": 12,
            "height": 6,
            "properties": {
