@@ -42,7 +42,7 @@ from . import audit as gw_audit
 from . import conflict, synthesis, tracing
 from ..cache import admission, filters, retrieval
 from ..cache import metrics as cache_metrics
-from ..cache import savings
+from ..cache import demand, savings
 from ..cache import shadow_check
 from ..cache.models import Candidate
 from ..cache.store import AuroraStore, S3EvidenceStore
@@ -869,6 +869,14 @@ class GatewayEngine:
         }
         emit(record)
         cache_metrics.emit_retrieval(record)
+        if answer:
+            demand.emit_all(demand.source_lines(
+                hosts=answer["citation_hosts"],
+                query_sha256=record["query_sha256"],
+                request_id=request_id,
+                domain=lookup.domains[0] if lookup.domains else None,
+                vendors=sorted(answer["vendor_calls"]),
+            ))
 
     def _record_turn(self, session_id: str | None, query: str, served_entry_id: str | None) -> None:
         """Session memory for the next turn's reformulation check: the question

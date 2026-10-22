@@ -660,6 +660,81 @@ Resources:
            "properties": {
             "markdown": "#### How to read the cost per question\n- **without_cache**: the average vendor answer (vendor calls + agent run), over the `priced_answers` -- what every question would cost with no cache. Empty until there is a priced answer.\n- **with_cache_if_served**: (1 - hit rate) x that answer + (the cache's models + infrastructure, ${InfraUSDPerDay} USD/day) / questions. Hit rate = hits (served or would-be) / questions, so in shadow it is a projection.\n- **saving_per_question** = without - with: the unit saving of the Business Case. Negative: the cache costs more than it saves at today's hit rate.\n- **Break-even**: `saving_per_hit` is what an average vendor answer costs in the domain, i.e. what one hit avoids; `hits_to_break_even` = cache cost / saving_per_hit. Below 100 % the domain does not pay for itself yet.\n- **Linkup** is a flat rate (${LinkupEURPerMonth} EUR/month): a hit saves its agent run, not the fee. The fee per question only falls with more volume.\n- Answers from a vendor with no price (Sayari) count the agent only."
            }
+          },
+          {
+           "type": "text",
+           "x": 0,
+           "y": 92,
+           "width": 24,
+           "height": 2,
+           "properties": {
+            "markdown": "### Data universe (T4) -- what to buy in bulk (Phase II) or ingest at the source (Phase III)\nOne `cache.entity` line per entity of an admitted question and one `cache.source` line per web domain an answer cites (a2k/cache/demand.py). Entities come from admission only: a would-be hit is not admitted, so in shadow with a full cache the demand of repeated questions is undercounted -- with an empty cache (a ground-truth run after a deprecation) every question counts."
+           }
+          },
+          {
+           "type": "log",
+           "x": 0,
+           "y": 94,
+           "width": 12,
+           "height": 8,
+           "properties": {
+            "title": "Top entities asked about, with what their vendor answers cost (T4.1)",
+            "query": "SOURCE '${BoxLogGroup}' | filter event = \"cache.entity\" | stats count(*) as questions, round(sum(answer_cost_usd), 2) as answers_usd, latest(name) as name, latest(kind) as kind, latest(Domain) as domain, latest(vendor) as vendor by name_key | sort questions desc, answers_usd desc | limit 50",
+            "region": "${AWS::Region}",
+            "view": "table"
+           }
+          },
+          {
+           "type": "log",
+           "x": 12,
+           "y": 94,
+           "width": 12,
+           "height": 8,
+           "properties": {
+            "title": "Top web domains cited in vendor answers (T4.3)",
+            "query": "SOURCE '${BoxLogGroup}' | filter event = \"cache.source\" | stats count(*) as citing_answers, count_distinct(query_sha256) as questions, latest(Domain) as domain, latest(vendors) as vendors by host | sort citing_answers desc | limit 50",
+            "region": "${AWS::Region}",
+            "view": "table"
+           }
+          },
+          {
+           "type": "log",
+           "x": 0,
+           "y": 102,
+           "width": 8,
+           "height": 7,
+           "properties": {
+            "title": "Coverage gaps: vendor answers by coverage, per domain",
+            "query": "SOURCE '${BoxLogGroup}' | filter event = \"cache.retrieval\" and ispresent(answer.coverage) | stats count(*) as answers by domains.0 as domain, answer.coverage as coverage | sort domain, answers desc",
+            "region": "${AWS::Region}",
+            "view": "table"
+           }
+          },
+          {
+           "type": "log",
+           "x": 8,
+           "y": 102,
+           "width": 8,
+           "height": 7,
+           "properties": {
+            "title": "Demand and cost per vendor and domain (USD, estimate)",
+            "query": "SOURCE '${BoxLogGroup}' | filter event = \"cache.metrics\" and source = \"cache.retrieval\" and ispresent(AnswerVendors) | stats count(*) as answers, sum(AnswerVendorCalls) as vendor_calls, round(sum(AnswerVendorCostUSD), 2) as vendor_usd, round(sum(AnswerAgentCostUSD), 2) as agent_usd by Domain, AnswerVendors | sort answers desc",
+            "region": "${AWS::Region}",
+            "view": "table"
+           }
+          },
+          {
+           "type": "log",
+           "x": 16,
+           "y": 102,
+           "width": 8,
+           "height": 7,
+           "properties": {
+            "title": "Data that expires fast: answers already stale at admission, per domain and vendor",
+            "query": "SOURCE '${BoxLogGroup}' | filter event = \"cache.admission\" | stats count(*) as admissions, sum(outcome = \"STALE\") as stale, round(100 * sum(outcome = \"STALE\") / count(*), 1) as stale_pct by domains.0 as domain, vendor | sort stale_pct desc, admissions desc",
+            "region": "${AWS::Region}",
+            "view": "table"
+           }
           }
          ]
         }

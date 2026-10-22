@@ -41,7 +41,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
-from . import classifier, decision, filters, judge, judge_basic, metrics, normalize, retrieval, usage
+from . import classifier, decision, demand, filters, judge, judge_basic, metrics, normalize, retrieval, usage
 from ..logline import emit, query_hash
 from .bedrock import embed
 from .evidence import bundle, cap_sections, cited_evidence_text, evidence_key, evidence_text
@@ -396,6 +396,15 @@ def log_result(result: AdmissionResult, *, candidate: Candidate, evidence_uri: s
     }
     emit(record)
     metrics.emit_admission(record)
+    demand.emit_all(demand.entity_lines(
+        entities=record["entities"],
+        query_sha256=record["query_sha256"],
+        entry_id=result.entry_id,
+        domain=(record["domains"] or [None])[0],
+        vendor=candidate.vendor,
+        outcome=result.outcome,
+        answer_cost=candidate.answer_cost,
+    ))
 
 
 def admit(

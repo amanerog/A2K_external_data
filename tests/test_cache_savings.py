@@ -11,7 +11,7 @@ from dataclasses import replace
 
 import pytest
 
-from a2k.cache import savings
+from a2k.cache import demand, savings
 from a2k.cache.store import MemoryStore
 from a2k.config import config
 from a2k.gateway.engine import GatewayEngine
@@ -204,3 +204,37 @@ def test_the_admission_log_names_the_entities(capsys):
     _admit()
     (log,) = [x for x in map(json.loads, capsys.readouterr().out.strip().splitlines()) if x["event"] == "cache.admission"]
     assert log["entities"] == CLASSIFICATION["entities"]
+
+
+# --- data universe: one line per entity and per cited source --------------
+
+
+def test_an_admission_logs_one_entity_line_per_entity(prices, capsys):
+    _admit(make_candidate(answer_cost=COST))
+    out = [json.loads(x) for x in capsys.readouterr().out.strip().splitlines()]
+    (adm,) = [x for x in out if x["event"] == "cache.admission"]
+    lines = [x for x in out if x["event"] == "cache.entity"]
+    (adm_entity,) = CLASSIFICATION["entities"]
+    assert [(x["name"], x["name_key"], x["kind"], x["Domain"], x["outcome"], x["query_sha256"]) for x in lines] == [
+        (adm_entity["name"], adm_entity["name"].casefold(), adm_entity["kind"], CLASSIFICATION["domain_primary"], adm["outcome"], adm["query_sha256"])
+    ]
+    # What the vendor answer cost: 2 Cala calls at 0.05 + the agent's tokens.
+    assert lines[0]["answer_cost_usd"] == pytest.approx(0.1 + 80_000 * 3 / 1e6 + 2_000 * 15 / 1e6)
+
+
+def test_an_entity_name_is_grouped_without_case_spacing_or_trailing_dot():
+    assert demand.name_key("  Revolut   Ltd. ") == demand.name_key("revolut ltd") == "revolut ltd"
+
+
+def test_an_unpriced_answer_logs_the_entity_without_a_cost(monkeypatch):
+    monkeypatch.setattr(savings, "vendor_prices", lambda: ("v", {"sayari": None}))
+    (line,) = demand.entity_lines(entities=[{"name": "X", "kind": "company"}, {"name": " "}], query_sha256="h", entry_id="e", domain=None, vendor="sayari", outcome="NOT_FIT",
+                                   answer_cost={"vendor_calls": {"sayari": 1}, "agent_input_tokens": 1, "agent_output_tokens": 1})
+    assert (line["Domain"], line["answer_cost_usd"], line["identifiers"]) == ("NONE", None, [])
+
+
+async def test_a_vendor_answer_logs_one_source_line_per_cited_host(agent_answer, prices, capsys):
+    await agent_answer[0]._ask_via_agent(A2KRequest(operation="ask", query="q"))
+    lines = [x for x in map(json.loads, capsys.readouterr().out.splitlines()) if x.get("event") == "cache.source"]
+    assert [(x["host"], x["vendors"]) for x in lines] == [("boe.es", "cala"), ("cnmv.es", "cala")]
+    assert len({x["request_id"] for x in lines}) == 1
