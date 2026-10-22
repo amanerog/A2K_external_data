@@ -174,3 +174,52 @@ fields reformulation.kind as kind
 ```
 
 Rows in Aurora: `SELECT status, count(*) FROM cache_entry GROUP BY 1`.
+
+## 5. After an agent change: deprecate the older entries
+
+An entry holds the answer the agent gave when it was admitted. When the
+agent's prompt or code changes, the current agent answers the same question
+differently, and every shadow check of an older entry looks like a false hit:
+on 2026-10-22 all 10 CRP false hits came from entries admitted on 8-9 Oct by
+agent v4-v7, while Cala asked twice in a row by v8 contradicted itself 0
+times in 21 (`deploy/agentcore/vendor_self_consistency.py`). The agent is not
+meant to change, so there is no automatic check: after a redeploy of the
+agent Runtime, deprecate by hand the entries admitted before it.
+
+1. The cut-off -- `lastUpdatedAt` of the agent Runtime version now serving:
+
+   ```bash
+   aws bedrock-agentcore-control list-agent-runtime-versions --agent-runtime-id a2k_cache_agent-oEBeCrBECq \
+     --query 'agentRuntimes[].{v:agentRuntimeVersion,at:lastUpdatedAt}' --output table
+   ```
+
+2. What would be deprecated (read only; a first `DatabaseResumingException`
+   means Aurora was paused -- run it again after ~15 s):
+
+   ```bash
+   CLUSTER=$(aws cloudformation describe-stacks --stack-name a2k-cache --query "Stacks[0].Outputs[?OutputKey=='ClusterArn'].OutputValue" --output text)
+   SECRET=$(aws cloudformation describe-stacks --stack-name a2k-cache --query "Stacks[0].Outputs[?OutputKey=='SecretArn'].OutputValue" --output text)
+   CUTOFF=2026-10-15T10:28:25Z   # from step 1
+
+   aws rds-data execute-statement --resource-arn "$CLUSTER" --secret-arn "$SECRET" --database a2k_cache \
+     --sql "SELECT domain_primary, count(*) FROM cache_entry
+            WHERE status IN ('ACTIVE','PENDING') AND admitted_at < '$CUTOFF' GROUP BY 1 ORDER BY 1" \
+     --query 'records[*][*].[stringValue,longValue]' --output text
+   ```
+
+3. Deprecate them -- nothing is deleted; the reason names the agent version,
+   so they can be found (or reactivated) by it:
+
+   ```bash
+   aws rds-data execute-statement --resource-arn "$CLUSTER" --secret-arn "$SECRET" --database a2k_cache \
+     --sql "UPDATE cache_entry SET status = 'DEPRECATED',
+              status_reason = 'agent_version_changed: admitted before agent Runtime version of $CUTOFF'
+            WHERE status IN ('ACTIVE','PENDING') AND admitted_at < '$CUTOFF'" \
+     --query numberOfRecordsUpdated
+   ```
+
+Afterwards the would-hit rate drops until the cache fills again (a
+ground-truth run refills it), and the dashboard's tables still read the logs
+of the whole time range: start the range after the update to see the current
+agent only. Done on 2026-10-22: 107 entries, cut-off 2026-10-15T10:28:25Z
+(agent v8, Runtime version 10).
