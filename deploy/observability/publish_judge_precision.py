@@ -45,10 +45,17 @@ from a2k.logline import query_hash  # noqa: E402
 BOX_LOG_GROUP = "/aws/bedrock-agentcore/runtimes/a2k_cache_mcp-48ImkT2F9a-DEFAULT"
 GROUND_TRUTH_LOG_GROUP = "/a2k/cache/ground-truth"
 GRADED = ("ACCEPTABLE", "NOT_ACCEPTABLE")  # PENDING_MANUAL_REVIEW and ERROR say nothing about the judge
+# final_verdict is the containment judge's (judge.py CONTAINMENT_PROMPT), which allows for time-drifting data.
+CONTAINMENT = {"CUBIERTA": "ACCEPTABLE", "PARCIAL": "NOT_ACCEPTABLE", "NO CUBIERTA": "NOT_ACCEPTABLE"}
+
+
+def _verdict(value: str | None) -> str:
+    v = (value or "").strip().upper()
+    return CONTAINMENT.get(v, v)
 
 ADMISSIONS_QUERY = (
     'filter event = "cache.admission" '
-    "| fields @timestamp, query_sha256, entry_id, outcome, domains.0 as domain "
+    "| fields @timestamp, query_sha256, entry_id, outcome, reason, vendor, domains.0 as domain "
     "| sort @timestamp asc | limit 10000"
 )
 
@@ -59,7 +66,21 @@ def load_verdicts(path: Path, column: str) -> dict[str, str]:
         reader = csv.DictReader(f)
         if column not in (reader.fieldnames or []) or "query" not in (reader.fieldnames or []):
             sys.exit(f"{path}: needs 'query' and {column!r} columns, has {reader.fieldnames}")
-        return {query_hash(row["query"]): (row[column] or "").strip().upper() for row in reader if row["query"]}
+        return {query_hash(row["query"]): _verdict(row[column]) for row in reader if row["query"]}
+
+
+def disagreements(path: Path, column: str, admissions: dict[str, dict[str, str]]) -> list[dict[str, str]]:
+    """The questions where the judge and the ground truth disagree: admitted
+    but NOT_ACCEPTABLE, or ACCEPTABLE but not admitted -- to read why."""
+    out = []
+    with path.open(encoding="utf-8-sig", newline="") as f:
+        for row in csv.DictReader(f):
+            adm = admissions.get(query_hash(row["query"] or ""))
+            verdict = _verdict(row[column])
+            if adm is None or verdict not in GRADED or (adm.get("outcome") == "ACTIVE") == (verdict == "ACCEPTABLE"):
+                continue
+            out.append({"id": row.get("id", ""), "domain": adm.get("domain") or "NONE", "vendor": adm.get("vendor", ""), "outcome": adm.get("outcome", ""), "reason": adm.get("reason", ""), "verdict": verdict, "query": row["query"], "justification": row.get("justification", "")})
+    return out
 
 
 def latest_admissions(rows: list[dict[str, str]]) -> dict[str, dict[str, str]]:
@@ -121,13 +142,14 @@ def put_lines(logs, log_group: str, run: str, lines: list[dict[str, Any]]) -> st
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--results", required=True, type=Path, help="run_ground_truth_eval.py results CSV")
-    parser.add_argument("--verdict-column", default="verdict", help="verdict (default) or final_verdict")
+    parser.add_argument("--verdict-column", default="verdict", help="verdict (default) or final_verdict (containment: Cubierta = ACCEPTABLE)")
     parser.add_argument("--hours", type=float, default=24, help="the run happened within the last N hours")
     parser.add_argument("--run", default=None, help="label of the run (default: today's date)")
     parser.add_argument("--box-log-group", default=BOX_LOG_GROUP)
     parser.add_argument("--ground-truth-log-group", default=GROUND_TRUTH_LOG_GROUP)
     parser.add_argument("--region", default=None)
     parser.add_argument("--dry-run", action="store_true", help="print the lines, do not write them")
+    parser.add_argument("--details", action="store_true", help="also print every question where the judge and the ground truth disagree")
     args = parser.parse_args()
 
     import boto3
@@ -146,6 +168,10 @@ def main() -> None:
     print(f"all domains: {active_ok}/{active} ACTIVE answers ACCEPTABLE" + (f" = {100 * active_ok / active:.1f} %" if active else ""))
     for line in lines:
         print("  " + json.dumps(line))
+    if args.details:
+        for d in disagreements(args.results, args.verdict_column, admissions):
+            kind = "ADMITTED, NOT_ACCEPTABLE" if d["outcome"] == "ACTIVE" else f"ACCEPTABLE, {d['outcome']} ({d['reason']})"
+            print(f"\n[{kind}] id={d['id']} {d['domain']} {d['vendor']}\n  Q: {d['query'][:200]}\n  GT: {d['justification'][:400]}")
     if not lines:
         sys.exit("nothing to publish: no graded question matched an admission (wrong window, or the run went to another Runtime?)")
     if args.dry_run:

@@ -22,9 +22,10 @@ def _adm(query, outcome, domain="CRP", entry="e"):
 
 def test_verdicts_are_keyed_by_the_hash_the_box_logs(tmp_path):
     results = tmp_path / "r.csv"
-    results.write_text("id,query,verdict,final_verdict\n1,¿Quién es el CEO de Revolut?,acceptable,NOT_ACCEPTABLE\n2,,ACCEPTABLE,\n", encoding="utf-8")
-    assert pjp.load_verdicts(results, "verdict") == {query_hash("¿Quién es el CEO de Revolut?"): "ACCEPTABLE"}
-    assert pjp.load_verdicts(results, "final_verdict") == {query_hash("¿Quién es el CEO de Revolut?"): "NOT_ACCEPTABLE"}
+    results.write_text("id,query,verdict,final_verdict\n1,¿Quién es el CEO de Revolut?,acceptable,Parcial\n3,b,NOT_ACCEPTABLE,Cubierta\n2,,ACCEPTABLE,\n", encoding="utf-8")
+    assert pjp.load_verdicts(results, "verdict") == {query_hash("¿Quién es el CEO de Revolut?"): "ACCEPTABLE", query_hash("b"): "NOT_ACCEPTABLE"}
+    # The containment judge's verdicts map onto the same two grades.
+    assert pjp.load_verdicts(results, "final_verdict") == {query_hash("¿Quién es el CEO de Revolut?"): "NOT_ACCEPTABLE", query_hash("b"): "ACCEPTABLE"}
 
 
 def test_a_question_asked_twice_is_judged_on_its_last_admission():
@@ -57,3 +58,10 @@ def test_the_lines_match_what_the_go_no_go_table_reads():
     for field in ("cache.ground_truth", "JudgePrecisionPct", "JudgeEvaluated", "GroundTruthRun"):
         assert field in dashboard
     assert json.loads(json.dumps(lines[0]))["Domain"] == "CRP"
+
+
+def test_disagreements_are_admitted_bad_and_rejected_good(tmp_path):
+    results = tmp_path / "r.csv"
+    results.write_text("id,query,verdict,justification\n1,a,NOT_ACCEPTABLE,wrong CEO\n2,b,ACCEPTABLE,ok\n3,c,ACCEPTABLE,ok\n4,d,NOT_ACCEPTABLE,no\n", encoding="utf-8")
+    admissions = pjp.latest_admissions([_adm("a", "ACTIVE"), _adm("b", "ACTIVE"), _adm("c", "NOT_FIT"), _adm("d", "NOT_FIT")])
+    assert [(d["id"], d["outcome"], d["justification"]) for d in pjp.disagreements(results, "verdict", admissions)] == [("1", "ACTIVE", "wrong CEO"), ("3", "NOT_FIT", "ok")]
