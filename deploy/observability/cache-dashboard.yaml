@@ -40,6 +40,12 @@ Parameters:
     Type: String
     Default: 25000
     Description: Asks a domain needs before it can serve from the cache (go / no-go gate 1).
+  GoNoGoMaxFalseHitPct:
+    Type: String
+    Default: 5
+    Description: >-
+      Highest share of shadow-checked would-be hits that contradict the fresh vendor answer or are
+      outdated (go / no-go gate 5) -- the only live check of what the cache would serve.
   GroundTruthLogGroup:
     Type: String
     Default: /a2k/cache/ground-truth
@@ -80,7 +86,7 @@ Resources:
            "width": 24,
            "height": 1,
            "properties": {
-            "markdown": "### Go / no-go per domain -- a domain serves only if it passes all four: asks >= ${GoNoGoMinAsks}, re-ask < 5 %, judge precision >= 95 %, net > 0. Set the time range to the start of shadow (30/10) for the cumulative asks."
+            "markdown": "### Go / no-go per domain -- a domain serves only if it passes all five: asks >= ${GoNoGoMinAsks}, re-ask < 5 %, judge precision >= 95 %, net > 0, false hits < ${GoNoGoMaxFalseHitPct} %. Set the time range to the start of shadow (30/10) for the cumulative asks."
            }
           },
           {
@@ -90,8 +96,8 @@ Resources:
            "width": 24,
            "height": 8,
            "properties": {
-            "title": "Go / no-go per domain: asks (>= ${GoNoGoMinAsks}), re-ask % (< 5), judge precision % (>= 95, last ground-truth run), net USD (> 0)",
-            "query": "SOURCE '${BoxLogGroup}' | SOURCE '${GroundTruthLogGroup}' | filter event in [\"cache.metrics\", \"cache.ground_truth\"] and ispresent(Domain) and Domain != \"NONE\" | fields coalesce(VendorCostAvoided, 0) + coalesce(AgentCostAvoided, 0) + coalesce(PotentialVendorCostAvoided, 0) + coalesce(PotentialAgentCostAvoided, 0) as saved_usd, coalesce(CostUSD, 0) as cache_usd, toMillis(@timestamp) * Asks as ask_ms | stats sum(Asks) as asks, round(100 * sum(Asks) / ${GoNoGoMinAsks}, 1) as pct_of_min_asks, round(100 * sum(Reformulations) / sum(Asks), 1) as reask_pct, latest(JudgePrecisionPct) as judge_precision_pct, latest(JudgeEvaluated) as judge_evaluated, latest(GroundTruthRun) as ground_truth_run, round(sum(saved_usd) - sum(cache_usd), 2) as net_usd, ceil((${GoNoGoMinAsks} - sum(Asks)) / (sum(Asks) / greatest((max(ask_ms) - min(ask_ms)) / 86400000, 1))) as days_to_min_asks, round(100 * sum(WouldHits) / sum(Asks), 1) as would_hit_pct, round(100 * sum(FalseHits) / sum(ShadowChecks), 1) as false_hit_pct by Domain | filter asks > 0 or ispresent(judge_precision_pct) | sort asks desc",
+            "title": "Go / no-go per domain: asks (>= ${GoNoGoMinAsks}), re-ask % (< 5), judge precision % (>= 95, last ground-truth run), net USD (> 0), false hits % (< ${GoNoGoMaxFalseHitPct}, of shadow checks)",
+            "query": "SOURCE '${BoxLogGroup}' | SOURCE '${GroundTruthLogGroup}' | filter event in [\"cache.metrics\", \"cache.ground_truth\"] and ispresent(Domain) and Domain != \"NONE\" | fields coalesce(VendorCostAvoided, 0) + coalesce(AgentCostAvoided, 0) + coalesce(PotentialVendorCostAvoided, 0) + coalesce(PotentialAgentCostAvoided, 0) as saved_usd, coalesce(CostUSD, 0) as cache_usd, toMillis(@timestamp) * Asks as ask_ms | stats sum(Asks) as asks, round(100 * sum(Asks) / ${GoNoGoMinAsks}, 1) as pct_of_min_asks, round(100 * sum(Reformulations) / sum(Asks), 1) as reask_pct, latest(JudgePrecisionPct) as judge_precision_pct, latest(JudgeEvaluated) as judge_evaluated, latest(GroundTruthRun) as ground_truth_run, round(sum(saved_usd) - sum(cache_usd), 2) as net_usd, round(100 * sum(FalseHits) / sum(ShadowChecks), 1) as false_hit_pct, sum(ShadowChecks) as shadow_checks, ceil((${GoNoGoMinAsks} - sum(Asks)) / (sum(Asks) / greatest((max(ask_ms) - min(ask_ms)) / 86400000, 1))) as days_to_min_asks, round(100 * sum(WouldHits) / sum(Asks), 1) as would_hit_pct by Domain | filter asks > 0 or ispresent(judge_precision_pct) | sort asks desc",
             "region": "${AWS::Region}",
             "view": "table"
            }
