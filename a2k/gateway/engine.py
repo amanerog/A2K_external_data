@@ -815,8 +815,14 @@ class GatewayEngine:
         hit = lookup.hit
         answer = None
         if content is not None:
+            cost = savings.answer_cost(content)
+            priced = savings.priced(cost)
             answer = {
-                **savings.answer_cost(content),
+                **cost,
+                # What this answer cost, for the cost per question without / with the cache.
+                "vendor_cost_usd": priced["vendor_cost_usd"],
+                "agent_cost_usd": priced["agent_cost_usd"],
+                "unpriced": priced["unpriced"],
                 "coverage": content.get("coverage"),
                 "citation_hosts": savings.citation_hosts(content),
             }
@@ -857,7 +863,7 @@ class GatewayEngine:
             "avoided": savings.avoided(
                 served_from=served_from,
                 would_hit=hit is not None,
-                ask_cost=answer,
+                ask_cost=cost if content is not None else None,
                 entry_cost=hit.answer_cost if hit else None,
             ),
         }

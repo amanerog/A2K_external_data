@@ -30,6 +30,12 @@ Parameters:
       0.14 = Cost Explorer for dev, 1-20 Oct 2026: EU-Aurora ServerlessV2Usage 1.05 + StorageIOUsage 1.65
       + storage/backup 0.02 USD over 20 days; Data API and S3 ~0. Upper bound: the I/O line may include
       another Aurora cluster of the account (0.05/day without it). Re-measure with production traffic.
+  LinkupEURPerMonth:
+    Type: String
+    Default: 5000
+    Description: >-
+      Linkup's flat rate (a2k/cache/vendor_prices.json contracts): calls avoided save no money, so the
+      dashboard shows this amount spread over the questions Linkup answered instead.
 
 Resources:
   Dashboard:
@@ -559,6 +565,55 @@ Resources:
             "query": "SOURCE '${BoxLogGroup}' | filter event = \"cache.metrics\" and source = \"cache.retrieval\" and ispresent(PriceVersion) | fields coalesce(VendorCostAvoided, 0) + coalesce(AgentCostAvoided, 0) as real_usd, coalesce(PotentialVendorCostAvoided, 0) + coalesce(PotentialAgentCostAvoided, 0) as potential_usd, coalesce(VendorCallsAvoided, 0) as real_calls, coalesce(PotentialVendorCallsAvoided, 0) as potential_calls | stats count(*) as hits, sum(real_calls) as calls, sum(potential_calls) as calls_potential, round(sum(real_usd), 2) as usd, round(sum(potential_usd), 2) as usd_potential by Domain, AvoidedVendor, PriceVersion | sort usd_potential desc",
             "region": "${AWS::Region}",
             "view": "table"
+           }
+          },
+          {
+           "type": "log",
+           "x": 0,
+           "y": 70,
+           "width": 12,
+           "height": 7,
+           "properties": {
+            "title": "Cost per question without vs with the cache, per day (USD, estimate)",
+            "query": "SOURCE '${BoxLogGroup}' | filter event = \"cache.metrics\" | fields coalesce(AnswerVendorCostUSD, 0) + coalesce(AnswerAgentCostUSD, 0) as answer_usd, coalesce(CostUSD, 0) as cache_usd | stats sum(Asks) as questions, sum(WouldHits) as hits, count(AnswerAgentCostUSD) as priced_answers, round(sum(answer_usd) / count(AnswerAgentCostUSD), 3) as without_cache, round((1 - sum(WouldHits) / sum(Asks)) * sum(answer_usd) / count(AnswerAgentCostUSD) + (sum(cache_usd) + ${InfraUSDPerDay}) / sum(Asks), 3) as with_cache_if_served, round(sum(WouldHits) / sum(Asks) * sum(answer_usd) / count(AnswerAgentCostUSD) - (sum(cache_usd) + ${InfraUSDPerDay}) / sum(Asks), 3) as saving_per_question by bin(1d) as day | sort day desc",
+            "region": "${AWS::Region}",
+            "view": "table"
+           }
+          },
+          {
+           "type": "log",
+           "x": 12,
+           "y": 70,
+           "width": 12,
+           "height": 7,
+           "properties": {
+            "title": "Break-even per domain: hits that pay for the cache (USD, estimate, without infrastructure)",
+            "query": "SOURCE '${BoxLogGroup}' | filter event = \"cache.metrics\" | fields coalesce(AnswerVendorCostUSD, 0) + coalesce(AnswerAgentCostUSD, 0) as answer_usd, coalesce(CostUSD, 0) as cache_usd | stats sum(Asks) as questions, sum(WouldHits) as hits, round(sum(answer_usd) / count(AnswerAgentCostUSD), 3) as saving_per_hit, round(sum(cache_usd), 2) as cache_cost, ceil(sum(cache_usd) / (sum(answer_usd) / count(AnswerAgentCostUSD))) as hits_to_break_even, round(100 * sum(WouldHits) / (sum(cache_usd) / (sum(answer_usd) / count(AnswerAgentCostUSD))), 0) as pct_of_break_even by Domain | sort cache_cost desc",
+            "region": "${AWS::Region}",
+            "view": "table"
+           }
+          },
+          {
+           "type": "log",
+           "x": 0,
+           "y": 77,
+           "width": 12,
+           "height": 6,
+           "properties": {
+            "title": "Linkup flat rate: effective cost per question it answered (EUR/question, plus the agent in USD)",
+            "query": "SOURCE '${BoxLogGroup}' | filter event = \"cache.metrics\" and source = \"cache.retrieval\" and AnswerVendors like /linkup/ | stats count(*) as linkup_answers, sum(AnswerVendorCalls) as vendor_calls, round(${LinkupEURPerMonth} / 30.44 / count(*), 2) as flat_eur_per_answer, round(avg(AnswerAgentCostUSD), 3) as agent_usd_per_answer by bin(1d) as day | sort day desc",
+            "region": "${AWS::Region}",
+            "view": "table"
+           }
+          },
+          {
+           "type": "text",
+           "x": 12,
+           "y": 77,
+           "width": 12,
+           "height": 6,
+           "properties": {
+            "markdown": "#### How to read the cost per question\n- **without_cache**: the average vendor answer (vendor calls + agent run), over the `priced_answers` -- what every question would cost with no cache. Empty until there is a priced answer.\n- **with_cache_if_served**: (1 - hit rate) x that answer + (the cache's models + infrastructure, ${InfraUSDPerDay} USD/day) / questions. Hit rate = hits (served or would-be) / questions, so in shadow it is a projection.\n- **saving_per_question** = without - with: the unit saving of the Business Case. Negative: the cache costs more than it saves at today's hit rate.\n- **Break-even**: `saving_per_hit` is what an average vendor answer costs in the domain, i.e. what one hit avoids; `hits_to_break_even` = cache cost / saving_per_hit. Below 100 % the domain does not pay for itself yet.\n- **Linkup** is a flat rate (${LinkupEURPerMonth} EUR/month): a hit saves its agent run, not the fee. The fee per question only falls with more volume.\n- Answers from a vendor with no price (Sayari) count the agent only."
            }
           }
          ]

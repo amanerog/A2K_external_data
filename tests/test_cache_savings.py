@@ -137,11 +137,22 @@ async def test_shadow_would_hit_logs_the_answer_and_its_potential_saving(agent_a
     out = capsys.readouterr().out
     (log,) = [x for x in map(json.loads, out.splitlines()) if x.get("event") == "cache.retrieval"]
     # Only the citations a vendor tool returned: the invented one is dropped before.
-    assert log["answer"] == {**COST, "coverage": "partial", "citation_hosts": ["boe.es", "cnmv.es"]}
+    agent_usd = round(80_000 * 3 / 1e6 + 2_000 * 15 / 1e6, 6)
+    assert log["answer"] == {
+        **COST,
+        "vendor_cost_usd": 0.1,
+        "agent_cost_usd": agent_usd,
+        "unpriced": [],
+        "coverage": "partial",
+        "citation_hosts": ["boe.es", "cnmv.es"],
+    }
     assert log["avoided"]["kind"] == "potential" and log["avoided"]["vendor_cost_usd"] == 0.1
     (m,) = [x for x in map(json.loads, out.splitlines()) if x.get("event") == "cache.metrics"]
     assert (m["PotentialVendorCallsAvoided"], m["PotentialVendorCostAvoided"], m["AvoidedVendor"], m["PriceVersion"]) == (2, 0.1, "cala", "test-v1")
     assert m["PotentialAgentCostAvoided"] == log["avoided"]["agent_cost_usd"] > 0
+    # What the answer cost, as values for Logs Insights -- not metrics.
+    assert (m["AnswerVendors"], m["AnswerVendorCalls"], m["AnswerVendorCostUSD"], m["AnswerAgentCostUSD"]) == ("cala", 2, 0.1, agent_usd)
+    assert not any(x["Name"].startswith("Answer") for d in m["_aws"]["CloudWatchMetrics"] for x in d["Metrics"])
     assert "VendorCallsAvoided" not in m
     saving = m["_aws"]["CloudWatchMetrics"][-1]
     assert saving["Dimensions"] == [["Mode"]]
@@ -165,6 +176,7 @@ async def test_an_unpriced_vendor_emits_calls_but_no_vendor_cost(agent_answer, m
     await agent_answer[0]._ask_via_agent(A2KRequest(operation="ask", query="q"))
     (m,) = _metric_lines(capsys)
     assert m["PotentialVendorCallsAvoided"] == 2 and "PotentialVendorCostAvoided" not in m
+    assert "AnswerVendorCostUSD" not in m and m["AnswerAgentCostUSD"] > 0
     # Every declared metric is a member of the line (EMF rejects it otherwise).
     assert all(x["Name"] in m for d in m["_aws"]["CloudWatchMetrics"] for x in d["Metrics"])
 

@@ -17,7 +17,9 @@ Retrieval, one per ask:
   VendorCostAvoided, AgentCostAvoided when served from the cache (real), the
   same with a Potential prefix for a would-be hit not served (shadow); a cost
   only when it is priced. `AvoidedVendor` (value, not dimension) is the
-  vendor whose calls were avoided, for Logs Insights.
+  vendor whose calls were avoided, for Logs Insights;
+  values only, when the vendor answered -- AnswerVendors, AnswerVendorCalls,
+  AnswerVendorCostUSD (if priced), AnswerAgentCostUSD: what that answer cost.
 Admission, one per candidate:
   by Outcome -- Admissions, AdmissionMs, InputTokens, OutputTokens, CostUSD;
   by Domain+Outcome and Vendor+Outcome -- Admissions only.
@@ -94,7 +96,23 @@ def retrieval_metrics(record: dict[str, Any], namespace: str) -> dict[str, Any]:
         directives.append(([["ServedFrom"]], [_ms("AskMs")]))
     if saving := _avoided(values, record):
         directives.append(([["Mode"]], saving))
+    _answer(values, record)
     return _envelope(namespace, directives, values)
+
+
+def _answer(values: dict[str, Any], record: dict[str, Any]) -> None:
+    """Adds what the vendor answer of this ask cost (record["answer"]) to
+    `values` -- values only, no metric: the dashboard's cost per question and
+    break-even tables read them with Logs Insights."""
+    answer = record.get("answer")
+    if not answer:
+        return
+    values["AnswerVendors"] = ",".join(sorted(answer["vendor_calls"])) or "none"
+    values["AnswerVendorCalls"] = sum(answer["vendor_calls"].values())
+    if not answer["unpriced"]:
+        values["AnswerVendorCostUSD"] = answer["vendor_cost_usd"]
+    if answer["agent_cost_usd"] is not None:
+        values["AnswerAgentCostUSD"] = answer["agent_cost_usd"]
 
 
 def _avoided(values: dict[str, Any], record: dict[str, Any]) -> list[dict[str, str]]:
