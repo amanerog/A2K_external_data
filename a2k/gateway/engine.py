@@ -42,6 +42,7 @@ from . import audit as gw_audit
 from . import conflict, synthesis, tracing
 from ..cache import admission, filters, retrieval
 from ..cache import metrics as cache_metrics
+from ..cache import savings
 from ..cache import shadow_check
 from ..cache.models import Candidate
 from ..cache.store import AuroraStore, S3EvidenceStore
@@ -495,7 +496,8 @@ class GatewayEngine:
                 lookup = await shadow_task
             if lookup is not None:
                 self._log_retrieval(lookup, query=req.query, request_id=request_id, session_id=session_id,
-                                    served_from="vendor_no_answer", vendor_entry_id=None, ask_ms=self._elapsed_ms(t0), user=user)
+                                    served_from="vendor_no_answer", vendor_entry_id=None, ask_ms=self._elapsed_ms(t0), user=user,
+                                    content=content)
             return self._insufficient_evidence(source_kb_id, request_id, req)
 
         grounded_ratio = float(content.get("groundedRatio") or 0.0)
@@ -573,6 +575,7 @@ class GatewayEngine:
                 vendor_entry_id=vendor_entry_id,
                 ask_ms=self._elapsed_ms(t0),
                 user=user,
+                content=content if hit is None else None,
             )
         tracing.trace(
             "engine.ask.response",
@@ -797,13 +800,26 @@ class GatewayEngine:
         vendor_entry_id: str | None,
         ask_ms: int | None = None,
         user: str | None = None,
+        content: dict | None = None,
     ) -> None:
         """The serving log (proposal Sheet 6): one JSON line per ask with the
         cache on. In shadow mode `would_hit` is what the cache would have
         served; `vendor_entry_id` is the admission candidate created from the
         vendor answer, whose evidence bundle (S3) holds that answer -- so a
-        would-be hit can be compared with the fresh vendor answer afterwards."""
+        would-be hit can be compared with the fresh vendor answer afterwards.
+
+        `content`: the vendor answer, when the vendor answered this ask. Its
+        `answer` block (vendors and calls, agent tokens, coverage, cited web
+        domains) and `avoided` (what a hit saves, savings.py) feed the
+        dashboard's saving and data-universe panels."""
         hit = lookup.hit
+        answer = None
+        if content is not None:
+            answer = {
+                **savings.answer_cost(content),
+                "coverage": content.get("coverage"),
+                "citation_hosts": savings.citation_hosts(content),
+            }
         record = {
             "event": "cache.retrieval",
             "mode": config.cache_mode,
@@ -836,6 +852,14 @@ class GatewayEngine:
             "vendor_entry_id": vendor_entry_id,
             "ask_ms": ask_ms,
             "usage": lookup.usage,
+            "entry_vendor": hit.vendor if hit else None,
+            "answer": answer,
+            "avoided": savings.avoided(
+                served_from=served_from,
+                would_hit=hit is not None,
+                ask_cost=answer,
+                entry_cost=hit.answer_cost if hit else None,
+            ),
         }
         emit(record)
         cache_metrics.emit_retrieval(record)
@@ -924,6 +948,7 @@ class GatewayEngine:
                 grounded_ratio=float(content["groundedRatio"]) if content.get("groundedRatio") is not None else None,
                 claims=self._claims_with_sources(content),
                 coverage=content.get("coverage"),
+                answer_cost=savings.answer_cost(content),
             )
             admission.submit(candidate, settings=_admission_settings(), deps=_admission_deps)
             return candidate.entry_id

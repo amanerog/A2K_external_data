@@ -385,6 +385,8 @@ def log_result(result: AdmissionResult, *, candidate: Candidate, evidence_uri: s
         "original_lang": result.normalized.original_lang if result.normalized else None,
         "requested_elements": [asdict(e) for e in c.requested_elements] if c else None,
         "self_contained": c.self_contained if c else None,
+        # [{"name", "kind", "identifiers"}] -- the most asked-for entities (dashboard T4.1).
+        "entities": c.entities if c else None,
         "findings": _findings_json(result),
         "expires_at": result.expires_at.isoformat() if result.expires_at else None,
         "evidence_uri": evidence_uri,

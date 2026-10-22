@@ -86,6 +86,9 @@ class CacheHit:
     grounded_ratio: float | None = None
     # The claims of the served version: [{"text", "sources": [url, ...]}].
     claims: list[dict[str, Any]] = field(default_factory=list)
+    # The vendor of the entry's answer, and what that answer took (savings.py).
+    vendor: str | None = None
+    answer_cost: dict[str, Any] | None = None
 
 
 @dataclass
@@ -276,6 +279,8 @@ def _lookup(
                     data_as_of=row.get("data_as_of"),
                     grounded_ratio=row.get("grounded_ratio"),
                     claims=list((row.get("claims") or {}).get("original" if original else "en") or []),
+                    vendor=row.get("vendor"),
+                    answer_cost=row.get("answer_cost"),
                 )
                 break
         lap("checker")

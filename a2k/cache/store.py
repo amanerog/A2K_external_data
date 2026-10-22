@@ -145,9 +145,9 @@ class AuroraStore:
     def create_pending(self, candidate: Candidate, evidence_uri: str) -> None:
         self._execute(
             """INSERT INTO cache_entry (entry_id, status, created_at, question_text_original,
-                   answer_text_original, evidence_uri, vendor, data_origin, card_revision, grounded_ratio)
+                   answer_text_original, evidence_uri, vendor, data_origin, card_revision, grounded_ratio, answer_cost)
                VALUES (:entry_id, 'PENDING', :created_at, :question, :answer, :evidence_uri, :vendor, 'public',
-                       :card_revision, CAST(:grounded_ratio AS real))""",
+                       :card_revision, CAST(:grounded_ratio AS real), CAST(:answer_cost AS jsonb))""",
             [
                 _p("entry_id", candidate.entry_id, "UUID"),
                 _p("created_at", _ts(candidate.created_at), "TIMESTAMP"),
@@ -157,6 +157,7 @@ class AuroraStore:
                 _p("vendor", candidate.vendor),
                 _p("card_revision", candidate.card_revision),
                 _p("grounded_ratio", candidate.grounded_ratio),
+                _p("answer_cost", json.dumps(candidate.answer_cost) if candidate.answer_cost else None),
             ],
         )
 
@@ -300,7 +301,7 @@ class AuroraStore:
             """SELECT entry_id::text, question_text, answer_text, answer_text_original, original_lang,
                       sources::text, 1 - (question_vector <=> CAST(:v AS vector)) AS cosine,
                       to_char(admitted_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'), data_as_of::text,
-                      vendor, card_revision, grounded_ratio::float8, claims::text
+                      vendor, card_revision, grounded_ratio::float8, claims::text, answer_cost::text
                FROM cache_entry
                WHERE status = 'ACTIVE'
                  AND expires_at > now()
@@ -319,7 +320,7 @@ class AuroraStore:
         for rec in result.get("records") or []:
             values = [_field(c) for c in rec]
             admitted, as_of = values[7], values[8]
-            vendor, card_revision, grounded_ratio, claims = values[9], values[10], values[11], values[12]
+            vendor, card_revision, grounded_ratio, claims, answer_cost = values[9], values[10], values[11], values[12], values[13]
             rows.append(
                 {
                     "entry_id": values[0],
@@ -335,6 +336,7 @@ class AuroraStore:
                     "card_revision": card_revision,
                     "grounded_ratio": float(grounded_ratio) if grounded_ratio is not None else None,
                     "claims": json.loads(claims) if claims else {},
+                    "answer_cost": json.loads(answer_cost) if answer_cost else None,
                 }
             )
         return rows
@@ -370,6 +372,7 @@ class MemoryStore:
             "answer_text_original": candidate.answer,
             "card_revision": candidate.card_revision,
             "grounded_ratio": candidate.grounded_ratio,
+            "answer_cost": candidate.answer_cost,
         }
 
     def is_pending(self, entry_id: str) -> bool:
@@ -450,6 +453,7 @@ class MemoryStore:
                         "card_revision": row.get("card_revision"),
                         "grounded_ratio": row.get("grounded_ratio"),
                         "claims": a.claims,
+                        "answer_cost": row.get("answer_cost"),
                     }
                 )
         return sorted(found, key=lambda r: -r["cosine"])[:limit]

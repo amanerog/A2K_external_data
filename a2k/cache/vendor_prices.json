@@ -1,0 +1,17 @@
+{
+  "price_version": "2026-10-21-cala-0.62eur",
+  "note": "Price per vendor tool call (T0.1/T0.2 of the dashboard tasks), in EUR (eur_per_call, converted at eur_usd) or USD (usd_per_call). null = price not known yet: the calls are counted, the cost is not. 0 = avoiding a call saves no money (flat rate with no quota) -- the hit still saves the agent run. Change price_version with every change here.",
+  "eur_usd": 1.15,
+  "eur_usd_source": "ECB reference rate 16 Sep 2026: 1.1537",
+  "eur_per_call": {
+    "cala": 0.62,
+    "linkup": 0
+  },
+  "usd_per_call": {
+    "sayari": null
+  },
+  "contracts": {
+    "cala": "0.62 EUR per API query (each knowledge_search / knowledge_query / entity_retrieval call) (2026-10-21).",
+    "linkup": "Flat rate, 5000 EUR/month, unlimited calls (2026-10-21)."
+  }
+}

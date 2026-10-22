@@ -47,7 +47,9 @@ python deploy/aurora/apply_schema.py --cluster-arn "$(O ClusterArn)" --secret-ar
 ```
 
 The schema stays outside the template: `apply_schema.py` is idempotent and is
-re-run whenever `schema.sql` changes.
+re-run whenever `schema.sql` changes -- **before** deploying the a2k-box code
+that needs it: a new column the code writes (e.g. `answer_cost`, what a hit
+saves) makes every admission fail with ERROR until the schema has it.
 
 **Dev (`sds01-dev`), created by hand on 1 Oct 2026**, is brought under the
 stack with a resource import rather than recreated. `import_stack.py` reads

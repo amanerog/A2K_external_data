@@ -22,6 +22,14 @@ Parameters:
   AgentLogGroup:
     Type: String
     Default: /aws/bedrock-agentcore/runtimes/a2k_cache_agent-oEBeCrBECq-DEFAULT
+  InfraUSDPerDay:
+    Type: String
+    Default: 0.14
+    Description: >-
+      Fixed daily cost of the cache's own infrastructure, prorated -- part of the net cost (T1.3).
+      0.14 = Cost Explorer for dev, 1-20 Oct 2026: EU-Aurora ServerlessV2Usage 1.05 + StorageIOUsage 1.65
+      + storage/backup 0.02 USD over 20 days; Data API and S3 ~0. Upper bound: the I/O line may include
+      another Aurora cluster of the account (0.05/day without it). Re-measure with production traffic.
 
 Resources:
   Dashboard:
@@ -500,6 +508,55 @@ Resources:
            "properties": {
             "title": "Shadow checks: latest false hits",
             "query": "SOURCE '${BoxLogGroup}' | filter event = \"cache.shadow_check\" and verdict in [\"cached_outdated\", \"contradicts\"] | fields @timestamp, domain, verdict, entry_id, cosine, reason | sort @timestamp desc | limit 20",
+            "region": "${AWS::Region}",
+            "view": "table"
+           }
+          },
+          {
+           "type": "text",
+           "x": 0,
+           "y": 54,
+           "width": 24,
+           "height": 2,
+           "properties": {
+            "markdown": "### Saving (T1) -- does the cache pay for itself?\nA hit avoids the vendor tool calls **and** the agent run (a2k/cache/savings.py). *Real*: served from the cache. *Potential*: a would-be hit in shadow -- exactly what this ask's vendor answer took. Vendor cost = calls x `usd_per_call` (a2k/cache/vendor_prices.json, `price_version`); a vendor with no price counts calls, not cost. Cache cost = its model calls + infrastructure (`InfraUSDPerDay` = ${InfraUSDPerDay} USD/day). Net > 0 is gate 3 of the go / no-go. All costs are estimates (tokens and calls x list prices)."
+           }
+          },
+          {
+           "type": "log",
+           "x": 0,
+           "y": 56,
+           "width": 24,
+           "height": 7,
+           "properties": {
+            "title": "Saving vs cache cost per day (USD, estimate) -- net = saved - cache models - infrastructure",
+            "query": "SOURCE '${BoxLogGroup}' | filter event = \"cache.metrics\" | fields coalesce(VendorCostAvoided, 0) + coalesce(AgentCostAvoided, 0) as real_usd, coalesce(PotentialVendorCostAvoided, 0) + coalesce(PotentialAgentCostAvoided, 0) as potential_usd, coalesce(CostUSD, 0) as cache_usd, coalesce(VendorCallsAvoided, 0) as real_calls, coalesce(PotentialVendorCallsAvoided, 0) as potential_calls | stats sum(real_calls) as calls_avoided, sum(potential_calls) as calls_avoided_potential, round(sum(real_usd), 2) as saved, round(sum(potential_usd), 2) as saved_potential, round(sum(cache_usd), 2) as cache_models, round(sum(real_usd) - sum(cache_usd) - ${InfraUSDPerDay}, 2) as net, round(sum(potential_usd) - sum(cache_usd) - ${InfraUSDPerDay}, 2) as net_potential by bin(1d) as day | sort day desc",
+            "region": "${AWS::Region}",
+            "view": "table"
+           }
+          },
+          {
+           "type": "log",
+           "x": 0,
+           "y": 63,
+           "width": 12,
+           "height": 7,
+           "properties": {
+            "title": "Net cost per domain (USD, estimate, without infrastructure)",
+            "query": "SOURCE '${BoxLogGroup}' | filter event = \"cache.metrics\" | fields coalesce(VendorCostAvoided, 0) + coalesce(AgentCostAvoided, 0) as real_usd, coalesce(PotentialVendorCostAvoided, 0) + coalesce(PotentialAgentCostAvoided, 0) as potential_usd, coalesce(CostUSD, 0) as cache_usd | stats round(sum(real_usd), 2) as saved, round(sum(potential_usd), 2) as saved_potential, round(sum(cache_usd), 2) as cache_models, round(sum(real_usd) - sum(cache_usd), 2) as net, round(sum(potential_usd) - sum(cache_usd), 2) as net_potential by Domain | sort net_potential desc",
+            "region": "${AWS::Region}",
+            "view": "table"
+           }
+          },
+          {
+           "type": "log",
+           "x": 12,
+           "y": 63,
+           "width": 12,
+           "height": 7,
+           "properties": {
+            "title": "Calls and cost avoided per domain and vendor (T1.1, T1.2)",
+            "query": "SOURCE '${BoxLogGroup}' | filter event = \"cache.metrics\" and source = \"cache.retrieval\" and ispresent(PriceVersion) | fields coalesce(VendorCostAvoided, 0) + coalesce(AgentCostAvoided, 0) as real_usd, coalesce(PotentialVendorCostAvoided, 0) + coalesce(PotentialAgentCostAvoided, 0) as potential_usd, coalesce(VendorCallsAvoided, 0) as real_calls, coalesce(PotentialVendorCallsAvoided, 0) as potential_calls | stats count(*) as hits, sum(real_calls) as calls, sum(potential_calls) as calls_potential, round(sum(real_usd), 2) as usd, round(sum(potential_usd), 2) as usd_potential by Domain, AvoidedVendor, PriceVersion | sort usd_potential desc",
             "region": "${AWS::Region}",
             "view": "table"
            }

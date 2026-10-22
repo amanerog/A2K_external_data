@@ -38,12 +38,16 @@ CREATE TABLE IF NOT EXISTS cache_entry (
     -- The groundedRatio the agent self-reported for the answer, served back with it.
     grounded_ratio         real,
     -- The agent's claims per served version: {"original": [{"text", "sources"}], "en": [...]}.
-    claims                 jsonb
+    claims                 jsonb,
+    -- What the vendor answer took: {"vendor_calls": {vendor: n}, "agent_input_tokens", "agent_output_tokens"}
+    -- -- what serving the entry saves (a2k/cache/savings.py).
+    answer_cost            jsonb
 );
 -- Columns added after the first deployment (CREATE TABLE IF NOT EXISTS does not add them).
 ALTER TABLE cache_entry ADD COLUMN IF NOT EXISTS card_revision text;
 ALTER TABLE cache_entry ADD COLUMN IF NOT EXISTS grounded_ratio real;
 ALTER TABLE cache_entry ADD COLUMN IF NOT EXISTS claims jsonb;
+ALTER TABLE cache_entry ADD COLUMN IF NOT EXISTS answer_cost jsonb;
 
 -- Retrieval only ever searches ACTIVE entries (Annex A3).
 CREATE INDEX IF NOT EXISTS cache_entry_vector_active

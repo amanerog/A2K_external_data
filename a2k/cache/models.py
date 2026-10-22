@@ -37,6 +37,9 @@ class Candidate:
     claims: list[dict[str, Any]] = field(default_factory=list)
     # The agent's own reading: "complete" | "partial" | "none" (None if not given).
     coverage: str | None = None
+    # What the answer took (savings.answer_cost): vendor tool calls per vendor
+    # and the agent's tokens -- what serving this entry later saves.
+    answer_cost: dict[str, Any] | None = None
 
 
 @dataclass

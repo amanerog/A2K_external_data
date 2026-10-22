@@ -12,7 +12,12 @@ Retrieval, one per ask:
   OutputTokens, CostUSD of its model calls (usage.py);
   by Mode+Domain -- Asks, Hits, WouldHits only;
   by ServedFrom (cache / vendor / vendor_error / vendor_no_answer) -- AskMs,
-  the whole ask as a2k-box saw it, to compare a hit with a vendor answer.
+  the whole ask as a2k-box saw it, to compare a hit with a vendor answer;
+  by Mode, on a hit or would-be hit (savings.py) -- VendorCallsAvoided,
+  VendorCostAvoided, AgentCostAvoided when served from the cache (real), the
+  same with a Potential prefix for a would-be hit not served (shadow); a cost
+  only when it is priced. `AvoidedVendor` (value, not dimension) is the
+  vendor whose calls were avoided, for Logs Insights.
 Admission, one per candidate:
   by Outcome -- Admissions, AdmissionMs, InputTokens, OutputTokens, CostUSD;
   by Domain+Outcome and Vendor+Outcome -- Admissions only.
@@ -87,7 +92,30 @@ def retrieval_metrics(record: dict[str, Any], namespace: str) -> dict[str, Any]:
     if record.get("ask_ms") is not None:
         values["AskMs"] = record["ask_ms"]
         directives.append(([["ServedFrom"]], [_ms("AskMs")]))
+    if saving := _avoided(values, record):
+        directives.append(([["Mode"]], saving))
     return _envelope(namespace, directives, values)
+
+
+def _avoided(values: dict[str, Any], record: dict[str, Any]) -> list[dict[str, str]]:
+    """Adds what a hit saved (record["avoided"]) to `values`; returns their
+    metric definitions (none without a saving)."""
+    avoided = record.get("avoided")
+    if not avoided:
+        return []
+    prefix = "" if avoided["kind"] == "real" else "Potential"
+    values["AvoidedVendor"] = ",".join(avoided["vendors"]) or "none"
+    values[f"{prefix}VendorCallsAvoided"] = avoided["vendor_calls"]
+    metrics = [_count(f"{prefix}VendorCallsAvoided")]
+    # Only a fully priced cost: a vendor with no per-call price would make it look smaller.
+    if not avoided["unpriced"]:
+        values[f"{prefix}VendorCostAvoided"] = avoided["vendor_cost_usd"]
+        metrics.append({"Name": f"{prefix}VendorCostAvoided", "Unit": "None"})
+    if avoided["agent_cost_usd"] is not None:
+        values[f"{prefix}AgentCostAvoided"] = avoided["agent_cost_usd"]
+        metrics.append({"Name": f"{prefix}AgentCostAvoided", "Unit": "None"})
+    values["PriceVersion"] = avoided["price_version"]
+    return metrics
 
 
 def admission_metrics(record: dict[str, Any], namespace: str) -> dict[str, Any]:

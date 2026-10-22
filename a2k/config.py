@@ -279,6 +279,9 @@ class Config:
     cache_model_prices: dict[str, tuple[float, float]] = field(
         default_factory=lambda: {k: tuple(v) for k, v in json.loads(os.environ.get("CACHE_MODEL_PRICES") or "{}").items()}
     )
+    # The model the agent runs on (its BEDROCK_MODEL_ID), to price the agent run
+    # a cache hit avoids (a2k/cache/savings.py).
+    agent_model_id: str = field(default_factory=lambda: os.environ.get("AGENT_MODEL_ID", "eu.anthropic.claude-sonnet-4-5-20250929-v1:0"))
     # How often, at most, admission reports the cache size by state (seconds).
     cache_size_metric_seconds: float = field(default_factory=lambda: float(os.environ.get("CACHE_SIZE_METRIC_SECONDS", "300")))
     # Shadow check (E7.4, false hits): a would-be hit that is not served is
