@@ -679,7 +679,7 @@ Resources:
            "height": 8,
            "properties": {
             "title": "Top entities asked about, with what their vendor answers cost (T4.1)",
-            "query": "SOURCE '${BoxLogGroup}' | filter event = \"cache.entity\" | stats count(*) as questions, round(sum(answer_cost_usd), 2) as answers_usd, latest(name) as name, latest(kind) as kind, latest(Domain) as domain, latest(vendor) as vendor by name_key | sort questions desc, answers_usd desc | limit 50",
+            "query": "SOURCE '${BoxLogGroup}' | filter event = \"cache.entity\" | stats count(*) as questions, round(sum(answer_cost_usd), 2) as answers_usd, latest(name) as entity, latest(kind) as entity_kind, latest(Domain) as domain, latest(vendor) as answered_by by name_key | sort questions desc, answers_usd desc | limit 50",
             "region": "${AWS::Region}",
             "view": "table"
            }
@@ -692,7 +692,7 @@ Resources:
            "height": 8,
            "properties": {
             "title": "Top web domains cited in vendor answers (T4.3)",
-            "query": "SOURCE '${BoxLogGroup}' | filter event = \"cache.source\" | stats count(*) as citing_answers, count_distinct(query_sha256) as questions, latest(Domain) as domain, latest(vendors) as vendors by host | sort citing_answers desc | limit 50",
+            "query": "SOURCE '${BoxLogGroup}' | filter event = \"cache.source\" | stats count(*) as citing_answers, count_distinct(query_sha256) as questions, latest(Domain) as domain, latest(vendors) as answered_by by host | sort citing_answers desc | limit 50",
             "region": "${AWS::Region}",
             "view": "table"
            }
