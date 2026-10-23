@@ -65,3 +65,12 @@ def test_disagreements_are_admitted_bad_and_rejected_good(tmp_path):
     results.write_text("id,query,verdict,justification\n1,a,NOT_ACCEPTABLE,wrong CEO\n2,b,ACCEPTABLE,ok\n3,c,ACCEPTABLE,ok\n4,d,NOT_ACCEPTABLE,no\n", encoding="utf-8")
     admissions = pjp.latest_admissions([_adm("a", "ACTIVE"), _adm("b", "ACTIVE"), _adm("c", "NOT_FIT"), _adm("d", "NOT_FIT")])
     assert [(d["id"], d["outcome"], d["justification"]) for d in pjp.disagreements(results, "verdict", admissions)] == [("1", "ACTIVE", "wrong CEO"), ("3", "NOT_FIT", "ok")]
+
+
+def test_questions_from_a_source_no_vendor_sees_can_be_left_out(tmp_path):
+    results = tmp_path / "r.csv"
+    results.write_text("id,query,source,final_verdict,final_justification\n1,a,Datos internos (companies.csv),Parcial,no CIF\n2,b,Companies House,Parcial,old address\n", encoding="utf-8")
+    assert pjp.load_verdicts(results, "final_verdict", ("COMPANIES.CSV",)) == {query_hash("b"): "NOT_ACCEPTABLE"}
+    admissions = pjp.latest_admissions([_adm("a", "ACTIVE"), _adm("b", "ACTIVE")])
+    # The justification shown is the one of the verdict column used.
+    assert [(d["id"], d["justification"]) for d in pjp.disagreements(results, "final_verdict", admissions, ("companies.csv",))] == [("2", "old address")]

@@ -60,26 +60,38 @@ ADMISSIONS_QUERY = (
 )
 
 
-def load_verdicts(path: Path, column: str) -> dict[str, str]:
+def _excluded(row: dict[str, str], exclude: tuple[str, ...]) -> bool:
+    """A question whose reference comes from a source no vendor can see (the
+    bank's own companies.csv): its answer is never Cubierta, whatever the
+    judge does, so it says nothing about the judge."""
+    source = (row.get("source") or "").casefold()
+    return any(e.casefold() in source for e in exclude)
+
+
+def load_verdicts(path: Path, column: str, exclude: tuple[str, ...] = ()) -> dict[str, str]:
     """query_sha256 -> verdict, from a run_ground_truth_eval.py results CSV."""
     with path.open(encoding="utf-8-sig", newline="") as f:
         reader = csv.DictReader(f)
         if column not in (reader.fieldnames or []) or "query" not in (reader.fieldnames or []):
             sys.exit(f"{path}: needs 'query' and {column!r} columns, has {reader.fieldnames}")
-        return {query_hash(row["query"]): _verdict(row[column]) for row in reader if row["query"]}
+        return {query_hash(row["query"]): _verdict(row[column]) for row in reader if row["query"] and not _excluded(row, exclude)}
 
 
-def disagreements(path: Path, column: str, admissions: dict[str, dict[str, str]]) -> list[dict[str, str]]:
+def disagreements(path: Path, column: str, admissions: dict[str, dict[str, str]], exclude: tuple[str, ...] = ()) -> list[dict[str, str]]:
     """The questions where the judge and the ground truth disagree: admitted
     but NOT_ACCEPTABLE, or ACCEPTABLE but not admitted -- to read why."""
+    # The justification of the judge whose verdict is used: final_verdict -> final_justification.
+    why = column.replace("verdict", "justification")
     out = []
     with path.open(encoding="utf-8-sig", newline="") as f:
         for row in csv.DictReader(f):
+            if _excluded(row, exclude):
+                continue
             adm = admissions.get(query_hash(row["query"] or ""))
             verdict = _verdict(row[column])
             if adm is None or verdict not in GRADED or (adm.get("outcome") == "ACTIVE") == (verdict == "ACCEPTABLE"):
                 continue
-            out.append({"id": row.get("id", ""), "domain": adm.get("domain") or "NONE", "vendor": adm.get("vendor", ""), "outcome": adm.get("outcome", ""), "reason": adm.get("reason", ""), "verdict": verdict, "query": row["query"], "justification": row.get("justification", "")})
+            out.append({"id": row.get("id", ""), "domain": adm.get("domain") or "NONE", "vendor": adm.get("vendor", ""), "outcome": adm.get("outcome", ""), "reason": adm.get("reason", ""), "verdict": verdict, "query": row["query"], "justification": row.get(why) or row.get("justification", "")})
     return out
 
 
@@ -143,6 +155,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--results", required=True, type=Path, help="run_ground_truth_eval.py results CSV")
     parser.add_argument("--verdict-column", default="verdict", help="verdict (default) or final_verdict (containment: Cubierta = ACCEPTABLE)")
+    parser.add_argument("--exclude-source", action="append", default=[], help="leave out the questions whose source contains this text (repeatable), e.g. 'companies.csv'")
     parser.add_argument("--hours", type=float, default=24, help="the run happened within the last N hours")
     parser.add_argument("--run", default=None, help="label of the run (default: today's date)")
     parser.add_argument("--box-log-group", default=BOX_LOG_GROUP)
@@ -154,7 +167,8 @@ def main() -> None:
 
     import boto3
 
-    verdicts = load_verdicts(args.results, args.verdict_column)
+    exclude = tuple(args.exclude_source)
+    verdicts = load_verdicts(args.results, args.verdict_column, exclude)
     logs = boto3.session.Session(region_name=args.region or os.environ.get("AWS_REGION") or "eu-west-1").client("logs")
     end = datetime.now(timezone.utc)
     admissions = latest_admissions(query_admissions(logs, args.box_log_group, end - timedelta(hours=args.hours), end))
@@ -169,7 +183,7 @@ def main() -> None:
     for line in lines:
         print("  " + json.dumps(line))
     if args.details:
-        for d in disagreements(args.results, args.verdict_column, admissions):
+        for d in disagreements(args.results, args.verdict_column, admissions, exclude):
             kind = "ADMITTED, NOT_ACCEPTABLE" if d["outcome"] == "ACTIVE" else f"ACCEPTABLE, {d['outcome']} ({d['reason']})"
             print(f"\n[{kind}] id={d['id']} {d['domain']} {d['vendor']}\n  Q: {d['query'][:200]}\n  GT: {d['justification'][:400]}")
     if not lines:
